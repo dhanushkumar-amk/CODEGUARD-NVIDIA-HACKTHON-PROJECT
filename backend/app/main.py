@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.routers.test_llm import router as test_llm_router
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="CodeGuard AI agent backend - a11y scanner and remediation pipeline with NVIDIA Nemotron & Nebius Sandboxes",
-    version="0.1.0"
+    version="0.1.0",
 )
 
 # CORS Middleware
@@ -16,6 +17,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Routers
+app.include_router(test_llm_router)
 
 
 @app.get("/health", tags=["Health"])
@@ -30,5 +34,9 @@ async def root():
     return {
         "message": "Welcome to CodeGuard API",
         "health": "/health",
-        "docs": "/docs"
+        "docs": "/docs",
+        "test_endpoints": [
+            "/test-llm/ultra",
+            "/test-llm/nano",
+        ],
     }

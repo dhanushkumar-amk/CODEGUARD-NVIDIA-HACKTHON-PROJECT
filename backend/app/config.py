@@ -1,7 +1,10 @@
+from pathlib import Path
 from typing import List, Union
 import json
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -14,6 +17,7 @@ class Settings(BaseSettings):
 
     # Nebius Token Factory & NVIDIA Nemotron Models
     NEBIUS_TOKEN_FACTORY_API_KEY: str = ""
+    NEBIUS_TOKEN_FACTORY_BASE_URL: str = "https://api.tokenfactory.nebius.com/v1/"
     NEBIUS_SANDBOX_API_KEY: str = ""
     NEMOTRON_ULTRA_MODEL_ID: str = "nvidia/nemotron-4-340b-instruct"
     NEMOTRON_NANO_MODEL_ID: str = "nvidia/nemotron-mini-4b-instruct"
@@ -38,7 +42,7 @@ class Settings(BaseSettings):
         return v
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(str(BASE_DIR / ".env"), ".env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )
