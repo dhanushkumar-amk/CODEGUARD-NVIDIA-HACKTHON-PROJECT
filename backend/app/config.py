@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     NEBIUS_TOKEN_FACTORY_API_KEY: str = ""
     NEBIUS_TOKEN_FACTORY_BASE_URL: str = "https://api.tokenfactory.nebius.com/v1/"
     NEMOTRON_ULTRA_MODEL_ID: str = "nvidia/nemotron-4-340b-instruct"
-    NEMOTRON_NANO_MODEL_ID: str = "nvidia/nemotron-mini-4b-instruct"
+    NEMOTRON_NANO_MODEL_ID: str = "nvidia/Nemotron-3_5-Lightning"
+    NEMOTRON_FAST_MODEL_ID: str = "nvidia/Nemotron-3_5-Lightning"
 
     # Nebius AI Cloud Sandbox Configuration
     NEBIUS_SANDBOX_API_KEY: str = ""
