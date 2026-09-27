@@ -1,8 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+
+# Test Routers
 from app.routers.test_llm import router as test_llm_router
 from app.routers.test_sandbox import router as test_sandbox_router
+
+# Core Pipeline Routers
+from app.routers.scan import router as scan_router
+from app.routers.fix import router as fix_router
+from app.routers.verify import router as verify_router
+from app.routers.report import router as report_router
+from app.routers.websocket import router as websocket_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -19,7 +28,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers
+# Core Routers
+app.include_router(scan_router)
+app.include_router(fix_router)
+app.include_router(verify_router)
+app.include_router(report_router)
+app.include_router(websocket_router)
+
+# Smoke Test Routers
 app.include_router(test_llm_router)
 app.include_router(test_sandbox_router)
 
@@ -41,5 +57,12 @@ async def root():
             "/test-llm/ultra",
             "/test-llm/nano",
             "/test-sandbox/echo",
+        ],
+        "pipeline_endpoints": [
+            "/scan",
+            "/fix",
+            "/verify",
+            "/report/{scan_id}",
+            "/ws/progress",
         ],
     }
