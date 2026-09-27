@@ -19,6 +19,7 @@ class ViolationSeverity(str, Enum):
 class PipelineStage(str, Enum):
     INIT = "init"
     CLONING = "cloning"
+    PREPARING = "preparing"
     SCANNING = "scanning"
     FIXING = "fixing"
     VERIFYING = "verifying"
@@ -88,6 +89,12 @@ class ScanStartResponse(BaseModel):
     scan_id: str = Field(description="Unique identifier for the initiated scan")
     status: str = Field(default="queued", description="Initial scan status")
     message: str = Field(default="Scan initiated successfully", description="Status message")
+    repo_url: Optional[str] = Field(default=None, description="Cloned repository URL")
+    branch: Optional[str] = Field(default=None, description="Cloned branch")
+    file_count: Optional[int] = Field(default=None, description="Number of discovered frontend UI files")
+    framework: Optional[str] = Field(default=None, description="Detected frontend framework (e.g. React, Next.js, Vue)")
+    scannable_files: Optional[List[str]] = Field(default=None, description="List of scannable UI file paths")
+    batch_count: Optional[int] = Field(default=None, description="Number of extracted code chunks ready for LLM scanning")
 
 
 class WebSocketMessage(BaseModel):

@@ -52,6 +52,10 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
     scan_data = get_scan(scan_id)
 
     # Simulated pipeline sequence for live progress animations
+    files_count = scan_data.get("file_count", len(scan_data.get("files", []))) or 20
+    batch_count = scan_data.get("batch_count", len(scan_data.get("scan_batch", []))) or 15
+    parsed_mid = max(1, files_count // 2)
+
     stages = [
         WebSocketMessage(
             stage="init",
@@ -62,27 +66,41 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
         WebSocketMessage(
             stage="cloning",
             progress=15,
-            message="Repository cloned. Discovered 18 UI component files.",
-            data={"branch": scan_data.get("branch", "main"), "files_count": 18},
+            message=f"Repository cloned. Discovered {files_count} UI component files.",
+            data={"branch": scan_data.get("branch", "main"), "files_count": files_count},
+            timestamp=datetime.now(timezone.utc),
+        ),
+        WebSocketMessage(
+            stage="preparing",
+            progress=25,
+            message=f"Parsed {parsed_mid}/{files_count} files",
+            data={"files_parsed": parsed_mid, "total_files": files_count},
+            timestamp=datetime.now(timezone.utc),
+        ),
+        WebSocketMessage(
+            stage="preparing",
+            progress=40,
+            message=f"Parsed {files_count}/{files_count} files ({batch_count} chunks extracted)",
+            data={"files_parsed": files_count, "total_files": files_count, "batch_count": batch_count},
             timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="scanning",
-            progress=40,
+            progress=55,
             message="Accessibility audit complete: 4 actionable violations detected.",
             data={"violations_count": len(scan_data.get("violations", []))},
             timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="fixing",
-            progress=65,
+            progress=75,
             message="Synthesized WCAG 2.2 AA compliant patches using Nemotron Ultra.",
             data={"fixes_count": len(scan_data.get("fixes", []))},
             timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="verifying",
-            progress=85,
+            progress=90,
             message="Patches verified in isolated Nebius Sandboxes with 0 regressions.",
             data={"verified_count": len(scan_data.get("verification_results", []))},
             timestamp=datetime.now(timezone.utc),

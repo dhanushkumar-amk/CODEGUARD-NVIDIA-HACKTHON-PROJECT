@@ -16,16 +16,22 @@ def test_health_endpoint():
 
 def test_start_scan_endpoint():
     """Verify POST /api/scan/start initiates a scan and returns a scan_id."""
+    from unittest.mock import patch
     payload = {
-        "repo_url": "https://github.com/org/test-repo",
+        "repo_url": "https://github.com/octocat/Hello-World",
         "branch": "main",
     }
-    response = client.post("/api/scan/start", json=payload)
-    assert response.status_code == 200
-    data = response.json()
-    assert "scan_id" in data
-    assert data["scan_id"].startswith("scan_")
-    assert data["status"] == "queued"
+    with patch("app.routers.scan.clone_repo", return_value="/tmp/mock/path"), \
+         patch("app.routers.scan.find_frontend_files", return_value=["src/App.tsx"]), \
+         patch("app.routers.scan.get_repo_metadata", return_value={"framework": "React"}):
+        response = client.post("/api/scan/start", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert "scan_id" in data
+        assert data["scan_id"].startswith("scan_")
+        assert data["status"] == "queued"
+        assert data["framework"] == "React"
+        assert data["file_count"] == 1
 
 
 def test_get_scan_status_endpoint():
@@ -95,10 +101,11 @@ def test_websocket_progress_stream():
         assert msg2["stage"] == "cloning"
         assert msg2["progress"] == 15
 
-        # Message 3: scanning
+        # Message 3: preparing
         msg3 = websocket.receive_json()
-        assert msg3["stage"] == "scanning"
-        assert msg3["progress"] == 40
+        assert msg3["stage"] == "preparing"
+        assert msg3["progress"] >= 20
+        assert "Parsed" in msg3["message"]
 
 
 def test_global_exception_handler():

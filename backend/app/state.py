@@ -190,7 +190,6 @@ def create_scan(repo_url: str, branch: str = "main") -> str:
 def get_scan(scan_id: str) -> Optional[Dict[str, Any]]:
     """Retrieves scan data for the specified scan_id, generating mock data if not found."""
     if scan_id not in scans:
-        # Auto-seed mock data so direct GET requests with any arbitrary scan_id work seamlessly
         scans[scan_id] = generate_mock_scan_data(scan_id=scan_id, repo_url="https://github.com/example/demo-app")
     return scans.get(scan_id)
 
@@ -201,3 +200,8 @@ def update_scan(scan_id: str, **kwargs) -> Optional[Dict[str, Any]]:
     if scan:
         scan.update(kwargs)
     return scan
+
+
+def remove_scan(scan_id: str) -> Optional[Dict[str, Any]]:
+    """Removes a scan from in-memory state."""
+    return scans.pop(scan_id, None)

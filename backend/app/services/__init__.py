@@ -10,8 +10,23 @@ from app.services.sandbox_client import (
     sandbox_session,
     upload_files,
 )
-from app.services.git_service import clone_repository, get_repository_files
-from app.services.scanner_service import run_ast_scan, triage_violations_with_nano
+from app.services.git_service import (
+    clone_repo,
+    find_frontend_files,
+    cleanup_repo,
+    get_repo_metadata,
+    GitServiceError,
+    InvalidRepoUrlError,
+    RepoTooLargeError,
+    RepoNotFoundError,
+    CloneFailedError,
+)
+from app.services.scanner_service import (
+    read_file_safe,
+    extract_relevant_markup,
+    chunk_large_file,
+    prepare_scan_batch,
+)
 from app.services.fixer_service import generate_remediation_patch
 from app.services.verifier_service import verify_patch_in_sandbox
 from app.services.report_service import generate_compliance_report
@@ -23,10 +38,19 @@ __all__ = [
     "run_command",
     "sandbox_session",
     "upload_files",
-    "clone_repository",
-    "get_repository_files",
-    "run_ast_scan",
-    "triage_violations_with_nano",
+    "clone_repo",
+    "find_frontend_files",
+    "cleanup_repo",
+    "get_repo_metadata",
+    "GitServiceError",
+    "InvalidRepoUrlError",
+    "RepoTooLargeError",
+    "RepoNotFoundError",
+    "CloneFailedError",
+    "read_file_safe",
+    "extract_relevant_markup",
+    "chunk_large_file",
+    "prepare_scan_batch",
     "generate_remediation_patch",
     "verify_patch_in_sandbox",
     "generate_compliance_report",

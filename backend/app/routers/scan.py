@@ -1,9 +1,24 @@
 """
-Scan Router: Endpoints to initiate repository accessibility audits and check scan status.
+Scan Router: Endpoints to initiate repository accessibility audits, clone repos, prepare batches, and manage scan state.
 """
-from fastapi import APIRouter, status
+import logging
+from fastapi import APIRouter, HTTPException, status
+
 from app.models.schemas import ScanRequest, ScanStartResponse
-from app.state import create_scan, get_scan
+from app.services.git_service import (
+    clone_repo,
+    find_frontend_files,
+    get_repo_metadata,
+    cleanup_repo,
+    InvalidRepoUrlError,
+    RepoNotFoundError,
+    RepoTooLargeError,
+    CloneFailedError,
+)
+from app.services.scanner_service import prepare_scan_batch
+from app.state import create_scan, get_scan, update_scan, remove_scan
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Scanning"])
 
@@ -12,19 +27,90 @@ router = APIRouter(tags=["Scanning"])
     "/start",
     response_model=ScanStartResponse,
     status_code=status.HTTP_200_OK,
-    summary="Start a new repository scan",
+    summary="Clone repository, extract markup, and prepare scan batches",
 )
 async def start_scan(request: ScanRequest) -> ScanStartResponse:
     """
-    Initiate an accessibility audit for the specified repository URL.
-    Returns a unique scan_id to subscribe to progress events.
+    Validates, shallow-clones the remote repository, discovers frontend UI files,
+    detects framework, extracts relevant markup into chunks, and initializes scan state.
     """
-    scan_id = create_scan(repo_url=request.repo_url, branch=request.branch or "main")
-    return ScanStartResponse(
-        scan_id=scan_id,
-        status="queued",
-        message="Scan initiated and queued for orchestration",
-    )
+    branch = request.branch or "main"
+    scan_id = create_scan(repo_url=request.repo_url, branch=branch)
+
+    try:
+        # 1. Perform shallow clone (depth=1)
+        repo_path = clone_repo(repo_url=request.repo_url, scan_id=scan_id, branch=branch)
+
+        # 2. Discover scannable frontend files
+        scannable_files = find_frontend_files(repo_path)
+
+        # 3. Detect framework and metadata
+        metadata = get_repo_metadata(repo_path)
+
+        # 4. Prepare scan batches (read, extract markup, chunk large files)
+        scan_batch = prepare_scan_batch(repo_path, scannable_files)
+
+        # 5. Save metadata and scan batches to in-memory state store
+        update_scan(
+            scan_id=scan_id,
+            repo_path=repo_path,
+            files=scannable_files,
+            file_count=len(scannable_files),
+            framework=metadata.get("framework", "Vanilla HTML/JS"),
+            metadata=metadata,
+            scan_batch=scan_batch,
+            batch_count=len(scan_batch),
+            status="prepared",
+        )
+
+        return ScanStartResponse(
+            scan_id=scan_id,
+            status="queued",
+            message=f"Repository cloned. Prepared {len(scan_batch)} scan chunks across {len(scannable_files)} UI files.",
+            repo_url=request.repo_url,
+            branch=branch,
+            file_count=len(scannable_files),
+            framework=metadata.get("framework", "Vanilla HTML/JS"),
+            scannable_files=scannable_files,
+            batch_count=len(scan_batch),
+        )
+
+    except InvalidRepoUrlError as exc:
+        cleanup_repo(scan_id)
+        remove_scan(scan_id)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except RepoNotFoundError as exc:
+        cleanup_repo(scan_id)
+        remove_scan(scan_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        )
+    except RepoTooLargeError as exc:
+        cleanup_repo(scan_id)
+        remove_scan(scan_id)
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=str(exc),
+        )
+    except CloneFailedError as exc:
+        cleanup_repo(scan_id)
+        remove_scan(scan_id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        cleanup_repo(scan_id)
+        remove_scan(scan_id)
+        logger.error(f"Unexpected error in start_scan: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal error preparing repository for scan: {str(exc)}",
+        )
 
 
 @router.get(
@@ -40,4 +126,36 @@ async def get_scan_status(scan_id: str):
         "branch": scan.get("branch"),
         "status": scan.get("status"),
         "progress": scan.get("progress", 100),
+        "file_count": scan.get("file_count", len(scan.get("files", []))),
+        "batch_count": scan.get("batch_count", len(scan.get("scan_batch", []))),
+        "framework": scan.get("framework"),
+        "files": scan.get("files", []),
+    }
+
+
+@router.get(
+    "/{scan_id}/batch",
+    summary="Get extracted scan chunks ready for LLM processing",
+)
+async def get_scan_batch(scan_id: str):
+    """Returns the prepared code chunks for a given scan_id."""
+    scan = get_scan(scan_id)
+    return {
+        "scan_id": scan_id,
+        "batch_count": len(scan.get("scan_batch", [])),
+        "batch": scan.get("scan_batch", []),
+    }
+
+
+@router.delete(
+    "/{scan_id}",
+    summary="Clean up temporary cloned repository and release disk space",
+)
+async def delete_scan(scan_id: str):
+    """Deletes temporary repository clone and removes scan from memory."""
+    cleanup_repo(scan_id)
+    remove_scan(scan_id)
+    return {
+        "status": "success",
+        "message": f"Cleaned up temporary workspace for scan {scan_id}",
     }
