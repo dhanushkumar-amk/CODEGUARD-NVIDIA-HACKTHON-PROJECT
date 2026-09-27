@@ -81,7 +81,7 @@ async def run_sanity_checks():
             response = await call_nemotron_fast(
                 prompt=user_prompt,
                 system_prompt=SYSTEM_PROMPT,
-                max_tokens=1000,
+                max_tokens=1500,
                 response_format="json",
             )
             print("\nModel Evaluation (JSON):")

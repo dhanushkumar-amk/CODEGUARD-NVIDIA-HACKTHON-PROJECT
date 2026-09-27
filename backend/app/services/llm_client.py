@@ -4,6 +4,7 @@ Supports Ultra tier (remediation) and Fast tier (Nemotron-3_5-Lightning for high
 with automatic retries, strict JSON response formatting, and token cost tracking ($0.06/$0.24 per 1M).
 """
 import logging
+import re
 from typing import Any, Dict, List, Optional
 from openai import (
     APIConnectionError,
@@ -38,6 +39,25 @@ _total_input_tokens: int = 0
 _total_output_tokens: int = 0
 _total_calls: int = 0
 _last_call_stats: Dict[str, Any] = {}
+
+
+def extract_json_payload(content: str) -> str:
+    """
+    Extracts clean JSON object if surrounded by markdown code blocks or reasoning text.
+    """
+    if not content:
+        return ""
+    # Strip leading thinking process monologue if present
+    cleaned = re.sub(r"^Here's a thinking process:[\s\S]*?(?=\{\s*\"|\`\`\`json)", "", content, flags=re.IGNORECASE)
+    # Check for markdown code fences ```json { ... } ```
+    match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", cleaned)
+    if match:
+        return match.group(1).strip()
+    # Check for direct JSON object { ... }
+    match = re.search(r"(\{[\s\S]*\})", cleaned)
+    if match:
+        return match.group(1).strip()
+    return content.strip()
 
 
 def get_total_cost_so_far() -> float:
@@ -315,9 +335,10 @@ async def call_nemotron_fast(
             f"Cost: ${call_cost:.6f} | Total spend: ${_running_cost:.6f}"
         )
 
-        if not response.choices:
-            return ""
-        return response.choices[0].message.content or ""
+        raw_content = response.choices[0].message.content or ""
+        if use_json_mode:
+            return extract_json_payload(raw_content)
+        return raw_content
 
     except AuthenticationError as e:
         raise LLMAuthenticationError(f"Nebius authentication failed: {e.message}") from e
