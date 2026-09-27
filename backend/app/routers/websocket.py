@@ -3,7 +3,7 @@ WebSocket Router: Real-time progress broadcasting for CodeGuard audit and remedi
 Streams progressive stages for a given scan_id so the frontend can animate live status.
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 from typing import Dict, Set
@@ -57,35 +57,35 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
             stage="init",
             progress=5,
             message="Initialized scan request. Connecting to repository...",
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="cloning",
             progress=15,
             message="Repository cloned. Discovered 18 UI component files.",
             data={"branch": scan_data.get("branch", "main"), "files_count": 18},
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="scanning",
             progress=40,
             message="Accessibility audit complete: 4 actionable violations detected.",
             data={"violations_count": len(scan_data.get("violations", []))},
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="fixing",
             progress=65,
             message="Synthesized WCAG 2.2 AA compliant patches using Nemotron Ultra.",
             data={"fixes_count": len(scan_data.get("fixes", []))},
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="verifying",
             progress=85,
             message="Patches verified in isolated Nebius Sandboxes with 0 regressions.",
             data={"verified_count": len(scan_data.get("verification_results", []))},
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         ),
         WebSocketMessage(
             stage="completed",
@@ -96,7 +96,7 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
                 "overall_score_after": 100.0,
                 "status": "completed",
             },
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         ),
     ]
 
@@ -104,7 +104,7 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
         # Stream the mock stages with a short realistic delay
         for stage_msg in stages:
             await manager.send_message(websocket, stage_msg)
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.15)
 
         # Keep connection open for client echo / ping messages
         while True:

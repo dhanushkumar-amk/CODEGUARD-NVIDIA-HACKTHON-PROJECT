@@ -2,7 +2,7 @@
 In-memory state store for CodeGuard.
 Tracks active scans, progress states, mock remediation data, and final audit reports.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import uuid
 
@@ -163,7 +163,7 @@ def generate_mock_scan_data(scan_id: str, repo_url: str, branch: str = "main") -
         overall_score_before=62.5,
         overall_score_after=100.0,
         status="completed",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
     )
 
     return {
@@ -176,7 +176,7 @@ def generate_mock_scan_data(scan_id: str, repo_url: str, branch: str = "main") -
         "fixes": fixes,
         "verification_results": verification_results,
         "report": report,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc),
     }
 
 

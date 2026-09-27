@@ -3,7 +3,7 @@ CodeGuard Core Pydantic Schemas.
 Implements data contracts for violations, remediation patches, sandbox verifications,
 audit reports, scan requests, and WebSocket progress messages.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -73,7 +73,7 @@ class ScanReport(BaseModel):
     )
     overall_score_before: float = Field(description="Baseline repository accessibility score (0-100)")
     overall_score_after: float = Field(description="Post-remediation accessibility score (0-100)")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Completion timestamp")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Completion timestamp")
     status: str = Field(default="completed", description="Scan execution status")
 
 
@@ -96,4 +96,4 @@ class WebSocketMessage(BaseModel):
     progress: int = Field(ge=0, le=100, description="Progress percentage (0-100)")
     message: str = Field(description="Status message for user display")
     data: Optional[Dict[str, Any]] = Field(default=None, description="Optional payload data")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of the event")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Timestamp of the event")
