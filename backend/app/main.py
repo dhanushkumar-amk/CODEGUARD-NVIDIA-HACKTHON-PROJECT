@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.routers.test_llm import router as test_llm_router
+from app.routers.test_sandbox import router as test_sandbox_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -20,6 +21,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(test_llm_router)
+app.include_router(test_sandbox_router)
 
 
 @app.get("/health", tags=["Health"])
@@ -38,5 +40,6 @@ async def root():
         "test_endpoints": [
             "/test-llm/ultra",
             "/test-llm/nano",
+            "/test-sandbox/echo",
         ],
     }

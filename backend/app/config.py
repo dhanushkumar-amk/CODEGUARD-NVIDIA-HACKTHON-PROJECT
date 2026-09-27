@@ -18,9 +18,15 @@ class Settings(BaseSettings):
     # Nebius Token Factory & NVIDIA Nemotron Models
     NEBIUS_TOKEN_FACTORY_API_KEY: str = ""
     NEBIUS_TOKEN_FACTORY_BASE_URL: str = "https://api.tokenfactory.nebius.com/v1/"
-    NEBIUS_SANDBOX_API_KEY: str = ""
     NEMOTRON_ULTRA_MODEL_ID: str = "nvidia/nemotron-4-340b-instruct"
     NEMOTRON_NANO_MODEL_ID: str = "nvidia/nemotron-mini-4b-instruct"
+
+    # Nebius AI Cloud Sandbox Configuration
+    NEBIUS_SANDBOX_API_KEY: str = ""
+    NEBIUS_SANDBOX_BASE_URL: str = "https://api.tokenfactory.nebius.com/v1"
+    NEBIUS_SANDBOX_DEFAULT_IMAGE: str = "node:20"
+    SANDBOX_TIMEOUT_SECONDS: int = 120
+    SANDBOX_MAX_CONCURRENT: int = 3
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [
