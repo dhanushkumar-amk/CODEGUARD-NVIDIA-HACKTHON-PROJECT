@@ -1,12 +1,22 @@
 """
-Report Router: Endpoints to retrieve audit reports and compliance scores.
+Report Router: Endpoints to retrieve full accessibility audit and verification reports.
 """
 from fastapi import APIRouter
+from app.models.schemas import ScanReport
+from app.state import get_scan
 
-router = APIRouter(prefix="/report", tags=["Reports"])
+router = APIRouter(tags=["Reports"])
 
 
-@router.get("/{scan_id}")
-async def get_report(scan_id: str):
-    """Retrieve full compliance report for a completed scan."""
-    return {"scan_id": scan_id, "score_before": 65, "score_after": 100}
+@router.get(
+    "/{scan_id}",
+    response_model=ScanReport,
+    summary="Get complete audit report and compliance score",
+)
+async def get_scan_report(scan_id: str) -> ScanReport:
+    """
+    Retrieve comprehensive report containing before/after compliance scores,
+    all identified violations, synthesized patches, and sandbox test results.
+    """
+    scan = get_scan(scan_id)
+    return scan.get("report")

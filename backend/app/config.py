@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
 
+    # Frontend configuration
+    FRONTEND_ORIGIN: str = "http://localhost:5173"
+
     # Nebius Token Factory & NVIDIA Nemotron Models
     NEBIUS_TOKEN_FACTORY_API_KEY: str = ""
     NEBIUS_TOKEN_FACTORY_BASE_URL: str = "https://api.tokenfactory.nebius.com/v1/"
@@ -46,6 +49,13 @@ class Settings(BaseSettings):
                     pass
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
+
+    @property
+    def allowed_origins(self) -> List[str]:
+        origins = list(self.CORS_ORIGINS) if isinstance(self.CORS_ORIGINS, list) else [self.CORS_ORIGINS]
+        if self.FRONTEND_ORIGIN and self.FRONTEND_ORIGIN not in origins:
+            origins.append(self.FRONTEND_ORIGIN)
+        return origins
 
     model_config = SettingsConfigDict(
         env_file=(str(BASE_DIR / ".env"), ".env"),
