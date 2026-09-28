@@ -12,7 +12,7 @@ This document details the architectural choices, component rationale, and deploy
 | **Frontend Framework** | **React 18 + TypeScript + Vite** | Instant Hot Module Replacement (HMR), static type safety matching backend schemas, and fast production bundle builds. |
 | **Styling & Motion** | **Tailwind CSS + Framer Motion** | Utility-first responsive styling with fluid micro-animations for pipeline progress tracking. |
 | **Data Visualization** | **Recharts** | Interactive SVG before/after WCAG compliance scoring comparison. |
-| **AI / Reasoning Tier** | **NVIDIA Nemotron via Nebius Token Factory** | Two-tiered model strategy: **Nemotron Nano (4B)** for high-throughput violation triage; **Nemotron Ultra (340B)** for complex WCAG 2.2 AA patch synthesis. |
+| **AI / Reasoning Tier** | **NVIDIA Nemotron via Nebius Token Factory** | Two-tiered model strategy: **Nemotron 3.5 Lightning** for high-throughput violation triage; **Nemotron 3 Ultra (550B)** for complex WCAG 2.2 AA patch synthesis. |
 | **Execution Sandboxes** | **Nebius AI Cloud Sandboxes** | Ephemeral, isolated microVM/container environments ensuring untrusted generated code cannot access backend host resources. |
 | **Headless Browser / a11y** | **Playwright + @axe-core/playwright** | Full rendered DOM evaluation, computed CSS color contrast checking, and headless Chromium stability over Puppeteer. |
 | **Real-time Transport** | **WebSockets (`/ws/progress`)** | Low-latency, bidirectional streaming of pipeline stages (cloning → scanning → triaging → synthesizing → verifying) without HTTP polling. |
@@ -27,13 +27,16 @@ This document details the architectural choices, component rationale, and deploy
 * **Auto-Waiting & Stability**: Playwright handles dynamic client-side hydration in modern web frameworks (React, Vue, Next.js) before axe-core evaluates the DOM, preventing race conditions.
 * **First-Class axe Integration**: The `@axe-core/playwright` package directly injects the axe script and extracts structured WCAG 2.2 AA violations with exact DOM selectors and computed styles.
 
-### 2. Two-Tiered Nemotron Model Architecture
-* **Nemotron Nano (`nvidia/nemotron-mini-4b-instruct`)**:
-  - Fast, cost-efficient triage agent.
-  - Parses static AST scan outputs, eliminates false positives, and strips irrelevant lines from code context before calling large models.
-* **Nemotron Ultra (`nvidia/nemotron-4-340b-instruct`)**:
-  - High-capacity reasoning engine.
-  - Generates idiomatic, minimal code diffs that preserve existing component props, TypeScript types, and design systems while achieving WCAG AA compliance.
+### 2. Model Tiering and Cost Strategy
+* **High-Volume Scanning via Nemotron 3.5 Lightning (Fast Tier)**:
+  - **High-Throughput & Cost-Efficiency**: At $0.06 per 1M input tokens and $0.24 per 1M output tokens, Lightning scans hundreds of JSX/HTML files, parses AST violations, and filters out non-issues in milliseconds without draining API credits.
+  - **Structured JSON Formatting**: Employs prompt and schema-level JSON formatting to parse rule IDs, violation categories, and precise file line numbers rapidly.
+* **Complex Diagnosis & Fix Generation via Nemotron 3 Ultra (Deep Reasoning Tier)**:
+  - **Targeted Deep Reasoning**: Nemotron 3 Ultra (`nvidia/Nemotron-3-Ultra-550b-a55b`) is reserved strictly for complex accessibility violations where cross-component context, dynamic state handling, and accessible keyboard navigation (e.g. custom tabs, focus trapping, modal ARIA semantics) require high-capacity reasoning.
+  - **Cost-Protected Invocation**: With Ultra pricing at $1.00 per 1M input and $3.00 per 1M output, Ultra is never invoked for raw scans. It is triggered only for deep remediation synthesis or when the fast model's response fails quality checks.
+* **Per-Scan Budget Guardrails**:
+  - **Strict Limits**: Each scan session is governed by in-memory guardrails: `ULTRA_MAX_CALLS_PER_SCAN` (default: 5 calls) and `ULTRA_BUDGET_USD_PER_SCAN` (default: $0.05).
+  - **Zero-Crash Graceful Fallback**: If Ultra limits are reached or `ULTRA_ENABLED` is switched off, the pipeline falls back gracefully to the fast tier with logged warnings, ensuring scans never fail unexpectedly or incur runaway costs.
 
 ### 3. Asynchronous Context Manager for Sandbox Teardown
 * Spin-up and teardown are wrapped in `async with sandbox_session() as sandbox:`:

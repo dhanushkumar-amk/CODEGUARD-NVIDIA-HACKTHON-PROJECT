@@ -5,9 +5,14 @@ Exposes clients and orchestration services for LLM inference, sandboxing, git, s
 from app.services.llm_client import (
     call_nemotron,
     call_nemotron_fast,
+    call_nemotron_ultra,
+    call_with_escalation,
     get_total_cost_so_far,
+    get_cost_breakdown,
     get_token_usage_stats,
+    get_scan_usage_stats,
     reset_cost_tracker,
+    UltraBudgetExceededError,
 )
 from app.services.sandbox_client import (
     create_sandbox,
@@ -40,9 +45,14 @@ from app.services.report_service import generate_compliance_report
 __all__ = [
     "call_nemotron",
     "call_nemotron_fast",
+    "call_nemotron_ultra",
+    "call_with_escalation",
     "get_total_cost_so_far",
+    "get_cost_breakdown",
     "get_token_usage_stats",
+    "get_scan_usage_stats",
     "reset_cost_tracker",
+    "UltraBudgetExceededError",
     "create_sandbox",
     "destroy_sandbox",
     "run_command",

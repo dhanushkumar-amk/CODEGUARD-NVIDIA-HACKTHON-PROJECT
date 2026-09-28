@@ -98,7 +98,7 @@ async def test_call_nemotron_fast_success_and_cost_tracking():
 
 
 def test_test_llm_ultra_route():
-    with patch("app.routers.test_llm.call_nemotron", new_callable=AsyncMock) as mock_call:
+    with patch("app.routers.test_llm.call_nemotron_ultra", new_callable=AsyncMock) as mock_call:
         mock_call.return_value = "Hello from Ultra"
         response = client.get("/test-llm/ultra")
         assert response.status_code == 200
