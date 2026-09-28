@@ -3,6 +3,7 @@ LLM Client: Interface for Nebius Token Factory and NVIDIA Nemotron Models.
 Supports Ultra tier (remediation & deep reasoning) and Fast tier (Nemotron-3_5-Lightning for high-speed scanning),
 with automatic retries, strict JSON response formatting, cost guardrails, and token cost tracking.
 """
+import asyncio
 import inspect
 import logging
 import re
