@@ -54,7 +54,11 @@ def read_file_safe(file_path: str) -> Optional[str]:
     return None
 
 
-def extract_relevant_markup(file_content: str, file_type: str) -> str:
+def extract_relevant_markup(
+    file_content: str,
+    file_type: str,
+    include_metadata: bool = False,
+) -> Any:
     """
     Extracts rendered markup from source code to minimize token overhead for LLM analysis.
 
@@ -65,12 +69,14 @@ def extract_relevant_markup(file_content: str, file_type: str) -> str:
     Args:
         file_content: Raw text content of the file.
         file_type: File extension (e.g. '.tsx', '.vue', '.html').
+        include_metadata: If True, returns a list of dicts with {"content": str, "start_line": int}.
+                          If False, returns isolated markup string.
 
     Returns:
-        Isolated markup block ready for accessibility inspection.
+        Isolated markup block or list of block dicts with start_line metadata.
     """
     if not file_content or not file_content.strip():
-        return ""
+        return [] if include_metadata else ""
 
     ext = file_type.lower()
     if not ext.startswith("."):
@@ -80,8 +86,16 @@ def extract_relevant_markup(file_content: str, file_type: str) -> str:
     if ext == ".vue":
         match = re.search(r"<template[^>]*>([\s\S]*?)</template>", file_content, re.IGNORECASE)
         if match:
-            return match.group(0).strip()
-        return file_content.strip()
+            start_pos = match.start()
+            start_line = file_content[:start_pos].count("\n") + 1
+            content_str = match.group(0).strip()
+            if include_metadata:
+                return [{"content": content_str, "start_line": start_line}]
+            return content_str
+        stripped = file_content.strip()
+        if include_metadata:
+            return [{"content": stripped, "start_line": 1}]
+        return stripped
 
     # 2. Plain HTML: strip script and style tags to save tokens
     elif ext == ".html":
@@ -97,32 +111,54 @@ def extract_relevant_markup(file_content: str, file_type: str) -> str:
             cleaned,
             flags=re.DOTALL | re.IGNORECASE,
         )
-        return cleaned.strip()
+        content_str = cleaned.strip()
+        if include_metadata:
+            return [{"content": content_str, "start_line": 1}]
+        return content_str
 
     # 3. React / JSX / TSX: extract JSX return blocks
     elif ext in (".jsx", ".tsx", ".js", ".ts"):
-        extracted_returns: List[str] = []
+        extracted_returns: List[Dict[str, Any]] = []
 
         # Pattern A: return ( <JSX> );
         for match in re.finditer(r"return\s*\(\s*(<[\s\S]*?>[\s\S]*?)\s*\);?", file_content):
-            extracted_returns.append(match.group(1).strip())
+            start_pos = match.start(1)
+            start_line = file_content[:start_pos].count("\n") + 1
+            extracted_returns.append({
+                "content": match.group(1).strip(),
+                "start_line": start_line,
+            })
 
         # Pattern B: return <Tag ... >; (single-line or direct return)
         if not extracted_returns:
             for match in re.finditer(r"return\s+(<[A-Za-z][\s\S]*?>[\s\S]*?);", file_content):
-                extracted_returns.append(match.group(1).strip())
+                start_pos = match.start(1)
+                start_line = file_content[:start_pos].count("\n") + 1
+                extracted_returns.append({
+                    "content": match.group(1).strip(),
+                    "start_line": start_line,
+                })
 
         # Pattern C: arrow function implicit return () => ( <JSX> )
         if not extracted_returns:
             for match in re.finditer(r"=>\s*\(\s*(<[\s\S]*?>[\s\S]*?)\s*\)", file_content):
-                extracted_returns.append(match.group(1).strip())
+                start_pos = match.start(1)
+                start_line = file_content[:start_pos].count("\n") + 1
+                extracted_returns.append({
+                    "content": match.group(1).strip(),
+                    "start_line": start_line,
+                })
 
         if extracted_returns:
-            return "\n\n".join(extracted_returns)
+            if include_metadata:
+                return extracted_returns
+            return "\n\n".join(item["content"] for item in extracted_returns)
 
         # Fallback: Strip imports, requires, and export boilerplate to keep tokens focused
         lines = []
-        for line in file_content.splitlines():
+        first_line_num = 1
+        found_first = False
+        for idx, line in enumerate(file_content.splitlines(), 1):
             stripped = line.strip()
             if (
                 stripped.startswith("import ")
@@ -131,10 +167,20 @@ def extract_relevant_markup(file_content: str, file_type: str) -> str:
                 or stripped.startswith("//")
             ):
                 continue
+            if not found_first and stripped:
+                first_line_num = idx
+                found_first = True
             lines.append(line)
-        return "\n".join(lines).strip()
 
-    return file_content.strip()
+        content_fallback = "\n".join(lines).strip()
+        if include_metadata:
+            return [{"content": content_fallback, "start_line": first_line_num}]
+        return content_fallback
+
+    stripped_other = file_content.strip()
+    if include_metadata:
+        return [{"content": stripped_other, "start_line": 1}]
+    return stripped_other
 
 
 def chunk_large_file(content: str, max_tokens: int = 2000) -> List[str]:
@@ -209,6 +255,7 @@ def chunk_large_file(content: str, max_tokens: int = 2000) -> List[str]:
 def prepare_scan_batch(repo_path: str, file_list: List[str]) -> List[Dict[str, Any]]:
     """
     Reads, extracts markup, and batches all discovered repository frontend files.
+    Each chunk carries 'start_line' representing the line number in the original source file.
 
     Args:
         repo_path: Root filesystem path of cloned repository.
@@ -221,6 +268,7 @@ def prepare_scan_batch(repo_path: str, file_list: List[str]) -> List[Dict[str, A
                 "file": "src/components/Header.tsx",
                 "chunk_index": 0,
                 "content": "<header>...</header>",
+                "start_line": 34,
                 "estimated_tokens": 142
             },
             ...
@@ -236,19 +284,46 @@ def prepare_scan_batch(repo_path: str, file_list: List[str]) -> List[Dict[str, A
             continue
 
         file_type = Path(file_rel).suffix
-        markup = extract_relevant_markup(content, file_type)
-        if not markup or not markup.strip():
+        blocks: List[Dict[str, Any]] = extract_relevant_markup(
+            content, file_type, include_metadata=True
+        )
+        if not blocks:
             continue
 
-        chunks = chunk_large_file(markup, max_tokens=2000)
-        for idx, chunk in enumerate(chunks):
-            estimated_tokens = max(1, len(chunk) // 4)
-            batch.append({
-                "file": file_rel,
-                "chunk_index": idx,
-                "content": chunk,
-                "estimated_tokens": estimated_tokens,
-            })
+        chunk_idx = 0
+        for block in blocks:
+            block_content = block["content"]
+            block_start_line = block.get("start_line", 1)
+            if not block_content.strip():
+                continue
+
+            chunks = chunk_large_file(block_content, max_tokens=2000)
+            running_line = block_start_line
+            for chunk in chunks:
+                if not chunk.strip():
+                    continue
+
+                first_line = chunk.strip().splitlines()[0].strip()
+                chunk_start_line = running_line
+                if first_line:
+                    pos = content.find(first_line)
+                    if pos != -1:
+                        chunk_start_line = content[:pos].count("\n") + 1
+                    else:
+                        sub_pos = block_content.find(first_line)
+                        if sub_pos != -1:
+                            chunk_start_line = block_start_line + block_content[:sub_pos].count("\n")
+
+                estimated_tokens = max(1, len(chunk) // 4)
+                batch.append({
+                    "file": file_rel,
+                    "chunk_index": chunk_idx,
+                    "content": chunk,
+                    "start_line": chunk_start_line,
+                    "estimated_tokens": estimated_tokens,
+                })
+                chunk_idx += 1
+                running_line = chunk_start_line + chunk.count("\n") + 1
 
     logger.info(f"Prepared scan batch of {len(batch)} chunks from {len(file_list)} files.")
     return batch

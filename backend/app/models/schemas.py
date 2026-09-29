@@ -37,6 +37,8 @@ class Violation(BaseModel):
     description: str = Field(description="Human-readable description of defect")
     selector: Optional[str] = Field(default=None, description="DOM or JSX element selector")
     context_snippet: Optional[str] = Field(default=None, description="Offending code snippet")
+    source: str = Field(default="rule", description="Detection source: 'rule' or 'llm'")
+    wcag_criterion: Optional[str] = Field(default=None, description="WCAG 2.2 Success Criterion (e.g. '1.1.1 Non-text Content')")
 
 
 class ProposedFix(BaseModel):

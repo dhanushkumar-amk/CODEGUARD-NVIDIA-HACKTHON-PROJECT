@@ -13,6 +13,8 @@ export interface Violation {
   description: string;
   selector?: string | null;
   context_snippet?: string | null;
+  source?: 'rule' | 'llm' | string;
+  wcag_criterion?: string | null;
 }
 
 export interface ProposedFix {

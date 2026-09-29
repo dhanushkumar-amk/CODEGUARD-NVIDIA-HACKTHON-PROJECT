@@ -38,8 +38,35 @@ class ConnectionManager:
         payload = message.model_dump(mode="json")
         await websocket.send_text(json.dumps(payload))
 
+    async def broadcast_to_scan(self, scan_id: str, message: WebSocketMessage):
+        connections = self.active_connections.get(scan_id, set())
+        for ws in list(connections):
+            try:
+                await self.send_message(ws, message)
+            except Exception as e:
+                logger.warning(f"Error broadcasting to scan {scan_id}: {e}")
+                self.disconnect(scan_id, ws)
+
 
 manager = ConnectionManager()
+
+
+async def broadcast_progress(
+    scan_id: str,
+    stage: str,
+    progress: int,
+    message: str,
+    data: Optional[Dict[str, Any]] = None,
+):
+    """Broadcasts a WebSocketMessage to all active WebSocket connections for scan_id."""
+    msg = WebSocketMessage(
+        stage=stage,
+        progress=progress,
+        message=message,
+        data=data,
+        timestamp=datetime.now(timezone.utc),
+    )
+    await manager.broadcast_to_scan(scan_id, msg)
 
 
 @router.websocket("/{scan_id}")

@@ -38,6 +38,12 @@ from app.services.scanner_service import (
     chunk_large_file,
     prepare_scan_batch,
 )
+from app.services.detector_service import (
+    rule_based_precheck,
+    build_detection_prompt,
+    detect_violations_in_chunk,
+    detect_violations,
+)
 from app.services.fixer_service import generate_remediation_patch
 from app.services.verifier_service import verify_patch_in_sandbox
 from app.services.report_service import generate_compliance_report
@@ -71,6 +77,10 @@ __all__ = [
     "extract_relevant_markup",
     "chunk_large_file",
     "prepare_scan_batch",
+    "rule_based_precheck",
+    "build_detection_prompt",
+    "detect_violations_in_chunk",
+    "detect_violations",
     "generate_remediation_patch",
     "verify_patch_in_sandbox",
     "generate_compliance_report",

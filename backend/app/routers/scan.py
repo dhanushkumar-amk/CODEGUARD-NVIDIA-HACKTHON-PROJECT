@@ -1,6 +1,7 @@
 """
 Scan Router: Endpoints to initiate repository accessibility audits, clone repos, prepare batches, and manage scan state.
 """
+import asyncio
 import logging
 from fastapi import APIRouter, HTTPException, status
 
@@ -62,6 +63,16 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             batch_count=len(scan_batch),
             status="prepared",
         )
+
+        # 6. Kick off detection pipeline as background task
+        async def run_detection_pipeline():
+            try:
+                from app.services.detector_service import detect_violations
+                await detect_violations(scan_id)
+            except Exception as bg_err:
+                logger.error(f"Error during background violation detection for {scan_id}: {bg_err}", exc_info=True)
+
+        asyncio.create_task(run_detection_pipeline())
 
         return ScanStartResponse(
             scan_id=scan_id,
