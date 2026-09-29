@@ -120,28 +120,44 @@ def extract_relevant_markup(
     elif ext in (".jsx", ".tsx", ".js", ".ts"):
         extracted_returns: List[Dict[str, Any]] = []
 
-        # Pattern A: return ( <JSX> );
-        for match in re.finditer(r"return\s*\(\s*(<[\s\S]*?>[\s\S]*?)\s*\);?", file_content):
-            start_pos = match.start(1)
-            start_line = file_content[:start_pos].count("\n") + 1
-            extracted_returns.append({
-                "content": match.group(1).strip(),
-                "start_line": start_line,
-            })
+        def _extract_balanced_paren_block(start_index: int) -> Optional[tuple]:
+            depth = 1
+            pos = start_index
+            length = len(file_content)
+            while pos < length and depth > 0:
+                ch = file_content[pos]
+                if ch == "(":
+                    depth += 1
+                elif ch == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+                pos += 1
+            if depth == 0:
+                block = file_content[start_index:pos].strip()
+                if block.startswith("<"):
+                    line = file_content[:start_index].count("\n") + 1
+                    return block, line
+            return None
 
-        # Pattern B: return <Tag ... >; (single-line or direct return)
+        # Pattern A: return ( <JSX> ... )
+        for match in re.finditer(r"return\s*\(\s*(?=<)", file_content):
+            res = _extract_balanced_paren_block(match.end())
+            if res:
+                content_str, line = res
+                extracted_returns.append({"content": content_str, "start_line": line})
+
+        # Pattern B: arrow function implicit return () => ( <JSX> ... )
+        if not extracted_returns:
+            for match in re.finditer(r"=>\s*\(\s*(?=<)", file_content):
+                res = _extract_balanced_paren_block(match.end())
+                if res:
+                    content_str, line = res
+                    extracted_returns.append({"content": content_str, "start_line": line})
+
+        # Pattern C: return <Tag ... >; (single-line or direct unparenthesized return)
         if not extracted_returns:
             for match in re.finditer(r"return\s+(<[A-Za-z][\s\S]*?>[\s\S]*?);", file_content):
-                start_pos = match.start(1)
-                start_line = file_content[:start_pos].count("\n") + 1
-                extracted_returns.append({
-                    "content": match.group(1).strip(),
-                    "start_line": start_line,
-                })
-
-        # Pattern C: arrow function implicit return () => ( <JSX> )
-        if not extracted_returns:
-            for match in re.finditer(r"=>\s*\(\s*(<[\s\S]*?>[\s\S]*?)\s*\)", file_content):
                 start_pos = match.start(1)
                 start_line = file_content[:start_pos].count("\n") + 1
                 extracted_returns.append({

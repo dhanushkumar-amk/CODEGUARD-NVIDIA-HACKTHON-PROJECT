@@ -19,6 +19,20 @@ from app.state import get_scan, update_scan
 logger = logging.getLogger(__name__)
 
 
+def mask_comments(text: str) -> str:
+    """
+    Masks JSX and HTML comments with spaces while preserving line breaks and string length.
+    Ensures regex checks never match tags or attributes inside code comments.
+    """
+    def _preserve_lines(m: re.Match) -> str:
+        s = m.group(0)
+        return "".join("\n" if ch == "\n" else " " for ch in s)
+
+    text = re.sub(r"\{\/\*[\s\S]*?\*\/\}", _preserve_lines, text)
+    text = re.sub(r"<!--[\s\S]*?-->", _preserve_lines, text)
+    return text
+
+
 def rule_based_precheck(chunk: Dict[str, Any]) -> List[Violation]:
     """
     Performs fast, cost-free static heuristic analysis for common WCAG violations:
@@ -37,7 +51,9 @@ def rule_based_precheck(chunk: Dict[str, Any]) -> List[Violation]:
         List of Violation objects with source="rule".
     """
     file_path = chunk.get("file", "unknown")
-    content = chunk.get("content", "")
+    raw_content = chunk.get("content", "")
+    content = mask_comments(raw_content)
+    raw_lines = raw_content.splitlines()
     start_line = int(chunk.get("start_line", 1) or 1)
 
     violations: List[Violation] = []
@@ -260,7 +276,11 @@ def build_detection_prompt(chunk: Dict[str, Any], known_issues: List[Violation])
             + "\nDO NOT report these existing issues again.\n\n"
         )
 
-    return f"""You are an expert accessibility auditor.
+    return f"""/no_think
+You are an expert accessibility auditor and a pure JSON API.
+Do not output any thinking process, introduction, or markdown explanations.
+Begin your response directly with '{{'.
+
 Analyze the following source code snippet from file: {file_path}
 The snippet starts at line {start_line} of the file.
 
@@ -299,6 +319,45 @@ Respond ONLY with a valid JSON object in this exact format:
 """
 
 
+def extract_violations_json(text: str) -> Optional[Dict[str, Any]]:
+    """
+    Robustly extracts {"violations": [...]} from text even if surrounded by
+    explanations, markdown formatting, or reasoning monologues.
+    """
+    if not text:
+        return None
+
+    # 1. Try standard extract_json_payload first
+    try:
+        cleaned = extract_json_payload(text)
+        data = json.loads(cleaned)
+        if isinstance(data, dict) and "violations" in data and isinstance(data["violations"], list):
+            return data
+    except Exception:
+        pass
+
+    # 2. Match explicit {"violations": [...]}
+    match = re.search(r"(\{\s*\"violations\"\s*:\s*\[[\s\S]*?\]\s*\})", text)
+    if match:
+        try:
+            data = json.loads(match.group(1))
+            if isinstance(data, dict) and "violations" in data and isinstance(data["violations"], list):
+                return data
+        except Exception:
+            pass
+
+    # 3. Match code fences
+    for block in re.finditer(r"```(?:json)?\s*([\s\S]*?)\s*```", text):
+        try:
+            data = json.loads(block.group(1).strip())
+            if isinstance(data, dict) and "violations" in data and isinstance(data["violations"], list):
+                return data
+        except Exception:
+            pass
+
+    return None
+
+
 async def detect_violations_in_chunk(chunk: Dict[str, Any], scan_id: str) -> List[Violation]:
     """
     Performs hybrid accessibility violation detection on a single code chunk:
@@ -325,12 +384,8 @@ async def detect_violations_in_chunk(chunk: Dict[str, Any], scan_id: str) -> Lis
 
     # 3. Quality check function to ensure valid JSON payload
     def quality_check(response_text: str) -> bool:
-        try:
-            cleaned = extract_json_payload(response_text)
-            data = json.loads(cleaned)
-            return isinstance(data, dict) and "violations" in data and isinstance(data["violations"], list)
-        except Exception:
-            return False
+        data = extract_violations_json(response_text)
+        return data is not None
 
     prompt = build_detection_prompt(chunk, rule_violations)
 
@@ -350,60 +405,57 @@ async def detect_violations_in_chunk(chunk: Dict[str, Any], scan_id: str) -> Lis
 
     # 4. Parse LLM JSON results
     llm_violations: List[Violation] = []
-    try:
-        cleaned_json = extract_json_payload(response_text)
-        data = json.loads(cleaned_json)
-        raw_violations = data.get("violations", [])
-
-        file_path = chunk.get("file", "unknown")
-        start_line = int(chunk.get("start_line", 1) or 1)
-        content_lines = content.splitlines()
-        total_lines = len(content_lines)
-
-        for item in raw_violations:
-            if not isinstance(item, dict):
-                continue
-
-            try:
-                line_offset = int(item.get("line_offset", 0))
-            except (ValueError, TypeError):
-                line_offset = 0
-
-            # Clamp offset to snippet length
-            line_offset = max(0, min(line_offset, max(0, total_lines - 1)))
-            abs_line = start_line + line_offset
-            snippet = content_lines[line_offset].strip() if 0 <= line_offset < total_lines else None
-
-            sev = str(item.get("severity", "serious")).lower()
-            if sev not in ("critical", "serious", "moderate", "minor"):
-                if sev == "high":
-                    sev = "serious"
-                elif sev == "low":
-                    sev = "minor"
-                else:
-                    sev = "serious"
-
-            llm_violations.append(
-                Violation(
-                    id="",
-                    file=file_path,
-                    line=abs_line,
-                    type=str(item.get("type", "accessibility-defect")).strip().lower(),
-                    severity=sev,
-                    description=str(item.get("description", "Accessibility violation detected.")).strip(),
-                    selector=item.get("selector"),
-                    context_snippet=snippet,
-                    source="llm",
-                    wcag_criterion=item.get("wcag_criterion"),
-                )
-            )
-
-    except Exception as err:
+    data = extract_violations_json(response_text)
+    if not data:
         logger.warning(
-            f"Failed to parse LLM JSON response for {chunk.get('file')}: {err}. "
+            f"Failed to parse LLM JSON response for {chunk.get('file')}. "
             f"Raw text was: {response_text[:200]}... Returning rule-based findings."
         )
         return rule_violations
+
+    raw_violations = data.get("violations", [])
+    file_path = chunk.get("file", "unknown")
+    start_line = int(chunk.get("start_line", 1) or 1)
+    content_lines = content.splitlines()
+    total_lines = len(content_lines)
+
+    for item in raw_violations:
+        if not isinstance(item, dict):
+            continue
+
+        try:
+            line_offset = int(item.get("line_offset", 0))
+        except (ValueError, TypeError):
+            line_offset = 0
+
+        # Clamp offset to snippet length
+        line_offset = max(0, min(line_offset, max(0, total_lines - 1)))
+        abs_line = start_line + line_offset
+        snippet = content_lines[line_offset].strip() if 0 <= line_offset < total_lines else None
+
+        sev = str(item.get("severity", "serious")).lower()
+        if sev not in ("critical", "serious", "moderate", "minor"):
+            if sev == "high":
+                sev = "serious"
+            elif sev == "low":
+                sev = "minor"
+            else:
+                sev = "serious"
+
+        llm_violations.append(
+            Violation(
+                id="",
+                file=file_path,
+                line=abs_line,
+                type=str(item.get("type", "accessibility-defect")).strip().lower(),
+                severity=sev,
+                description=str(item.get("description", "Accessibility violation detected.")).strip(),
+                selector=item.get("selector"),
+                context_snippet=snippet,
+                source="llm",
+                wcag_criterion=item.get("wcag_criterion"),
+            )
+        )
 
     return rule_violations + llm_violations
 
