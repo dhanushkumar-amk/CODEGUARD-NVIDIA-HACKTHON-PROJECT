@@ -22,10 +22,19 @@ def truncate_at_sentence_boundary(text: str, max_chars: int = MAX_EXPLANATION_LE
     Truncates text cleanly at the last sentence boundary within max_chars.
     Falls back to a word boundary if no sentence ending is found.
     """
-    if not text or len(text) <= max_chars:
-        return text.strip()
+    if not text:
+        return ""
 
-    truncated = text[:max_chars]
+    stripped = text.strip()
+    if len(stripped) <= max_chars:
+        # If text ends abruptly without sentence punctuation but has an earlier complete sentence, trim dangling fragment
+        if not any(stripped.endswith(p) for p in [".", "!", "?", '."', "!'", "?'"]):
+            end_indices = [m.end() for m in re.finditer(r"[\.\!\?](?=\s|$)", stripped)]
+            if end_indices and max(end_indices) >= 50:
+                return stripped[:max(end_indices)].strip()
+        return stripped
+
+    truncated = stripped[:max_chars]
 
     # Look for sentence-ending punctuation followed by space, newline, or end of string
     end_indices: List[int] = []
@@ -35,16 +44,16 @@ def truncate_at_sentence_boundary(text: str, max_chars: int = MAX_EXPLANATION_LE
     if end_indices:
         last_end = max(end_indices)
         # Ensure we don't truncate prematurely if the first sentence was very short
-        if last_end >= 60 or last_end == len(truncated):
+        if last_end >= 50 or last_end == len(truncated):
             return truncated[:last_end].strip()
 
     # Fallback: truncate at last word boundary before (max_chars - 3) to allow for "..."
     budget = max(0, max_chars - 3)
-    last_space = text[:budget].rfind(" ")
+    last_space = stripped[:budget].rfind(" ")
     if last_space > 40:
-        return text[:last_space].strip() + "..."
+        return stripped[:last_space].strip() + "..."
 
-    return text[:max_chars].strip()
+    return stripped[:max_chars].strip()
 
 
 def build_explanation_prompt(diagnosed: DiagnosedViolation) -> str:
@@ -69,13 +78,15 @@ def build_explanation_prompt(diagnosed: DiagnosedViolation) -> str:
 
     if getattr(diagnosed, "diagnosis_source", "template") == "llm":
         return f"""You are an accessibility advocate writing an executive report for non-technical stakeholders.
-Explain in 2 to 3 friendly, plain-English sentences what is wrong, who is impacted, and how to fix it:
+Rewrite the following technical diagnosis into 2 to 3 friendly, plain-English sentences explaining what is wrong, who is impacted, and how to fix it:
+
+Issue Details:
 - Component: {diagnosed.file} (Line {diagnosed.line or 'unknown'})
-- Issue: {cat_str} ({diagnosed.type})
+- Category: {cat_str} ({diagnosed.type})
 - Severity: {diagnosed.severity}
-- Technical Cause: {diagnosed.root_cause}
-- Impact: {diagnosed.user_impact}
-- Recommendation: {diagnosed.fix_strategy}
+- Technical Root Cause: {diagnosed.root_cause}
+- User Impact: {diagnosed.user_impact}
+- Fix Strategy: {diagnosed.fix_strategy}
 
 Output a valid JSON object matching:
 {{
@@ -85,9 +96,12 @@ Output a valid JSON object matching:
     else:
         # Template-diagnosed violation prompt
         return f"""You are an accessibility advocate writing an executive report for non-technical stakeholders.
-Explain in 2 to 3 friendly, plain-English sentences what is wrong, who is impacted, and how to fix it:
+Explain in 2 to 3 friendly, plain-English sentences what is wrong, who is impacted, and how to fix it for {diagnosed.file}:
+
+Issue Details:
 - Component: {diagnosed.file} (Line {diagnosed.line or 'unknown'})
-- Issue: {cat_str} ({diagnosed.type})
+- Category: {cat_str}
+- Rule: {diagnosed.type}
 - Severity: {diagnosed.severity}
 - Description: {diagnosed.description}
 - Snippet: {diagnosed.context_snippet or 'None'}
@@ -104,6 +118,9 @@ def _is_usable_explanation(text: str) -> bool:
         return False
     s = text.strip()
     if len(s) < 50:
+        return False
+    # Ensure it doesn't start with raw JSON, markdown fences, list markers, numbers, or quotes
+    if re.match(r'^(?:[{\[#*"`\-\d]|(?:\d+\.))', s):
         return False
     # Ensure there is at least one terminal sentence boundary
     if not (any(s.endswith(p) for p in [".", "!", "?", '."', "!'", "?'"]) or re.search(r"[.!?]\s", s)):
@@ -123,6 +140,11 @@ def _is_usable_explanation(text: str) -> bool:
         "snippet is",
         "i'll output",
         "i will output",
+        "key points",
+        "deconstruct",
+        "let me",
+        "format as",
+        "anti-pattern",
     ]
     if any(d in lower for d in disallowed):
         return False
@@ -183,9 +205,9 @@ async def generate_explanation(diagnosed: DiagnosedViolation) -> str:
         except Exception:
             pass
 
-        # 2. Try regex extraction of JSON substring
+        # 2. Try regex extraction of JSON explanation value
         if not cleaned:
-            json_match = re.search(r'\{[^{}]*"explanation"\s*:\s*"((?:[^"\\]|\\.)*)"[^{}]*\}', raw_text, re.DOTALL)
+            json_match = re.search(r'"explanation"\s*:\s*"((?:[^"\\]|\\.)*?)(?:"|\Z)', raw_text, re.DOTALL)
             if json_match:
                 candidate = json_match.group(1).replace(r'\"', '"').replace(r'\n', ' ').strip()
                 if _is_usable_explanation(candidate):
