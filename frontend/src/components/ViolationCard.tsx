@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, ArrowRight, Hash, Star } from 'lucide-react';
+import { ArrowRight, Hash } from 'lucide-react';
 import { Violation, ViolationCategory } from '../types';
 import { Badge } from './Badge';
 

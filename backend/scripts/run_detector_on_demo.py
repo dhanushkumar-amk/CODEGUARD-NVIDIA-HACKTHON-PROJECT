@@ -18,6 +18,7 @@ sys.path.insert(0, str(backend_dir))
 from app.services.git_service import find_frontend_files
 from app.services.scanner_service import prepare_scan_batch
 from app.services.detector_service import detect_violations
+from app.services.classifier_service import summarize_violations
 from app.services.llm_client import get_token_usage_stats, reset_cost_tracker
 from app.state import create_scan, get_scan, update_scan
 
@@ -122,15 +123,30 @@ async def main():
     print("\nStarting detector_service.detect_violations()...")
     violations = await detect_violations(scan_id)
 
-    print(f"\n=================== DETECTED VIOLATIONS ({len(violations)}) ===================")
+    print(f"\n=================== CLASSIFIED & PRIORITIZED VIOLATIONS ({len(violations)}) ===================")
     for v in violations:
         crit = f" ({v.wcag_criterion})" if v.wcag_criterion else ""
+        cat_str = v.category.value if hasattr(v.category, "value") else str(v.category)
         print(
-            f"[{v.id}] {v.file}:{v.line} | [{v.severity.upper()}] {v.type}{crit}\n"
-            f"     Source: {v.source}\n"
-            f"     Desc:   {v.description}\n"
-            f"     Code:   {v.context_snippet}\n"
+            f"[Priority #{v.priority_rank}] [{v.id}] {v.file}:{v.line}\n"
+            f"     Category:       {cat_str}\n"
+            f"     Severity Score: {v.severity_score}/10  [{v.severity.upper()}]\n"
+            f"     Rule Type:      {v.type}{crit}\n"
+            f"     Source:         {v.source}\n"
+            f"     Description:    {v.description}\n"
+            f"     Snippet:        {v.context_snippet}\n"
         )
+
+    summary = summarize_violations(violations)
+    print("=================== VIOLATION TAXONOMY SUMMARY ===================")
+    print(f"Total Violations: {summary['total']}")
+    print("\nCounts by Severity Label:")
+    for sev, cnt in summary["by_severity"].items():
+        print(f"  - {sev.upper():<10}: {cnt}")
+    print("\nCounts by Category:")
+    for cat, cnt in summary["by_category"].items():
+        if cnt > 0:
+            print(f"  - {cat:<25}: {cnt}")
 
     # Compare with planted bugs
     print("=================== PLANTED BUGS EVALUATION ===================")

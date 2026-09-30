@@ -205,8 +205,10 @@ def calculate_severity_score(violation: Violation) -> int:
         # Check if alt="" was intentional decorative or missing entirely
         is_decorative = bool(
             re.search(r'\balt\s*=\s*["\']\s*["\']', snippet)
-            or "decorative" in desc
-            or "decorative" in snippet.lower()
+            or re.search(r'\brole\s*=\s*["\'](?:presentation|none)["\']', snippet, re.IGNORECASE)
+            or "decorative image" in desc
+            or "marked decorative" in desc
+            or "explicitly decorative" in desc
         )
         if is_decorative:
             base_score = 2
