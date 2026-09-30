@@ -39,6 +39,8 @@ class PipelineStage(str, Enum):
     CLONING = "cloning"
     PREPARING = "preparing"
     SCANNING = "scanning"
+    DIAGNOSING = "diagnosing"
+    EXPLAINING = "explaining"
     FIXING = "fixing"
     VERIFYING = "verifying"
     COMPLETED = "completed"
@@ -60,6 +62,17 @@ class Violation(BaseModel):
     category: ViolationCategory = Field(default=ViolationCategory.OTHER, description="Normalized violation category taxonomy")
     severity_score: Optional[int] = Field(default=None, description="Normalized severity score (1-10), source of truth")
     priority_rank: Optional[int] = Field(default=None, description="Priority rank (1 = highest priority)")
+
+
+class DiagnosedViolation(Violation):
+    """Represents an identified accessibility violation enriched with deep root-cause diagnosis."""
+    root_cause: str = Field(description="Plain-English technical explanation of why the defect exists")
+    affected_element: str = Field(description="HTML tag, JSX selector, or component affected")
+    user_impact: str = Field(description="Plain-English explanation of affected assistive technology users and friction")
+    fix_strategy: str = Field(description="Strategic architectural recommendation to resolve the violation")
+    confidence: str = Field(default="high", description="Diagnosis confidence level: 'high', 'medium', or 'low'")
+    diagnosis_source: str = Field(default="llm", description="Source of diagnosis: 'llm' or 'template'")
+    plain_explanation: str = Field(default="", description="Friendly, non-technical plain English explanation for stakeholders")
 
 
 class ProposedFix(BaseModel):

@@ -51,6 +51,19 @@ from app.services.classifier_service import (
     classify_violations,
     summarize_violations,
 )
+from app.services.diagnosis_service import (
+    get_surrounding_context,
+    build_diagnosis_prompt,
+    get_templated_diagnosis,
+    diagnose_violation,
+    diagnose_all,
+)
+from app.services.explainer_service import (
+    build_explanation_prompt,
+    generate_explanation,
+    generate_all_explanations,
+    truncate_at_sentence_boundary,
+)
 from app.services.fixer_service import generate_remediation_patch
 from app.services.verifier_service import verify_patch_in_sandbox
 from app.services.report_service import generate_compliance_report
@@ -93,6 +106,15 @@ __all__ = [
     "map_score_to_severity_label",
     "classify_violations",
     "summarize_violations",
+    "get_surrounding_context",
+    "build_diagnosis_prompt",
+    "get_templated_diagnosis",
+    "diagnose_violation",
+    "diagnose_all",
+    "build_explanation_prompt",
+    "generate_explanation",
+    "generate_all_explanations",
+    "truncate_at_sentence_boundary",
     "generate_remediation_patch",
     "verify_patch_in_sandbox",
     "generate_compliance_report",

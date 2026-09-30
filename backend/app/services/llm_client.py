@@ -507,20 +507,35 @@ async def call_nemotron_ultra(
 
     # Check 2 & 3: Per-scan call count and budget limits
     if scan_id:
-        scan_record = _scan_usage.get(scan_id, {})
+        if scan_id not in _scan_usage:
+            _scan_usage[scan_id] = {
+                "scan_id": scan_id,
+                "fast_calls": 0,
+                "ultra_calls": 0,
+                "in_flight_ultra": 0,
+                "total_calls": 0,
+                "fast_cost_usd": 0.0,
+                "ultra_cost_usd": 0.0,
+                "total_cost_usd": 0.0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+            }
+        scan_record = _scan_usage[scan_id]
         calls = scan_record.get("ultra_calls", 0)
+        in_flight = scan_record.get("in_flight_ultra", 0)
         cost = scan_record.get("ultra_cost_usd", 0.0)
         max_calls = getattr(settings, "ULTRA_MAX_CALLS_PER_SCAN", 5)
         budget = getattr(settings, "ULTRA_BUDGET_USD_PER_SCAN", 0.05)
 
-        if calls >= max_calls:
+        if (calls + in_flight) >= max_calls:
             raise UltraBudgetExceededError(
-                f"Per-scan Ultra call limit ({max_calls}) reached for scan '{scan_id}' (calls={calls})."
+                f"Per-scan Ultra call limit ({max_calls}) reached for scan '{scan_id}' (calls={calls}, in_flight={in_flight})."
             )
         if cost >= budget:
             raise UltraBudgetExceededError(
                 f"Per-scan Ultra budget limit (${budget:.4f}) exceeded for scan '{scan_id}' (spent=${cost:.6f})."
             )
+        scan_record["in_flight_ultra"] = in_flight + 1
 
     client = get_client()
     model_id = getattr(settings, "NEMOTRON_ULTRA_MODEL_ID", None) or NEMOTRON_ULTRA_DEFAULT_MODEL
@@ -596,6 +611,9 @@ async def call_nemotron_ultra(
         if isinstance(e, LLMClientError):
             raise
         raise LLMClientError(f"Unexpected error calling Nemotron Ultra: {str(e)}") from e
+    finally:
+        if scan_id and scan_id in _scan_usage:
+            _scan_usage[scan_id]["in_flight_ultra"] = max(0, _scan_usage[scan_id].get("in_flight_ultra", 1) - 1)
 
 
 async def call_with_escalation(

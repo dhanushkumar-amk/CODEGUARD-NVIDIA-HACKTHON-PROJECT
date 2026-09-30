@@ -41,6 +41,16 @@ export interface Violation {
   priority_rank?: number | null;
 }
 
+export interface DiagnosedViolation extends Violation {
+  root_cause: string;
+  affected_element: string;
+  user_impact: string;
+  fix_strategy: string;
+  confidence: 'high' | 'medium' | 'low' | string;
+  diagnosis_source: 'llm' | 'template' | string;
+  plain_explanation?: string;
+}
+
 export interface ViolationSummary {
   total: number;
   by_category: Record<string, number>;
@@ -105,7 +115,7 @@ export interface ScanStartResponse {
 }
 
 export interface WebSocketMessage {
-  stage: 'init' | 'cloning' | 'scanning' | 'fixing' | 'verifying' | 'completed' | 'error' | string;
+  stage: 'init' | 'cloning' | 'scanning' | 'diagnosing' | 'explaining' | 'fixing' | 'verifying' | 'completed' | 'error' | string;
   progress: number;
   message: string;
   data?: Record<string, any> | null;

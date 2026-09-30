@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     ULTRA_MAX_CALLS_PER_SCAN: int = 5
     ULTRA_BUDGET_USD_PER_SCAN: float = 0.05
     ULTRA_ENABLED: bool = True
+    DIAGNOSIS_TOP_N: int = 15
 
     # Nebius AI Cloud Sandbox Configuration
     NEBIUS_SANDBOX_API_KEY: str = ""

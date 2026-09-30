@@ -64,13 +64,21 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             status="prepared",
         )
 
-        # 6. Kick off detection pipeline as background task
+        # 6. Kick off detection and diagnosis pipeline as background task
         async def run_detection_pipeline():
             try:
                 from app.services.detector_service import detect_violations
                 await detect_violations(scan_id)
+
+                # Phase 14: Run root-cause diagnosis across prioritized violations
+                from app.services.diagnosis_service import diagnose_all
+                await diagnose_all(scan_id)
+
+                # Phase 15: Generate stakeholder-friendly plain English explanations
+                from app.services.explainer_service import generate_all_explanations
+                await generate_all_explanations(scan_id)
             except Exception as bg_err:
-                logger.error(f"Error during background violation detection for {scan_id}: {bg_err}", exc_info=True)
+                logger.error(f"Error during background violation pipeline for {scan_id}: {bg_err}", exc_info=True)
 
         asyncio.create_task(run_detection_pipeline())
 
