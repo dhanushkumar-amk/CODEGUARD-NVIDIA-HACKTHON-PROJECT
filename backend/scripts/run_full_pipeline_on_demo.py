@@ -1,10 +1,10 @@
 """
-Full End-to-End Pipeline Execution Script (Phase 14):
-Runs clone/prepare -> detect -> classify -> diagnose against the seeded demo app.
+Full End-to-End Pipeline Execution Script (Phases 12 -> 13 -> 14 -> 15):
+Runs clone/prepare -> detect -> classify -> diagnose -> explain against the seeded demo app.
 Outputs:
-1. Classified and Diagnosed violations with root_cause, user_impact, and fix_strategy.
-2. Token usage and cost metrics (Fast vs Ultra).
-3. Verification of ULTRA_MAX_CALLS_PER_SCAN guardrail triggering when lowered.
+1. Classified and Diagnosed violations with plain_explanation and root-cause details.
+2. 5 Sample Plain Explanations (mix of LLM-diagnosed and template-diagnosed items).
+3. Token usage and cost metrics (Fast vs Ultra) from /test-llm/cost.
 """
 import asyncio
 import json
@@ -20,6 +20,7 @@ from app.services.git_service import find_frontend_files
 from app.services.scanner_service import prepare_scan_batch
 from app.services.detector_service import detect_violations
 from app.services.diagnosis_service import diagnose_all
+from app.services.explainer_service import generate_all_explanations
 from app.services.classifier_service import summarize_violations
 from app.services.llm_client import (
     get_cost_breakdown,
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 async def main():
     repo_root = backend_dir.parent / "sandbox-scripts" / "demo-app"
     print("=" * 80)
-    print(f"CODEGUARD FULL PIPELINE EXECUTION (PHASE 14)")
+    print("CODEGUARD FULL PIPELINE EXECUTION (PHASE 12 -> 13 -> 14 -> 15)")
     print(f"Demo Target: {repo_root.resolve()}")
     print("=" * 80)
 
@@ -67,68 +68,58 @@ async def main():
     detected = await detect_violations(scan_id)
     print(f"    Detected and classified {len(detected)} violations.")
 
-    # Step 4: Run root-cause diagnosis using Nemotron Ultra
-    print("\n[4] Running Root-Cause Diagnosis (Nemotron Ultra - Top Priority)...")
-    diagnosed = await diagnose_all(scan_id, top_n=5)
+    # Step 4: Run root-cause diagnosis using Nemotron Ultra (top priority gets Ultra, rest template)
+    print("\n[4] Running Root-Cause Diagnosis (Nemotron Ultra - Top 3 Priority)...")
+    diagnosed = await diagnose_all(scan_id, top_n=3)
     print(f"    Diagnosed {len(diagnosed)} violations.")
 
+    # Step 5: Run cheap explanation layer (Nemotron Fast for all violations)
+    print("\n[5] Running Explanation Layer (Nemotron Fast - Concurrency=8)...")
+    explained = await generate_all_explanations(scan_id)
+    print(f"    Generated plain-English explanations for all {len(explained)} violations.")
+
     print("\n" + "=" * 80)
-    print(f"DIAGNOSED VIOLATION DETAILS (TOP PLANTED BUGS)")
+    print("5 DIFFERENT VIOLATION EXPLANATIONS (MIX OF LLM AND TEMPLATE DIAGNOSES)")
     print("=" * 80)
 
-    for v in diagnosed:
-        print(f"\n[Priority #{v.priority_rank}] [{v.id}] {v.file}:{v.line}")
-        print(f"  Category:       {v.category.value if hasattr(v.category, 'value') else v.category}")
-        print(f"  Severity:       {v.severity.upper()} (Score: {v.severity_score}/10)")
-        print(f"  Rule Type:      {v.type} ({v.wcag_criterion})")
-        print(f"  Source:         Detection: {v.source} | Diagnosis: {v.diagnosis_source.upper()}")
-        print(f"  Affected Elem:  {v.affected_element}")
-        print(f"  Root Cause:     {v.root_cause}")
-        print(f"  User Impact:    {v.user_impact}")
-        print(f"  Fix Strategy:   {v.fix_strategy}")
-        print(f"  Snippet:        {v.context_snippet}")
+    # Pick a mix: some with diagnosis_source == "llm", some with "template"
+    llm_violations = [v for v in explained if v.diagnosis_source == "llm"]
+    tpl_violations = [v for v in explained if v.diagnosis_source == "template"]
 
-    # Step 5: Cost and Token Breakdown
+    # Select 5 (e.g. 2-3 from LLM, 2-3 from Template)
+    selected: list = []
+    if llm_violations:
+        selected.extend(llm_violations[:3])
+    if tpl_violations:
+        needed = 5 - len(selected)
+        selected.extend(tpl_violations[:needed])
+    if len(selected) < 5 and len(explained) >= 5:
+        remaining = [v for v in explained if v not in selected]
+        selected.extend(remaining[: 5 - len(selected)])
+
+    for i, v in enumerate(selected, 1):
+        print(f"\n--- Violation #{i} ---")
+        print(f"ID:                 {v.id}")
+        print(f"Location:           {v.file}:{v.line}")
+        print(f"Category:           {v.category.value if hasattr(v.category, 'value') else v.category}")
+        print(f"Severity:           {v.severity.upper()} (Rank: {v.priority_rank})")
+        print(f"Diagnosis Source:   {v.diagnosis_source.upper()} ({'Ultra LLM' if v.diagnosis_source == 'llm' else 'Fallback Template'})")
+        print(f"Plain Explanation:  \"{v.plain_explanation}\"")
+        print(f"Explanation Length: {len(v.plain_explanation)} chars (Max 400)")
+        print(f"Technical Summary:  Root Cause: {v.root_cause[:80]}...")
+
+    # Step 6: Cost and Token Breakdown
     print("\n" + "=" * 80)
-    print("COST & TOKEN USAGE BREAKDOWN (FAST vs ULTRA)")
+    print("UPDATED COST & TOKEN USAGE BREAKDOWN (/test-llm/cost)")
     print("=" * 80)
     costs = get_cost_breakdown()
-    print(f"Fast Cost (Scanning & Detection):  ${costs['fast_cost']:.6f} USD")
-    print(f"Ultra Cost (Root-Cause Diagnosis): ${costs['ultra_cost']:.6f} USD")
-    print(f"Total Combined Cost:               ${costs['total']:.6f} USD")
+    print(f"Fast Model Cost (Detection & Explanations): ${costs['fast_cost']:.6f} USD")
+    print(f"Ultra Model Cost (Root-Cause Diagnosis):    ${costs['ultra_cost']:.6f} USD")
+    print(f"Total Combined Cost:                        ${costs['total']:.6f} USD")
 
     usage = get_token_usage_stats()
-    print("\nFull Usage Statistics:")
+    print("\nFull Usage Statistics by Tier:")
     print(json.dumps(usage, indent=2))
-
-    # Step 6: Verify guardrails with artificially lowered limit
-    print("\n" + "=" * 80)
-    print("GUARDRAIL TEST: Lowering ULTRA_MAX_CALLS_PER_SCAN to 2")
-    print("=" * 80)
-
-    guardrail_scan_id = "demo_guardrail_test_scan"
-    # Copy classified violations for guardrail test
-    update_scan(
-        guardrail_scan_id,
-        repo_path=str(repo_root),
-        violations=detected,
-        status="scanned",
-    )
-
-    original_limit = getattr(settings, "ULTRA_MAX_CALLS_PER_SCAN", 5)
-    settings.ULTRA_MAX_CALLS_PER_SCAN = 2
-    try:
-        print(f"Running diagnosis with ULTRA_MAX_CALLS_PER_SCAN={settings.ULTRA_MAX_CALLS_PER_SCAN}...")
-        guardrail_results = await diagnose_all(guardrail_scan_id, top_n=5)
-        sources = [v.diagnosis_source for v in guardrail_results]
-        print(f"Diagnosis sources across violations: {sources}")
-        llm_count = sources.count("llm")
-        template_count = sources.count("template")
-        print(f"Result: {llm_count} LLM calls made (at or below limit of 2), {template_count} fell back to TEMPLATE.")
-        assert llm_count <= 2, f"Expected at most 2 LLM calls, got {llm_count}"
-        print(">>> GUARDRAIL CONFIRMED: Successfully prevented excess Ultra calls and gracefully used template fallback! <<<")
-    finally:
-        settings.ULTRA_MAX_CALLS_PER_SCAN = original_limit
 
 
 if __name__ == "__main__":

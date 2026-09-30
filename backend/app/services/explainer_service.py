@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from app.models.schemas import DiagnosedViolation, Violation, ViolationCategory
 from app.services.llm_client import call_nemotron_fast
+from app.state import get_scan, update_scan
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,13 @@ def truncate_at_sentence_boundary(text: str, max_chars: int = MAX_EXPLANATION_LE
         if last_end >= 60 or last_end == len(truncated):
             return truncated[:last_end].strip()
 
-    # Fallback: truncate at last word boundary
-    last_space = truncated.rfind(" ")
-    if last_space > 60:
-        return truncated[:last_space].strip() + "..."
+    # Fallback: truncate at last word boundary before (max_chars - 3) to allow for "..."
+    budget = max(0, max_chars - 3)
+    last_space = text[:budget].rfind(" ")
+    if last_space > 40:
+        return text[:last_space].strip() + "..."
 
-    return truncated.strip()
+    return text[:max_chars].strip()
 
 
 def build_explanation_prompt(diagnosed: DiagnosedViolation) -> str:
@@ -66,37 +68,65 @@ def build_explanation_prompt(diagnosed: DiagnosedViolation) -> str:
     )
 
     if getattr(diagnosed, "diagnosis_source", "template") == "llm":
-        return f"""/no_think
-You are an accessibility advocate writing an executive report for non-technical stakeholders (product managers, designers, compliance officers).
-Rewrite the following technical accessibility diagnosis into a clear, friendly, non-technical summary in 2 to 3 sentences.
-Do not use technical jargon or code tags. Explain simply what is wrong, who is impacted, and the recommended solution. Keep your response under 350 characters.
-
-Issue Details:
-- Category: {cat_str} ({diagnosed.type})
-- Location: {diagnosed.file} (Line {diagnosed.line or 'unknown'})
+        return f"""You are an accessibility advocate writing an executive report for non-technical stakeholders.
+Explain in 2 to 3 friendly, plain-English sentences what is wrong, who is impacted, and how to fix it:
+- Component: {diagnosed.file} (Line {diagnosed.line or 'unknown'})
+- Issue: {cat_str} ({diagnosed.type})
 - Severity: {diagnosed.severity}
-- Technical Root Cause: {diagnosed.root_cause}
-- User Impact: {diagnosed.user_impact}
-- Fix Strategy: {diagnosed.fix_strategy}
+- Technical Cause: {diagnosed.root_cause}
+- Impact: {diagnosed.user_impact}
+- Recommendation: {diagnosed.fix_strategy}
 
-Write ONLY the friendly summary paragraph. No preamble or markdown fences:"""
+Output a valid JSON object matching:
+{{
+  "explanation": "<summary>"
+}}"""
 
     else:
         # Template-diagnosed violation prompt
-        return f"""/no_think
-You are an accessibility advocate writing an executive report for non-technical stakeholders.
-Write a friendly, 2 to 3 sentence explanation of the following accessibility violation found in {diagnosed.file}.
-Explain in plain English what the issue is, why it matters to users with disabilities, and how to fix it. Keep your response under 350 characters.
-
-Issue Details:
-- Category: {cat_str}
-- Rule: {diagnosed.type}
+        return f"""You are an accessibility advocate writing an executive report for non-technical stakeholders.
+Explain in 2 to 3 friendly, plain-English sentences what is wrong, who is impacted, and how to fix it:
+- Component: {diagnosed.file} (Line {diagnosed.line or 'unknown'})
+- Issue: {cat_str} ({diagnosed.type})
 - Severity: {diagnosed.severity}
-- File: {diagnosed.file} (Line {diagnosed.line or 'unknown'})
 - Description: {diagnosed.description}
 - Snippet: {diagnosed.context_snippet or 'None'}
 
-Write ONLY the friendly summary paragraph. No preamble or markdown fences:"""
+Output a valid JSON object matching:
+{{
+  "explanation": "<summary>"
+}}"""
+
+
+def _is_usable_explanation(text: str) -> bool:
+    """Validates that candidate text is a real human-readable summary without model scratchpad artifacts."""
+    if not text:
+        return False
+    s = text.strip()
+    if len(s) < 50:
+        return False
+    # Ensure there is at least one terminal sentence boundary
+    if not (any(s.endswith(p) for p in [".", "!", "?", '."', "!'", "?'"]) or re.search(r"[.!?]\s", s)):
+        return False
+    lower = s.lower()
+    disallowed = [
+        "thinking process",
+        "analyze user request",
+        "analyze the request",
+        "your 2-3 sentence",
+        "<summary>",
+        "let's count",
+        "check character",
+        "output only",
+        "draft ",
+        "wait, ",
+        "snippet is",
+        "i'll output",
+        "i will output",
+    ]
+    if any(d in lower for d in disallowed):
+        return False
+    return True
 
 
 def _get_fallback_explanation(diagnosed: DiagnosedViolation) -> str:
@@ -134,16 +164,51 @@ async def generate_explanation(diagnosed: DiagnosedViolation) -> str:
     try:
         raw_text = await call_nemotron_fast(
             prompt=prompt,
-            system_prompt="You are a concise accessibility writer. Provide only the 2-3 sentence summary requested. Do not include markdown code blocks or quotes.",
-            max_tokens=200,
-            response_format="text",
+            system_prompt=(
+                "You are an accessibility advocate writing concise executive summaries for non-technical stakeholders. "
+                "Respond with a valid JSON object containing an 'explanation' string. Do not output preamble or markdown blocks."
+            ),
+            max_tokens=600,
+            response_format="json",
         )
 
-        cleaned = raw_text.strip().strip('"').strip("'")
-        # Remove any leading conversational fillers
-        cleaned = re.sub(r"^(?:Here is|Summary:|Explanation:)\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = ""
+        # 1. Try structured JSON parsing directly
+        try:
+            parsed = json.loads(raw_text)
+            if isinstance(parsed, dict) and "explanation" in parsed:
+                candidate = str(parsed["explanation"]).strip()
+                if _is_usable_explanation(candidate):
+                    cleaned = candidate
+        except Exception:
+            pass
 
-        if cleaned and len(cleaned) >= 20:
+        # 2. Try regex extraction of JSON substring
+        if not cleaned:
+            json_match = re.search(r'\{[^{}]*"explanation"\s*:\s*"((?:[^"\\]|\\.)*)"[^{}]*\}', raw_text, re.DOTALL)
+            if json_match:
+                candidate = json_match.group(1).replace(r'\"', '"').replace(r'\n', ' ').strip()
+                if _is_usable_explanation(candidate):
+                    cleaned = candidate
+
+        # 3. If model emitted chain of thought with quotes, extract the candidate quote
+        if not cleaned:
+            quotes = re.findall(r'"([^"\\]*(?:\\.[^"\\]*)*)"', raw_text)
+            good_quotes = [q.strip() for q in quotes if _is_usable_explanation(q.strip())]
+            if good_quotes:
+                cleaned = good_quotes[-1]
+
+        # 4. Fall back to text parsing if response wasn't clean JSON or quoted
+        if not cleaned:
+            raw_stripped = raw_text.strip().strip('"').strip("'")
+            raw_stripped = re.sub(r"<think>.*?</think>", "", raw_stripped, flags=re.DOTALL).strip()
+
+            paragraphs = [p.strip() for p in raw_stripped.split("\n\n") if p.strip()]
+            candidate_paragraphs = [p for p in paragraphs if _is_usable_explanation(p.strip())]
+            if candidate_paragraphs:
+                cleaned = candidate_paragraphs[-1]
+
+        if cleaned and _is_usable_explanation(cleaned):
             return truncate_at_sentence_boundary(cleaned, max_chars=MAX_EXPLANATION_LENGTH)
 
     except Exception as exc:
