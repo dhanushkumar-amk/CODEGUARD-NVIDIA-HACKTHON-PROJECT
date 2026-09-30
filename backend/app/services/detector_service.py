@@ -556,14 +556,18 @@ async def detect_violations(scan_id: str) -> List[Violation]:
             llm_keys.add(key)
             deduped.append(v)
 
-    # Assign clean sequential IDs
-    for idx, v in enumerate(deduped, 1):
+    # Phase 13: Classify violations (category normalization, severity scoring, prioritization ranking)
+    from app.services.classifier_service import classify_violations
+    classified = classify_violations(deduped)
+
+    # Assign clean sequential IDs in priority order
+    for idx, v in enumerate(classified, 1):
         v.id = f"viol_{idx:02d}"
 
     # Update in-memory state
     update_scan(
         scan_id=scan_id,
-        violations=deduped,
+        violations=classified,
         status="scanned",
     )
 
@@ -573,11 +577,11 @@ async def detect_violations(scan_id: str) -> List[Violation]:
             scan_id=scan_id,
             stage="scanning",
             progress=100,
-            message=f"Accessibility audit complete: {len(deduped)} actionable violations detected.",
-            data={"violations_count": len(deduped)},
+            message=f"Accessibility audit complete: {len(classified)} actionable violations detected.",
+            data={"violations_count": len(classified)},
         )
     except Exception as ws_err:
         logger.debug(f"Final progress streaming skipped: {ws_err}")
 
-    logger.info(f"Scan {scan_id} audit complete. Detected {len(deduped)} violations across {total_chunks} chunks.")
-    return deduped
+    logger.info(f"Scan {scan_id} audit complete. Detected {len(classified)} violations across {total_chunks} chunks.")
+    return classified

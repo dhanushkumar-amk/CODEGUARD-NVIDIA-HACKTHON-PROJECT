@@ -11,9 +11,27 @@ from pydantic import BaseModel, Field
 
 class ViolationSeverity(str, Enum):
     CRITICAL = "critical"
+    HIGH = "high"
     SERIOUS = "serious"
+    MEDIUM = "medium"
     MODERATE = "moderate"
+    LOW = "low"
     MINOR = "minor"
+
+
+class ViolationCategory(str, Enum):
+    MISSING_ALT_TEXT = "MISSING_ALT_TEXT"
+    UNLABELED_FORM_FIELD = "UNLABELED_FORM_FIELD"
+    NON_INTERACTIVE_CLICK = "NON_INTERACTIVE_CLICK"
+    EMPTY_LINK_OR_BUTTON = "EMPTY_LINK_OR_BUTTON"
+    LOW_CONTRAST = "LOW_CONTRAST"
+    HEADING_ORDER = "HEADING_ORDER"
+    MISSING_LANDMARK = "MISSING_LANDMARK"
+    KEYBOARD_TRAP = "KEYBOARD_TRAP"
+    MISSING_LANG = "MISSING_LANG"
+    ARIA_MISUSE = "ARIA_MISUSE"
+    FOCUS_MANAGEMENT = "FOCUS_MANAGEMENT"
+    OTHER = "OTHER"
 
 
 class PipelineStage(str, Enum):
@@ -33,12 +51,15 @@ class Violation(BaseModel):
     file: str = Field(description="Relative repository path to the file")
     line: Optional[int] = Field(default=None, description="Line number of defect")
     type: str = Field(description="WCAG violation rule (e.g. 'color-contrast', 'image-alt')")
-    severity: str = Field(default="serious", description="Severity: critical, serious, moderate, minor")
+    severity: str = Field(default="serious", description="Severity: critical, high, medium, low (or legacy serious/moderate/minor)")
     description: str = Field(description="Human-readable description of defect")
     selector: Optional[str] = Field(default=None, description="DOM or JSX element selector")
     context_snippet: Optional[str] = Field(default=None, description="Offending code snippet")
     source: str = Field(default="rule", description="Detection source: 'rule' or 'llm'")
     wcag_criterion: Optional[str] = Field(default=None, description="WCAG 2.2 Success Criterion (e.g. '1.1.1 Non-text Content')")
+    category: ViolationCategory = Field(default=ViolationCategory.OTHER, description="Normalized violation category taxonomy")
+    severity_score: Optional[int] = Field(default=None, description="Normalized severity score (1-10), source of truth")
+    priority_rank: Optional[int] = Field(default=None, description="Priority rank (1 = highest priority)")
 
 
 class ProposedFix(BaseModel):
@@ -76,6 +97,7 @@ class ScanReport(BaseModel):
     )
     overall_score_before: float = Field(description="Baseline repository accessibility score (0-100)")
     overall_score_after: float = Field(description="Post-remediation accessibility score (0-100)")
+    summary: Optional[Dict[str, Any]] = Field(default=None, description="Violation taxonomy summary counts")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Completion timestamp")
     status: str = Field(default="completed", description="Scan execution status")
 

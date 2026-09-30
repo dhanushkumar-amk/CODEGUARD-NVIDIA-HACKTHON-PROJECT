@@ -44,6 +44,13 @@ from app.services.detector_service import (
     detect_violations_in_chunk,
     detect_violations,
 )
+from app.services.classifier_service import (
+    normalize_category,
+    calculate_severity_score,
+    map_score_to_severity_label,
+    classify_violations,
+    summarize_violations,
+)
 from app.services.fixer_service import generate_remediation_patch
 from app.services.verifier_service import verify_patch_in_sandbox
 from app.services.report_service import generate_compliance_report
@@ -81,6 +88,11 @@ __all__ = [
     "build_detection_prompt",
     "detect_violations_in_chunk",
     "detect_violations",
+    "normalize_category",
+    "calculate_severity_score",
+    "map_score_to_severity_label",
+    "classify_violations",
+    "summarize_violations",
     "generate_remediation_patch",
     "verify_patch_in_sandbox",
     "generate_compliance_report",
