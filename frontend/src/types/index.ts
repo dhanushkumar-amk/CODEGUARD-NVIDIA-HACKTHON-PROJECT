@@ -2,7 +2,28 @@
  * TypeScript Data Models mirroring backend Pydantic schemas.
  */
 
-export type SeverityLevel = 'critical' | 'serious' | 'moderate' | 'minor';
+export type ViolationCategory =
+  | 'MISSING_ALT_TEXT'
+  | 'UNLABELED_FORM_FIELD'
+  | 'NON_INTERACTIVE_CLICK'
+  | 'EMPTY_LINK_OR_BUTTON'
+  | 'LOW_CONTRAST'
+  | 'HEADING_ORDER'
+  | 'MISSING_LANDMARK'
+  | 'KEYBOARD_TRAP'
+  | 'MISSING_LANG'
+  | 'ARIA_MISUSE'
+  | 'FOCUS_MANAGEMENT'
+  | 'OTHER';
+
+export type SeverityLevel =
+  | 'critical'
+  | 'high'
+  | 'medium'
+  | 'low'
+  | 'serious'
+  | 'moderate'
+  | 'minor';
 
 export interface Violation {
   id: string;
@@ -15,6 +36,20 @@ export interface Violation {
   context_snippet?: string | null;
   source?: 'rule' | 'llm' | string;
   wcag_criterion?: string | null;
+  category?: ViolationCategory | string;
+  severity_score?: number | null;
+  priority_rank?: number | null;
+}
+
+export interface ViolationSummary {
+  total: number;
+  by_category: Record<string, number>;
+  by_severity: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
 }
 
 export interface ProposedFix {
@@ -47,6 +82,7 @@ export interface ScanReport {
   verification_results: VerificationResult[];
   overall_score_before: number;
   overall_score_after: number;
+  summary?: ViolationSummary | null;
   timestamp: string;
   status: string;
 }
@@ -60,6 +96,12 @@ export interface ScanStartResponse {
   scan_id: string;
   status: string;
   message?: string;
+  repo_url?: string;
+  branch?: string;
+  file_count?: number;
+  framework?: string;
+  scannable_files?: string[];
+  batch_count?: number;
 }
 
 export interface WebSocketMessage {

@@ -16,6 +16,7 @@ import { ScanReport } from '../types';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
+import { ViolationCard } from '../components/ViolationCard';
 
 export const Report: React.FC = () => {
   const { scanId } = useParams<{ scanId: string }>();
@@ -169,36 +170,11 @@ export const Report: React.FC = () => {
       {/* Section 1: Violations Detected */}
       <Card
         title={`Identified Accessibility Violations (${report.violations.length})`}
-        subtitle="Triaged by Nemotron Nano to eliminate AST false alarms."
+        subtitle="Normalized taxonomy, severity scored (1-10), and prioritized."
       >
         <div className="flex flex-col gap-3">
           {report.violations.map((violation) => (
-            <div
-              key={violation.id}
-              className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 flex flex-col gap-2.5"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant={violation.severity as any} size="sm">
-                    {violation.severity}
-                  </Badge>
-                  <span className="font-mono text-sm font-semibold text-white">
-                    {violation.type}
-                  </span>
-                </div>
-                <span className="font-mono text-xs text-slate-400">
-                  {violation.file}{violation.line ? `:${violation.line}` : ''}
-                </span>
-              </div>
-
-              <p className="text-xs text-slate-300">{violation.description}</p>
-
-              {violation.context_snippet && (
-                <pre className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono text-rose-300 overflow-x-auto">
-                  {violation.context_snippet}
-                </pre>
-              )}
-            </div>
+            <ViolationCard key={violation.id} violation={violation} />
           ))}
         </div>
       </Card>

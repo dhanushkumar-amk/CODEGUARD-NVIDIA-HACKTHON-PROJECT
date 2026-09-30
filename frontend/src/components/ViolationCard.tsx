@@ -1,19 +1,38 @@
 import React from 'react';
-import { AlertCircle, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight, Hash, Star } from 'lucide-react';
+import { Violation, ViolationCategory } from '../types';
+import { Badge } from './Badge';
 
-export interface AccessibilityViolation {
-  id: string;
-  ruleId: string;
-  impact: 'critical' | 'serious' | 'moderate' | 'minor';
-  description: string;
-  helpUrl: string;
-  selector: string;
-  filePath: string;
-  lineNumber?: number;
+export const CATEGORY_LABELS: Record<string, string> = {
+  MISSING_ALT_TEXT: 'Missing Alt Text',
+  UNLABELED_FORM_FIELD: 'Unlabeled Form Field',
+  NON_INTERACTIVE_CLICK: 'Non-Interactive Click',
+  EMPTY_LINK_OR_BUTTON: 'Empty Link or Button',
+  LOW_CONTRAST: 'Low Contrast',
+  HEADING_ORDER: 'Heading Order',
+  MISSING_LANDMARK: 'Missing Landmark',
+  KEYBOARD_TRAP: 'Keyboard Trap',
+  MISSING_LANG: 'Missing Lang',
+  ARIA_MISUSE: 'ARIA Misuse',
+  FOCUS_MANAGEMENT: 'Focus Management',
+  OTHER: 'Other Accessibility Issue',
+};
+
+export function formatCategoryLabel(category?: ViolationCategory | string): string {
+  if (!category) return 'Accessibility Issue';
+  if (CATEGORY_LABELS[category]) return CATEGORY_LABELS[category];
+
+  // Convert SCREAMING_SNAKE_CASE or kebab-case to Title Case
+  return category
+    .replace(/[_-]/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
-interface ViolationCardProps {
-  violation: AccessibilityViolation;
+export interface ViolationCardProps {
+  violation: Violation;
   onGenerateFix?: (id: string) => void;
   isFixing?: boolean;
 }
@@ -23,28 +42,42 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
   onGenerateFix,
   isFixing,
 }) => {
-  const impactColors = {
-    critical: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-    serious: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    moderate: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
-    minor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
-  };
+  const categoryLabel = formatCategoryLabel(violation.category);
+  const severityLabel = violation.severity || 'high';
 
   return (
-    <div className="bg-slate-900/70 border border-slate-800 hover:border-slate-700 rounded-xl p-4 transition">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <AlertCircle size={18} className="text-rose-400 shrink-0" />
-          <span className="font-mono text-sm font-semibold text-slate-100">{violation.ruleId}</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full border ${impactColors[violation.impact]}`}>
-            {violation.impact}
+    <div className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-xl p-4 transition flex flex-col gap-3 shadow-lg shadow-black/20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {violation.priority_rank && (
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <Hash size={11} />
+              {violation.priority_rank}
+            </span>
+          )}
+
+          {/* Color-coded severity badge (critical=red, high=orange, medium=yellow, low=gray) */}
+          <Badge variant={severityLabel} size="sm">
+            {severityLabel}
+          </Badge>
+
+          {/* Category readable label */}
+          <span className="font-semibold text-sm text-slate-100">
+            {categoryLabel}
           </span>
+
+          {violation.severity_score !== undefined && violation.severity_score !== null && (
+            <span className="text-[11px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/50">
+              Score: <strong className="text-slate-200">{violation.severity_score}</strong>/10
+            </span>
+          )}
         </div>
+
         {onGenerateFix && (
           <button
             onClick={() => onGenerateFix(violation.id)}
             disabled={isFixing}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white transition disabled:opacity-50"
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-600 text-white transition disabled:opacity-50 self-start sm:self-auto shrink-0"
           >
             {isFixing ? 'Synthesizing...' : 'Synthesize Fix'}
             <ArrowRight size={13} />
@@ -52,13 +85,34 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
         )}
       </div>
 
-      <p className="text-xs text-slate-300 mt-2">{violation.description}</p>
+      <div className="flex items-center gap-2 font-mono text-xs text-indigo-400">
+        <span>Rule: {violation.type}</span>
+        {violation.wcag_criterion && (
+          <>
+            <span className="text-slate-600">•</span>
+            <span className="text-slate-400">{violation.wcag_criterion}</span>
+          </>
+        )}
+      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono">
-        <span className="bg-slate-800/80 px-2 py-1 rounded">
-          {violation.filePath}{violation.lineNumber ? `:${violation.lineNumber}` : ''}
+      <p className="text-xs text-slate-300 leading-relaxed">{violation.description}</p>
+
+      {violation.context_snippet && (
+        <pre className="p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-xs font-mono text-rose-300/90 overflow-x-auto whitespace-pre-wrap">
+          {violation.context_snippet}
+        </pre>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono mt-1">
+        <span className="bg-slate-800/80 px-2 py-1 rounded text-slate-300 border border-slate-700/40">
+          {violation.file}
+          {violation.line ? `:${violation.line}` : ''}
         </span>
-        <code className="text-indigo-300 truncate max-w-xs">{violation.selector}</code>
+        {violation.selector && (
+          <code className="text-indigo-300 bg-indigo-950/40 px-2 py-1 rounded border border-indigo-900/40 truncate max-w-xs">
+            {violation.selector}
+          </code>
+        )}
       </div>
     </div>
   );

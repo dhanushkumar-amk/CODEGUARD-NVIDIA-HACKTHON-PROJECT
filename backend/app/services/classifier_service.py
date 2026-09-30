@@ -56,10 +56,10 @@ KEYWORD_TAXONOMY_MAP: List[tuple[ViolationCategory, List[str]]] = [
     (ViolationCategory.EMPTY_LINK_OR_BUTTON, ["empty-button", "empty-link", "button-name", "link-name", "link-href", "button", "link", "href", "anchor"]),
     (ViolationCategory.LOW_CONTRAST, ["contrast", "color-contrast", "color", "luminance"]),
     (ViolationCategory.HEADING_ORDER, ["heading-order", "heading", "h1", "h2", "h3", "h4", "h5", "h6"]),
-    (ViolationCategory.MISSING_LANDMARK, ["landmark", "main-landmark", "missing-landmark", "main", "header", "footer", "nav", "aside"]),
+    (ViolationCategory.MISSING_LANDMARK, ["landmark", "main-landmark", "missing-landmark", "main", "header", "footer", "nav", "aside", "region"]),
     (ViolationCategory.MISSING_LANG, ["html-lang", "missing-lang", "lang", "language"]),
+    (ViolationCategory.ARIA_MISUSE, ["aria-hidden", "aria-misuse", "aria-role", "aria-valid", "aria-allowed", "aria", "role"]),
     (ViolationCategory.FOCUS_MANAGEMENT, ["tabindex", "tab-index", "focus-order", "focus-management", "focus"]),
-    (ViolationCategory.ARIA_MISUSE, ["aria-misuse", "aria-hidden", "aria-role", "aria", "role"]),
 ]
 
 # Set of WCAG 2.1/2.2 Level A criteria identifiers
