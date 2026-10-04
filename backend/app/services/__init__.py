@@ -110,6 +110,12 @@ from app.services.aggregator_service import (
     calculate_summary_stats,
     build_scan_report,
 )
+from app.services.report_formatter_service import (
+    generate_executive_summary,
+    format_report_as_markdown,
+    format_report_as_html,
+    save_report_files,
+)
 
 __all__ = [
     "call_nemotron",
@@ -190,4 +196,8 @@ __all__ = [
     "link_violation_to_fix_and_verification",
     "calculate_summary_stats",
     "build_scan_report",
+    "generate_executive_summary",
+    "format_report_as_markdown",
+    "format_report_as_html",
+    "save_report_files",
 ]

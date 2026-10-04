@@ -94,11 +94,27 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 await verify_all_fixes(scan_id)
                 await calculate_overall_improvement(scan_id)
 
-                # Phase 22: Build final unified ScanReport and broadcast completion
+                # Phase 22 & 23: Build final unified ScanReport, generate executive summary, and save files
                 from app.services.aggregator_service import build_scan_report
+                from app.services.report_formatter_service import (
+                    generate_executive_summary,
+                    save_report_files,
+                )
                 from app.routers.websocket import broadcast_progress
 
                 final_report = build_scan_report(scan_id)
+
+                # Generate executive summary via Nemotron Fast (with fallback)
+                exec_summary = await generate_executive_summary(final_report)
+                final_report.executive_summary = exec_summary
+                update_scan(scan_id=scan_id, report=final_report, executive_summary=exec_summary)
+
+                # Persist formatted reports to disk
+                try:
+                    save_report_files(final_report, scan_id, executive_summary=exec_summary)
+                except Exception as save_err:
+                    logger.warning(f"Could not persist report files: {save_err}")
+
                 stats = final_report.summary or {}
                 verified_count = stats.get("fixed_and_verified", 0)
                 total_violations = stats.get("total_violations", len(final_report.violations))
@@ -114,6 +130,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                         "total_violations": total_violations,
                         "score_before": final_report.overall_score_before,
                         "score_after": final_report.overall_score_after,
+                        "executive_summary": exec_summary,
                     },
                 )
             except Exception as bg_err:

@@ -135,6 +135,7 @@ export interface ScanReport {
   overall_score_after: number;
   overall_improvement?: ScoreImprovement | null;
   summary?: any | null;
+  executive_summary?: string | null;
   cost_breakdown?: CostBreakdown | null;
   total_duration_seconds?: number;
   timestamp: string;

@@ -9,6 +9,9 @@ import {
   GitPullRequest,
   Server,
   Loader2,
+  Download,
+  FileText,
+  Sparkles,
 } from 'lucide-react';
 import { getReport } from '../api/client';
 import { ScanReport } from '../types';
@@ -99,7 +102,24 @@ export const Report: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
+          <a
+            href={`/api/report/${report.scan_id}/markdown`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="secondary" size="sm" leftIcon={<FileText size={14} />}>
+              View as Markdown
+            </Button>
+          </a>
+          <a
+            href={`/api/report/${report.scan_id}/download`}
+            download={`codeguard-report-${report.scan_id}.html`}
+          >
+            <Button variant="secondary" size="sm" leftIcon={<Download size={14} />}>
+              Download Report
+            </Button>
+          </a>
           <Link to="/">
             <Button variant="secondary" size="sm" leftIcon={<RotateCcw size={14} />}>
               New Scan
@@ -115,6 +135,19 @@ export const Report: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Executive Summary Banner */}
+      {report.executive_summary && (
+        <div className="bg-gradient-to-r from-indigo-950/70 via-slate-900/90 to-purple-950/70 border border-indigo-500/30 rounded-2xl p-5 shadow-lg shadow-indigo-950/30">
+          <div className="flex items-center gap-2 mb-2 text-indigo-400 font-semibold text-sm">
+            <Sparkles size={16} />
+            <span>Executive Audit Summary</span>
+          </div>
+          <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal">
+            {report.executive_summary}
+          </p>
+        </div>
+      )}
 
       {/* KPI Metric Scorecards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">

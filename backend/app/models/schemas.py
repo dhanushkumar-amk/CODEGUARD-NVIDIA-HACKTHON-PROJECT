@@ -178,6 +178,7 @@ class ScanReport(BaseModel):
         default=None, description="Score delta and points gained"
     )
     summary: Optional[Dict[str, Any]] = Field(default=None, description="Detailed taxonomy and final status summary statistics")
+    executive_summary: Optional[str] = Field(default=None, description="High-level natural language executive summary for stakeholders")
     cost_breakdown: Optional[CostBreakdown] = Field(default=None, description="LLM token spend breakdown")
     total_duration_seconds: float = Field(default=0.0, description="Total elapsed seconds for the complete audit pipeline")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Completion timestamp")
