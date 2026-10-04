@@ -568,6 +568,9 @@ export const Report: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Floating Minimal Toast Notifications (Bottom Right) */}
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 };

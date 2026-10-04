@@ -330,6 +330,7 @@ describe('Report Page', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('pr-success-banner')).toBeInTheDocument();
+      expect(screen.getByTestId('toast-success')).toBeInTheDocument();
     });
 
     expect(api.createRemediationPR).toHaveBeenCalledWith(
@@ -344,7 +345,7 @@ describe('Report Page', () => {
     expect(link).toHaveAttribute('target', '_blank');
   });
 
-  it('clicking Create remediation PR displays clean error banner when backend reports failure', async () => {
+  it('clicking Create remediation PR displays clean error banner and toast when backend reports failure', async () => {
     vi.mocked(api.getReport).mockResolvedValueOnce(mockFullReport);
     vi.mocked(api.createRemediationPR).mockResolvedValueOnce({
       status: 'failed',
@@ -368,9 +369,10 @@ describe('Report Page', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('pr-error-banner')).toBeInTheDocument();
+      expect(screen.getByTestId('toast-error')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Could not create remediation PR/i)).toBeInTheDocument();
-    expect(screen.getByText(/No write access to repository/i)).toBeInTheDocument();
+    expect(screen.getByTestId('pr-error-banner')).toHaveTextContent(/Could not create remediation PR/i);
+    expect(screen.getByTestId('toast-error')).toHaveTextContent(/No write access to repository/i);
   });
 });
