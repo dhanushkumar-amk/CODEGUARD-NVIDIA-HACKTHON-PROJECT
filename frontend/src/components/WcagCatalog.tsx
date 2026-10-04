@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Image, FormInput, Sliders, KeyRound, Focus, CheckCircle2 } from 'lucide-react';
+import { Eye, Image, FormInput, Sliders, KeyRound, Focus, CheckCircle2, ArrowUpRight } from 'lucide-react';
 
 export const WcagCatalog: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'perceivable' | 'operable' | 'robust'>('all');
@@ -10,60 +10,66 @@ export const WcagCatalog: React.FC = () => {
       level: 'AA',
       principle: 'perceivable',
       category: 'Contrast (Minimum)',
-      icon: <Eye size={18} strokeWidth={1.75} />,
-      problem: 'Text elements with low luminance contrast ratio (< 4.5:1) against their backgrounds.',
-      fix: 'Computes WCAG contrast formulas and adjusts color luminance to guaranteed 4.5:1+ threshold.',
-      sampleFix: 'text-slate-400 → text-slate-100 (7.2:1)',
+      icon: <Eye size={17} strokeWidth={1.75} />,
+      description: 'Detects text with contrast ratios below 4.5:1 and recalculates compliant color luminance values.',
+      sampleFix: 'text-slate-400 → text-slate-100',
+      // 1. Purple
+      hoverGradient: 'linear-gradient(145deg, #704BEA 0%, #4322B3 100%)',
     },
     {
       id: '1.1.1',
       level: 'A',
       principle: 'perceivable',
       category: 'Non-Text Content',
-      icon: <Image size={18} strokeWidth={1.75} />,
-      problem: 'Images, icons, and SVG graphics missing descriptive alternative text or aria tags.',
-      fix: 'Synthesizes contextual alt tags with Nemotron vision reasoning or applies aria-hidden to decorative glyphs.',
-      sampleFix: '<img src="logo.png" /> → alt="Company logo"',
+      icon: <Image size={17} strokeWidth={1.75} />,
+      description: 'Synthesizes contextual alt tags for imagery or marks decorative icons with aria-hidden.',
+      sampleFix: '<img src="logo.png" /> → alt="..."',
+      // 2. Coral / Orange
+      hoverGradient: 'linear-gradient(145deg, #FF5C38 0%, #D83410 100%)',
     },
     {
       id: '3.3.2',
       level: 'A',
       principle: 'operable',
       category: 'Labels or Instructions',
-      icon: <FormInput size={18} strokeWidth={1.75} />,
-      problem: 'Form inputs, dropdowns, and textfields without linked programmatic labels.',
-      fix: 'Injects explicit <label htmlFor="..."> linkages or aria-label attributes without disturbing layouts.',
-      sampleFix: '<input id="email" /> → <label htmlFor="email">Email</label>',
+      icon: <FormInput size={17} strokeWidth={1.75} />,
+      description: 'Injects explicit <label htmlFor="..."> linkages or programmatic aria attributes to form fields.',
+      sampleFix: '<input /> → <label htmlFor="...">',
+      // 3. Cyan / Teal
+      hoverGradient: 'linear-gradient(145deg, #0891B2 0%, #0E7490 100%)',
     },
     {
       id: '4.1.2',
       level: 'A',
       principle: 'robust',
       category: 'Name, Role, Value',
-      icon: <Sliders size={18} strokeWidth={1.75} />,
-      problem: 'Clickable <div> or <span> elements lacking semantic roles and keyboard handlers.',
-      fix: 'Refactors into native <button> or injects role="button", tabIndex={0}, and onKeyDown handlers.',
-      sampleFix: '<div onClick={fn}> → <button type="button" onClick={fn}>',
+      icon: <Sliders size={17} strokeWidth={1.75} />,
+      description: 'Converts non-semantic clickable elements into accessible native buttons with keyboard listeners.',
+      sampleFix: '<div onClick> → <button onClick>',
+      // 4. Cobalt / Blue
+      hoverGradient: 'linear-gradient(145deg, #2563EB 0%, #1D4ED8 100%)',
     },
     {
       id: '2.1.2',
       level: 'A',
       principle: 'operable',
       category: 'No Keyboard Trap',
-      icon: <KeyRound size={18} strokeWidth={1.75} />,
-      problem: 'Modals and dialog drawers trapping keyboard focus without an escape path.',
-      fix: 'Wraps dialogs in focus traps and binds global Escape key listeners to close overlays cleanly.',
-      sampleFix: 'Focus-trap cycle + Escape key listener',
+      icon: <KeyRound size={17} strokeWidth={1.75} />,
+      description: 'Wraps modals in accessible focus traps and binds global Escape key handlers to avoid traps.',
+      sampleFix: 'Focus-trap cycle + Escape key',
+      // 5. Amber / Gold
+      hoverGradient: 'linear-gradient(145deg, #D97706 0%, #B45309 100%)',
     },
     {
       id: '2.4.7',
       level: 'AA',
       principle: 'operable',
       category: 'Focus Visible',
-      icon: <Focus size={18} strokeWidth={1.75} />,
-      problem: 'CSS rules stripping default focus outlines (outline: none) with no replacement.',
-      fix: 'Restores high-contrast, theme-aware focus indicator rings visible across all browsers.',
-      sampleFix: 'outline-none → focus-visible:ring-2 focus-visible:ring-primary',
+      icon: <Focus size={17} strokeWidth={1.75} />,
+      description: 'Replaces outline:none rules with high-contrast, theme-aware focus indicator rings.',
+      sampleFix: 'outline:none → focus-visible:ring-2',
+      // 6. Emerald / Mint Green
+      hoverGradient: 'linear-gradient(145deg, #059669 0%, #047857 100%)',
     },
   ];
 
@@ -105,7 +111,7 @@ export const WcagCatalog: React.FC = () => {
               className={`px-3 py-1.5 rounded-[6px] transition-colors uppercase tracking-[0.08em] text-[11px] cursor-pointer border ${
                 activeFilter === filter.id
                   ? 'bg-ink text-paper border-ink'
-                  : 'bg-paper text-muted border-line hover:text-ink hover:border-ink/30'
+                  : 'bg-paper text-muted border-line hover:text-ink hover:border-ink/40'
               }`}
             >
               {filter.label}
@@ -114,52 +120,63 @@ export const WcagCatalog: React.FC = () => {
         </div>
       </div>
 
-      {/* 6 WCAG Rules Cards */}
+      {/* 6 Cards with Smooth Color Hover Animation */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredRules.map((rule) => (
           <div
             key={rule.id}
-            className="group relative p-6 rounded-[8px] border border-line bg-paper hover:bg-surface-1/50 hover:border-ink/30 transition-all duration-300 ease-out hover:-translate-y-1 cursor-pointer flex flex-col justify-between select-none"
+            className="group relative overflow-hidden p-6 sm:p-7 rounded-[12px] border border-line bg-paper text-left flex flex-col justify-between min-h-[250px] transition-all duration-700 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 hover:border-transparent cursor-pointer select-none"
           >
-            <div>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <div className="w-9 h-9 rounded-[6px] border border-line bg-surface-1 flex items-center justify-center text-ink group-hover:border-primary/40 group-hover:text-primary transition-all duration-300">
-                  {rule.icon}
-                </div>
-                <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                  <span className="px-2 py-0.5 rounded-[4px] bg-surface-1 text-muted border border-line">
+            {/* Smooth colored background layer — Fades in smoothly and slowly on hover */}
+            <div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-out pointer-events-none rounded-[12px]"
+              style={{ background: rule.hoverGradient }}
+            />
+
+            {/* Top section content */}
+            <div className="relative z-10">
+              {/* Header row */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-[8px] border border-line bg-surface-1 flex items-center justify-center text-ink group-hover:bg-white/20 group-hover:border-white/30 group-hover:text-white transition-all duration-700 ease-out">
+                    {rule.icon}
+                  </div>
+                  <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted group-hover:text-white/80 transition-colors duration-700 ease-out">
                     WCAG {rule.id}
                   </span>
-                  <span className="px-1.5 py-0.5 rounded-[4px] bg-primary/10 text-primary border border-primary/20 font-semibold">
-                    {rule.level}
+                </div>
+
+                {/* Inspect action badge */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full border border-line bg-surface-1 text-muted group-hover:bg-white group-hover:text-ink group-hover:border-transparent group-hover:shadow-sm transition-all duration-700 ease-out flex items-center gap-1">
+                    <span>Inspect</span>
+                    <ArrowUpRight
+                      size={11}
+                      className="transition-transform duration-700 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                    />
                   </span>
                 </div>
               </div>
 
               {/* Title */}
-              <h3 className="text-base font-bold font-sans text-ink tracking-tight mb-2 group-hover:text-primary transition-colors duration-200">
+              <h3 className="text-base sm:text-lg font-bold font-sans text-ink tracking-tight mb-2 group-hover:text-white transition-colors duration-700 ease-out">
                 {rule.category}
               </h3>
 
-              {/* Problem */}
-              <p className="text-xs text-muted leading-relaxed mb-3 font-sans">
-                {rule.problem}
-              </p>
-
-              {/* Fix narrative */}
-              <p className="text-xs text-ink/80 leading-relaxed font-sans mb-4">
-                {rule.fix}
+              {/* Minimal, concise description */}
+              <p className="text-xs text-muted leading-relaxed font-sans group-hover:text-white/85 transition-colors duration-700 ease-out">
+                {rule.description}
               </p>
             </div>
 
             {/* Code patch example at bottom */}
-            <div className="pt-3 border-t border-line flex items-center justify-between text-[11px] font-mono text-muted">
-              <span className="truncate max-w-[200px] text-ink/90 font-medium">
+            <div className="relative z-10 pt-3 mt-4 border-t border-line group-hover:border-white/20 flex items-center justify-between text-[11px] font-mono text-muted group-hover:text-white/90 transition-all duration-700 ease-out">
+              <span className="truncate max-w-[200px] font-medium text-ink/80 group-hover:text-white transition-colors duration-700 ease-out">
                 {rule.sampleFix}
               </span>
-              <span className="inline-flex items-center gap-1 text-emerald-600 font-medium shrink-0 ml-2">
-                <CheckCircle2 size={12} /> Auto-fixed
+              <span className="inline-flex items-center gap-1 text-emerald-600 group-hover:text-white font-medium shrink-0 ml-2 transition-colors duration-700 ease-out">
+                <CheckCircle2 size={12} className="group-hover:text-white transition-colors duration-700 ease-out" />
+                <span className="text-[10px] uppercase tracking-wider">Verified</span>
               </span>
             </div>
           </div>

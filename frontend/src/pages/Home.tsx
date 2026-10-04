@@ -4,7 +4,6 @@ import axios from 'axios';
 import { ArrowUpRight, Search, Cpu, ShieldCheck } from 'lucide-react';
 import { startScan } from '../api/client';
 import { RepoUrlInput, DEFAULT_DEMO_REPO } from '../components/RepoUrlInput';
-import { EngineArchitecture } from '../components/EngineArchitecture';
 import { WcagCatalog } from '../components/WcagCatalog';
 import { HowItWorksSection } from '../components/HowItWorksSection';
 
@@ -144,13 +143,10 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. ENGINE ARCHITECTURE — NVIDIA Nemotron & Nebius Sandboxes */}
-      <EngineArchitecture />
-
-      {/* 4. WCAG STANDARDS CATALOG — Real rules and code remediations */}
+      {/* 3. WCAG STANDARDS CATALOG — Real rules and code remediations */}
       <WcagCatalog />
 
-      {/* 5. HOW IT WORKS PIPELINE — Detect • Fix • Verify */}
+      {/* 4. HOW IT WORKS PIPELINE — Detect • Fix • Verify */}
       <HowItWorksSection />
     </div>
   );

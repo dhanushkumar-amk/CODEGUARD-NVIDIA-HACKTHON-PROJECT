@@ -21,21 +21,21 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-mono uppercase tracking-[0.08em] font-medium rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer select-none';
+    'group inline-flex items-center justify-center font-mono uppercase tracking-[0.08em] font-medium rounded-[6px] transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none cursor-pointer select-none';
 
   const variants = {
-    // Primary: solid --primary (#8069FF) background, white text, mono uppercase tracked label, 6px radius, no shadow
+    // Primary: solid --primary with tactile lift, subtle ambient glow, and micro-shift
     primary:
-      'bg-primary hover:bg-[#7057F5] active:bg-[#6045E6] text-white',
-    // Secondary: white/paper background, 1px --line border, --ink text, same mono label style, 6px radius
+      'bg-primary text-white hover:bg-[#725AF8] hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(128,105,255,0.32)] active:translate-y-0 active:bg-[#6045E6] active:shadow-none',
+    // Secondary: paper background with subtle lift and border darkening
     secondary:
-      'bg-paper hover:bg-surface-1 active:bg-surface-2 text-ink border border-line',
+      'bg-paper text-ink border border-line hover:bg-surface-1 hover:border-ink/30 hover:-translate-y-0.5 active:translate-y-0 active:bg-surface-2',
     outline:
-      'bg-transparent hover:bg-surface-1 active:bg-surface-2 text-ink border border-line',
+      'bg-transparent text-ink border border-line hover:bg-surface-1 hover:border-ink/30 hover:-translate-y-0.5 active:translate-y-0 active:bg-surface-2',
     danger:
-      'bg-coral hover:bg-coral/90 active:bg-coral/80 text-white',
+      'bg-coral text-white hover:bg-coral/90 hover:-translate-y-0.5 active:translate-y-0 active:bg-coral/80',
     success:
-      'bg-emerald hover:bg-emerald/90 active:bg-emerald/80 text-white',
+      'bg-emerald text-white hover:bg-emerald/90 hover:-translate-y-0.5 active:translate-y-0 active:bg-emerald/80',
   };
 
   const sizes = {
@@ -52,11 +52,17 @@ export const Button: React.FC<ButtonProps> = ({
     >
       {isLoading ? (
         <Loader2 className="animate-spin" size={size === 'sm' ? 13 : size === 'lg' ? 18 : 15} />
-      ) : (
-        leftIcon
-      )}
+      ) : leftIcon ? (
+        <span className="transition-transform duration-200 group-hover:-translate-x-0.5 inline-flex items-center">
+          {leftIcon}
+        </span>
+      ) : null}
       <span>{children}</span>
-      {!isLoading && rightIcon}
+      {!isLoading && rightIcon && (
+        <span className="transition-transform duration-200 group-hover:translate-x-0.5 inline-flex items-center">
+          {rightIcon}
+        </span>
+      )}
     </button>
   );
 };
