@@ -24,10 +24,12 @@ class Settings(BaseSettings):
     NEMOTRON_ULTRA_MODEL_ID: str = "nvidia/Nemotron-3-Ultra-550b-a55b"
     NEMOTRON_NANO_MODEL_ID: str = "nvidia/Nemotron-3_5-Lightning"
     NEMOTRON_FAST_MODEL_ID: str = "nvidia/Nemotron-3_5-Lightning"
-    ULTRA_MAX_CALLS_PER_SCAN: int = 5
+    ULTRA_MAX_CALLS_PER_SCAN: int = 10
     ULTRA_BUDGET_USD_PER_SCAN: float = 0.05
     ULTRA_ENABLED: bool = True
     DIAGNOSIS_TOP_N: int = 15
+    FIX_GENERATION_MODEL: str = "ultra"
+    FIX_MIN_SEVERITY: str = "medium"
 
     # Nebius AI Cloud Sandbox Configuration
     NEBIUS_SANDBOX_API_KEY: str = ""

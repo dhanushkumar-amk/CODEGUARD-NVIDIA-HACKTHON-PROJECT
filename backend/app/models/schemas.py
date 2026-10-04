@@ -79,10 +79,30 @@ class ProposedFix(BaseModel):
     """Represents an AI-generated remediation patch."""
     fix_id: str = Field(default="", description="Unique identifier for the fix")
     violation_id: str = Field(description="Referenced violation identifier")
-    diff: str = Field(description="Unified git diff string")
-    explanation: str = Field(description="Detailed explanation of how the fix resolves the violation")
-    original_code: Optional[str] = Field(default=None, description="Original code before patch")
-    remediated_code: Optional[str] = Field(default=None, description="Remediated code after patch")
+    file: str = Field(default="", description="Relative path to the modified file")
+    line_start: Optional[int] = Field(default=None, description="Start line of the modified code block (1-indexed)")
+    line_end: Optional[int] = Field(default=None, description="End line of the modified code block (1-indexed)")
+    original_lines: str = Field(default="", description="Original code block before patch")
+    fixed_lines: str = Field(default="", description="Remediated code block after patch")
+    diff: str = Field(default="", description="Unified git diff string")
+    explanation_of_change: str = Field(default="", description="Detailed explanation of how the fix resolves the violation")
+    confidence: str = Field(default="high", description="Fix confidence level: 'high', 'medium', or 'low'")
+    status: str = Field(default="proposed", description="Fix status: 'proposed' or 'failed'")
+    failure_reason: Optional[str] = Field(default=None, description="Detailed reason if fix generation or validation failed")
+    # Backward compatibility aliases
+    explanation: Optional[str] = Field(default="", description="Legacy explanation field")
+    original_code: Optional[str] = Field(default=None, description="Legacy original code alias")
+    remediated_code: Optional[str] = Field(default=None, description="Legacy remediated code alias")
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.explanation and self.explanation_of_change:
+            self.explanation = self.explanation_of_change
+        elif not self.explanation_of_change and self.explanation:
+            self.explanation_of_change = self.explanation
+        if not self.original_code and self.original_lines:
+            self.original_code = self.original_lines
+        if not self.remediated_code and self.fixed_lines:
+            self.remediated_code = self.fixed_lines
 
 
 class VerificationResult(BaseModel):

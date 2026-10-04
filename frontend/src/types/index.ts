@@ -65,8 +65,17 @@ export interface ViolationSummary {
 export interface ProposedFix {
   fix_id: string;
   violation_id: string;
+  file?: string;
+  line_start?: number | null;
+  line_end?: number | null;
+  original_lines?: string;
+  fixed_lines?: string;
   diff: string;
-  explanation: string;
+  explanation_of_change?: string;
+  explanation?: string;
+  confidence?: 'high' | 'medium' | 'low' | string;
+  status?: 'proposed' | 'failed' | string;
+  failure_reason?: string | null;
   original_code?: string | null;
   remediated_code?: string | null;
 }

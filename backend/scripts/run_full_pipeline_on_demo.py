@@ -1,10 +1,11 @@
 """
-Full End-to-End Pipeline Execution Script (Phases 12 -> 13 -> 14 -> 15):
-Runs clone/prepare -> detect -> classify -> diagnose -> explain against the seeded demo app.
+Full End-to-End Pipeline Execution Script (Phases 12 -> 13 -> 14 -> 15 -> 16):
+Runs clone/prepare -> detect -> classify -> diagnose -> explain -> generate_fixes against the seeded demo app.
 Outputs:
 1. Classified and Diagnosed violations with plain_explanation and root-cause details.
-2. 5 Sample Plain Explanations (mix of LLM-diagnosed and template-diagnosed items).
-3. Token usage and cost metrics (Fast vs Ultra) from /test-llm/cost.
+2. The generated unified diffs for 3-5 planted bugs.
+3. Any fixes that failed validation, and why.
+4. Token usage and cost metrics (Fast vs Ultra) from /test-llm/cost.
 """
 import asyncio
 import json
@@ -21,7 +22,7 @@ from app.services.scanner_service import prepare_scan_batch
 from app.services.detector_service import detect_violations
 from app.services.diagnosis_service import diagnose_all
 from app.services.explainer_service import generate_all_explanations
-from app.services.classifier_service import summarize_violations
+from app.services.fixer_service import generate_all_fixes
 from app.services.llm_client import (
     get_cost_breakdown,
     get_token_usage_stats,
@@ -36,7 +37,7 @@ logger = logging.getLogger(__name__)
 async def main():
     repo_root = backend_dir.parent / "sandbox-scripts" / "demo-app"
     print("=" * 80)
-    print("CODEGUARD FULL PIPELINE EXECUTION (PHASE 12 -> 13 -> 14 -> 15)")
+    print("CODEGUARD FULL PIPELINE EXECUTION (PHASE 12 -> 13 -> 14 -> 15 -> 16)")
     print(f"Demo Target: {repo_root.resolve()}")
     print("=" * 80)
 
@@ -78,44 +79,52 @@ async def main():
     explained = await generate_all_explanations(scan_id)
     print(f"    Generated plain-English explanations for all {len(explained)} violations.")
 
+    # Step 6: Run Code-Fix Generator (Nemotron Ultra - Concurrency=2)
+    print("\n[6] Running Code-Fix Synthesis (Nemotron Ultra)...")
+    fixes = await generate_all_fixes(scan_id)
+    print(f"    Processed {len(fixes)} fixes total.")
+
+    # Step 7: Display Generated Diffs for Planted Bugs
+    proposed_fixes = [f for f in fixes if f.status == "proposed"]
+    failed_fixes = [f for f in fixes if f.status == "failed"]
+
     print("\n" + "=" * 80)
-    print("5 DIFFERENT VIOLATION EXPLANATIONS (MIX OF LLM AND TEMPLATE DIAGNOSES)")
+    print(f"GENERATED CODE DIFFS FOR PLANTED BUGS ({len(proposed_fixes)} PROPOSED)")
     print("=" * 80)
 
-    # Pick a mix: some with diagnosis_source == "llm", some with "template"
-    llm_violations = [v for v in explained if v.diagnosis_source == "llm"]
-    tpl_violations = [v for v in explained if v.diagnosis_source == "template"]
+    for i, fix in enumerate(proposed_fixes[:5], 1):
+        print(f"\n--- Proposed Fix #{i}: {fix.fix_id} (Resolves {fix.violation_id}) ---")
+        print(f"File:         {fix.file} (Lines {fix.line_start}-{fix.line_end})")
+        print(f"Confidence:   {fix.confidence.upper()}")
+        print(f"Status:       {fix.status.upper()}")
+        print(f"Explanation:  {fix.explanation_of_change}")
+        print("\nUnified Git Diff:")
+        print("-" * 60)
+        print(fix.diff)
+        print("-" * 60)
 
-    # Select 5 (e.g. 2-3 from LLM, 2-3 from Template)
-    selected: list = []
-    if llm_violations:
-        selected.extend(llm_violations[:3])
-    if tpl_violations:
-        needed = 5 - len(selected)
-        selected.extend(tpl_violations[:needed])
-    if len(selected) < 5 and len(explained) >= 5:
-        remaining = [v for v in explained if v not in selected]
-        selected.extend(remaining[: 5 - len(selected)])
+    # Step 8: Display Any Failed Fixes & Rationale
+    print("\n" + "=" * 80)
+    print(f"FIXES THAT FAILED VALIDATION OR WERE SKIPPED ({len(failed_fixes)} ITEMS)")
+    print("=" * 80)
 
-    for i, v in enumerate(selected, 1):
-        print(f"\n--- Violation #{i} ---")
-        print(f"ID:                 {v.id}")
-        print(f"Location:           {v.file}:{v.line}")
-        print(f"Category:           {v.category.value if hasattr(v.category, 'value') else v.category}")
-        print(f"Severity:           {v.severity.upper()} (Rank: {v.priority_rank})")
-        print(f"Diagnosis Source:   {v.diagnosis_source.upper()} ({'Ultra LLM' if v.diagnosis_source == 'llm' else 'Fallback Template'})")
-        print(f"Plain Explanation:  \"{v.plain_explanation}\"")
-        print(f"Explanation Length: {len(v.plain_explanation)} chars (Max 400)")
-        print(f"Technical Summary:  Root Cause: {v.root_cause[:80]}...")
+    if not failed_fixes:
+        print("None! All attempted fixes passed syntax, whitespace, and delimiter quality checks.")
+    else:
+        for i, fix in enumerate(failed_fixes, 1):
+            print(f"\n--- Failed/Skipped Fix #{i}: {fix.fix_id} (Violation: {fix.violation_id}) ---")
+            print(f"File:           {fix.file}")
+            print(f"Status:         {fix.status.upper()}")
+            print(f"Failure Reason: {fix.failure_reason}")
 
-    # Step 6: Cost and Token Breakdown
+    # Step 9: Cost and Token Breakdown
     print("\n" + "=" * 80)
     print("UPDATED COST & TOKEN USAGE BREAKDOWN (/test-llm/cost)")
     print("=" * 80)
     costs = get_cost_breakdown()
-    print(f"Fast Model Cost (Detection & Explanations): ${costs['fast_cost']:.6f} USD")
-    print(f"Ultra Model Cost (Root-Cause Diagnosis):    ${costs['ultra_cost']:.6f} USD")
-    print(f"Total Combined Cost:                        ${costs['total']:.6f} USD")
+    print(f"Fast Model Cost (Scanning & Explanations): ${costs['fast_cost']:.6f} USD")
+    print(f"Ultra Model Cost (Diagnosis & Code Fixes): ${costs['ultra_cost']:.6f} USD")
+    print(f"Total Combined Pipeline Cost:              ${costs['total']:.6f} USD")
 
     usage = get_token_usage_stats()
     print("\nFull Usage Statistics by Tier:")

@@ -64,7 +64,14 @@ from app.services.explainer_service import (
     generate_all_explanations,
     truncate_at_sentence_boundary,
 )
-from app.services.fixer_service import generate_remediation_patch
+from app.services.fixer_service import (
+    get_fix_context,
+    build_fix_prompt,
+    validate_fix_output,
+    generate_fix,
+    generate_all_fixes,
+    generate_remediation_patch,
+)
 from app.services.verifier_service import verify_patch_in_sandbox
 from app.services.report_service import generate_compliance_report
 
@@ -115,6 +122,11 @@ __all__ = [
     "generate_explanation",
     "generate_all_explanations",
     "truncate_at_sentence_boundary",
+    "get_fix_context",
+    "build_fix_prompt",
+    "validate_fix_output",
+    "generate_fix",
+    "generate_all_fixes",
     "generate_remediation_patch",
     "verify_patch_in_sandbox",
     "generate_compliance_report",

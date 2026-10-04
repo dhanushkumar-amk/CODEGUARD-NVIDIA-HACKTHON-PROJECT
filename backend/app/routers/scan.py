@@ -77,6 +77,10 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 # Phase 15: Generate stakeholder-friendly plain English explanations
                 from app.services.explainer_service import generate_all_explanations
                 await generate_all_explanations(scan_id)
+
+                # Phase 16: Synthesize code-fix patches with Nemotron Ultra
+                from app.services.fixer_service import generate_all_fixes
+                await generate_all_fixes(scan_id)
             except Exception as bg_err:
                 logger.error(f"Error during background violation pipeline for {scan_id}: {bg_err}", exc_info=True)
 
