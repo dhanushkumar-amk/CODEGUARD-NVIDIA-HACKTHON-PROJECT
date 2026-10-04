@@ -3,14 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown,
   ChevronUp,
-  Filter,
   CheckCircle2,
   AlertTriangle,
   ShieldX,
   Eye,
   FileCode,
-  Server,
-  FileCheck,
   Search,
 } from 'lucide-react';
 import { UnifiedViolationRecord, Violation, ProposedFix, VerificationResult } from '../types';
@@ -37,7 +34,6 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
-  // Assemble unified records if backend only sent flat lists
   const unifiedItems: UnifiedViolationRecord[] = useMemo(() => {
     if (records && records.length > 0) {
       return records;
@@ -77,7 +73,6 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
     });
   }, [records, fallbackViolations, fallbackFixes, fallbackVerifications]);
 
-  // Extract unique categories for filter dropdown
   const uniqueCategories = useMemo(() => {
     const set = new Set<string>();
     unifiedItems.forEach((item) => {
@@ -88,17 +83,14 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
     return Array.from(set).sort();
   }, [unifiedItems]);
 
-  // Filtered violations
   const filteredItems = useMemo(() => {
     return unifiedItems.filter((item) => {
       const v = item.violation;
 
-      // Status Filter
       if (statusFilter !== 'all' && item.final_status !== statusFilter) {
         return false;
       }
 
-      // Severity Filter
       if (severityFilter !== 'all') {
         const itemSev = (v.severity || '').toLowerCase();
         const targetSev = severityFilter.toLowerCase();
@@ -108,12 +100,10 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
         if (targetSev === 'critical' && itemSev !== 'critical') return false;
       }
 
-      // Category Filter
       if (categoryFilter !== 'all' && String(v.category) !== categoryFilter) {
         return false;
       }
 
-      // Search Query (id, file, rule type, description)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const matchId = v.id.toLowerCase().includes(query);
@@ -136,67 +126,63 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
     }));
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusIndicator = (status: string) => {
     switch (status) {
       case 'fixed_and_verified':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <CheckCircle2 size={12} /> Fixed &amp; Verified
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2F7A4D]">
+            <CheckCircle2 size={12} /> Verified
           </span>
         );
       case 'fixed_not_verified':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-            <AlertTriangle size={12} /> Fixed (Unverified)
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-severity-medium">
+            <AlertTriangle size={12} /> Unverified
           </span>
         );
       case 'fix_failed':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-            <ShieldX size={12} /> Fix Failed
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-destructive">
+            <ShieldX size={12} /> Failed
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-            <Eye size={12} /> Detected Only
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted">
+            <Eye size={12} /> Detected
           </span>
         );
     }
   };
 
   return (
-    <div data-testid="filterable-violations-list" className="flex flex-col gap-4">
-      {/* Controls Bar */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 backdrop-blur-md shadow-xl flex flex-col gap-4">
+    <div data-testid="filterable-violations-list" className="flex flex-col gap-0">
+      {/* Filter controls */}
+      <div className="border border-border bg-surface-1 p-4 flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-            <Filter size={16} className="text-indigo-400" />
-            <span>Filter Violations ({filteredItems.length} of {unifiedItems.length})</span>
+          <div className="text-sm font-medium text-foreground">
+            Violations ({filteredItems.length} of {unifiedItems.length})
           </div>
 
-          {/* Quick search input */}
-          <div className="relative w-full sm:w-64">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <div className="relative w-full sm:w-56">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="text"
               placeholder="Search file, type, ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-8 pr-3 py-1.5 rounded-control bg-background border border-border text-xs text-foreground placeholder-muted focus:outline-none focus:border-primary"
             />
           </div>
         </div>
 
-        {/* Filter Dropdowns / Selectors */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* Status Filter */}
           <div>
             <label
               htmlFor="filter-status-select"
-              className="block text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1"
+              className="block text-[11px] text-muted mb-1"
             >
-              Outcome Status
+              Outcome status
             </label>
             <select
               id="filter-status-select"
@@ -204,23 +190,22 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
               data-testid="filter-status-select"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+              className="w-full px-3 py-1.5 rounded-control bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary font-mono"
             >
-              <option value="all">All Outcomes ({unifiedItems.length})</option>
-              <option value="fixed_and_verified">Fixed &amp; Verified</option>
-              <option value="fixed_not_verified">Fixed (Unverified)</option>
-              <option value="fix_failed">Fix Failed</option>
-              <option value="detected_only">Detected Only</option>
+              <option value="all">All outcomes ({unifiedItems.length})</option>
+              <option value="fixed_and_verified">Fixed & verified</option>
+              <option value="fixed_not_verified">Fixed (unverified)</option>
+              <option value="fix_failed">Fix failed</option>
+              <option value="detected_only">Detected only</option>
             </select>
           </div>
 
-          {/* Severity Filter */}
           <div>
             <label
               htmlFor="filter-severity-select"
-              className="block text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1"
+              className="block text-[11px] text-muted mb-1"
             >
-              Severity Level
+              Severity level
             </label>
             <select
               id="filter-severity-select"
@@ -228,23 +213,22 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
               data-testid="filter-severity-select"
               value={severityFilter}
               onChange={(e) => setSeverityFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+              className="w-full px-3 py-1.5 rounded-control bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary font-mono"
             >
-              <option value="all">All Severities</option>
+              <option value="all">All severities</option>
               <option value="critical">Critical</option>
-              <option value="high">High / Serious</option>
-              <option value="medium">Medium / Moderate</option>
-              <option value="low">Low / Minor</option>
+              <option value="high">High / serious</option>
+              <option value="medium">Medium / moderate</option>
+              <option value="low">Low / minor</option>
             </select>
           </div>
 
-          {/* Category Filter */}
           <div>
             <label
               htmlFor="filter-category-select"
-              className="block text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-1"
+              className="block text-[11px] text-muted mb-1"
             >
-              WCAG Category
+              WCAG category
             </label>
             <select
               id="filter-category-select"
@@ -252,9 +236,9 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
               data-testid="filter-category-select"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+              className="w-full px-3 py-1.5 rounded-control bg-background border border-border text-xs text-foreground focus:outline-none focus:border-primary font-mono"
             >
-              <option value="all">All Categories ({uniqueCategories.length})</option>
+              <option value="all">All categories ({uniqueCategories.length})</option>
               {uniqueCategories.map((cat) => (
                 <option key={cat} value={cat}>
                   {formatCategoryLabel(cat)}
@@ -265,16 +249,25 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
         </div>
       </div>
 
-      {/* Violations Accordion Items */}
+      {/* Violations as audit-log rows */}
       {filteredItems.length === 0 ? (
         <div
           data-testid="no-matching-violations"
-          className="p-8 text-center rounded-2xl bg-slate-900/40 border border-slate-800 text-slate-400 text-sm"
+          className="p-8 text-center border border-border border-t-0 text-muted text-sm"
         >
           No violations match the selected filters.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="border border-border border-t-0 divide-y divide-border">
+          {/* Table header */}
+          <div className="hidden sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-4 py-2 bg-surface-1 text-[11px] text-muted font-medium">
+            <span>Violation</span>
+            <span className="w-20 text-center">Severity</span>
+            <span className="w-24 text-center">Status</span>
+            <span className="w-48">File</span>
+            <span className="w-8"></span>
+          </div>
+
           {filteredItems.map((item) => {
             const v = item.violation;
             const isExpanded = Boolean(expandedIds[v.id]);
@@ -283,104 +276,104 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
               <div
                 key={v.id}
                 data-testid={`violation-item-${v.id}`}
-                className="bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 rounded-2xl overflow-hidden backdrop-blur-md shadow-lg shadow-black/20 transition-all"
               >
-                {/* Clickable Header Row */}
+                {/* Row */}
                 <button
                   type="button"
                   onClick={() => toggleExpand(v.id)}
                   aria-expanded={isExpanded}
-                  className="w-full p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left focus:outline-none hover:bg-slate-800/20 transition cursor-pointer"
+                  className="w-full px-4 py-3 flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto_auto] sm:items-center gap-2 sm:gap-4 text-left focus:outline-none hover:bg-surface-1/50 transition-colors cursor-pointer"
                 >
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    {getStatusBadge(item.final_status)}
-
-                    <Badge variant={v.severity || 'medium'} size="sm">
-                      {v.severity || 'medium'}
-                    </Badge>
-
-                    <span className="font-mono text-xs font-bold text-indigo-300">
-                      {v.id}
-                    </span>
-
-                    <span className="text-sm font-semibold text-white">
+                  {/* Violation name + ID */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-[11px] text-muted shrink-0">{v.id}</span>
+                    <span className="text-sm font-medium text-foreground truncate">
                       {formatCategoryLabel(v.category)}: {v.type}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-                    <span className="text-xs font-mono text-slate-400 truncate max-w-xs sm:max-w-sm flex items-center gap-1">
-                      <FileCode size={13} className="text-slate-500 shrink-0" />
-                      {v.file}
-                      {v.line && `:${v.line}`}
-                    </span>
+                  {/* Severity badge */}
+                  <div className="w-20 flex justify-center">
+                    <Badge variant={v.severity || 'medium'} size="sm">
+                      {v.severity || 'medium'}
+                    </Badge>
+                  </div>
 
-                    <div className="p-1 rounded-lg bg-slate-800 text-slate-300 shrink-0">
-                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </div>
+                  {/* Status */}
+                  <div className="w-24 flex justify-center">
+                    {getStatusIndicator(item.final_status)}
+                  </div>
+
+                  {/* File path */}
+                  <span className="w-48 text-xs font-mono text-muted truncate flex items-center gap-1">
+                    <FileCode size={12} className="shrink-0" />
+                    {v.file}
+                    {v.line && `:${v.line}`}
+                  </span>
+
+                  {/* Expand chevron */}
+                  <div className="w-8 flex justify-center text-muted">
+                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </div>
                 </button>
 
-                {/* Expanded Details Pane */}
+                {/* Expanded details */}
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25 }}
-                      className="border-t border-slate-800/90 p-4 sm:p-6 bg-slate-950/60 flex flex-col gap-6"
+                      transition={{ duration: 0.2 }}
+                      className="border-t border-border px-4 py-4 bg-surface-1/30 flex flex-col gap-4"
                     >
-                      {/* 1. Full Violation Diagnosis Card */}
+                      {/* Violation details */}
                       <div>
-                        <div className="text-xs font-mono uppercase tracking-wider text-slate-400 font-semibold mb-2 flex items-center gap-1.5">
-                          <Eye size={13} className="text-indigo-400" />
-                          Accessibility Defect Details
+                        <div className="text-xs text-muted font-medium mb-2">
+                          Defect details
                         </div>
                         <ViolationCard violation={v} />
                       </div>
 
-                      {/* 2. Fix Diff Viewer if patch was synthesized */}
+                      {/* Fix diff */}
                       {item.fix ? (
                         <div>
-                          <div className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-semibold mb-2 flex items-center gap-1.5">
-                            <FileCode size={13} className="text-emerald-400" />
-                            Synthesized Remediation Diff ({item.fix.fix_id})
+                          <div className="text-xs text-muted font-medium mb-2">
+                            Synthesized remediation ({item.fix.fix_id})
                           </div>
                           <FixDiffViewer fix={item.fix} />
                         </div>
                       ) : (
-                        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400">
+                        <div className="p-3 border border-border text-xs text-muted">
                           {item.final_status === 'fix_failed'
-                            ? 'Nemotron Ultra was unable to synthesize a compliant patch for this pattern. Review manual recommendation above.'
+                            ? 'Nemotron Ultra was unable to synthesize a compliant patch for this pattern.'
                             : 'Automated remediation patch was not generated for this defect.'}
                         </div>
                       )}
 
-                      {/* 3. Sandbox Verification Result Details */}
+                      {/* Verification */}
                       {item.verification && (
                         <div>
-                          <div className="text-xs font-mono uppercase tracking-wider text-teal-400 font-semibold mb-2 flex items-center gap-1.5">
-                            <Server size={13} className="text-teal-400" />
-                            Nebius Sandbox Execution Proof
+                          <div className="text-xs text-muted font-medium mb-2">
+                            Sandbox verification
                           </div>
-                          <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="p-3 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex flex-col gap-1">
                               <div className="flex items-center gap-2">
                                 <Badge
-                                  variant={item.verification.verified ? 'success' : 'critical'}
+                                  variant={item.verification.verified ? 'success' : 'danger'}
                                   size="sm"
                                 >
-                                  {item.verification.verified ? 'Verified Clean' : 'Verification Failed'}
+                                  {item.verification.verified ? 'Verified clean' : 'Verification failed'}
                                 </Badge>
                                 {item.verification.sandbox_id && (
-                                  <span className="text-xs font-mono text-slate-400">
-                                    Container: {item.verification.sandbox_id}
+                                  <span className="text-xs font-mono text-muted">
+                                    {item.verification.sandbox_id}
                                   </span>
                                 )}
                               </div>
                               {item.verification.sandbox_logs && (
-                                <p className="text-xs text-slate-400 font-mono mt-1">
+                                <p className="text-xs text-muted font-mono mt-1">
                                   {item.verification.sandbox_logs}
                                 </p>
                               )}
@@ -388,15 +381,12 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
 
                             <div className="flex items-center gap-4 text-xs font-mono shrink-0">
                               <div>
-                                <span className="text-slate-500">Score: </span>
-                                <span className="text-rose-400">{item.verification.axe_score_before}%</span>
-                                <span className="text-slate-500"> → </span>
-                                <span className="text-emerald-400 font-bold">
+                                <span className="text-muted">Score: </span>
+                                <span className="text-destructive">{item.verification.axe_score_before}%</span>
+                                <span className="text-muted"> → </span>
+                                <span className="text-[#2F7A4D] font-semibold">
                                   {item.verification.axe_score_after}%
                                 </span>
-                              </div>
-                              <div className="flex items-center gap-1 text-emerald-400">
-                                <FileCheck size={14} /> Tests 100% Passed
                               </div>
                             </div>
                           </div>

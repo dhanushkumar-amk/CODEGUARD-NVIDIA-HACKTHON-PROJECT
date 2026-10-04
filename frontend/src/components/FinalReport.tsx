@@ -1,73 +1,70 @@
 import React from 'react';
-import { GitPullRequest, FileCheck, CheckCircle, ShieldAlert } from 'lucide-react';
 import { ComplianceChart } from './ComplianceChart';
 
 export interface FinalReportData {
+  scanId: string;
   repoUrl: string;
-  totalViolationsFound: number;
-  violationsResolved: number;
-  unresolvedViolations: number;
   scoreBefore: number;
   scoreAfter: number;
-  prUrl?: string;
-  prBranch?: string;
+  violationsCount: number;
+  fixedCount: number;
+  verifiedCount: number;
 }
 
 interface FinalReportProps {
   report: FinalReportData;
-  onCreatePullRequest?: () => void;
-  isCreatingPR?: boolean;
 }
 
-export const FinalReport: React.FC<FinalReportProps> = ({
-  report,
-  onCreatePullRequest,
-  isCreatingPR,
-}) => {
+export const FinalReport: React.FC<FinalReportProps> = ({ report }) => {
+  const improvement = report.scoreAfter - report.scoreBefore;
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-rose-400 text-xs font-semibold mb-1">
-            <ShieldAlert size={16} /> Total Violations Detected
-          </div>
-          <div className="text-2xl font-bold text-slate-100">{report.totalViolationsFound}</div>
-        </div>
+    <div className="w-full flex flex-col gap-5 text-left">
+      <div className="border-b border-border pb-3">
+        <h2 className="text-xl font-bold text-foreground">
+          Scan complete: compliance report
+        </h2>
+        <p className="text-xs text-muted font-mono mt-0.5">
+          Repository: {report.repoUrl} &bull; Scan ID: {report.scanId}
+        </p>
+      </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-emerald-400 text-xs font-semibold mb-1">
-            <CheckCircle size={16} /> Verified Resolved in Sandbox
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-background border border-border p-3.5">
+          <div className="text-xs text-muted">Violations detected</div>
+          <div className="text-xl font-bold font-mono text-foreground mt-1">
+            {report.violationsCount}
           </div>
-          <div className="text-2xl font-bold text-slate-100">{report.violationsResolved}</div>
         </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold mb-1">
-            <FileCheck size={16} /> Final Compliance
+        <div className="bg-background border border-border p-3.5">
+          <div className="text-xs text-muted">Fixes synthesized</div>
+          <div className="text-xl font-bold font-mono text-primary mt-1">
+            {report.fixedCount}
           </div>
-          <div className="text-2xl font-bold text-slate-100">{report.scoreAfter}%</div>
+        </div>
+        <div className="bg-background border border-border p-3.5">
+          <div className="text-xs text-muted">Verified in sandbox</div>
+          <div className="text-xl font-bold font-mono text-primary mt-1">
+            {report.verifiedCount}
+          </div>
         </div>
       </div>
 
       <ComplianceChart scoreBefore={report.scoreBefore} scoreAfter={report.scoreAfter} />
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-surface-1 border border-border p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-control">
         <div>
-          <h4 className="text-sm font-semibold text-slate-200">Export Verified Remediations</h4>
-          <p className="text-xs text-slate-400">
-            Submit a clean GitHub Pull Request with the verified patches and test artifacts.
-          </p>
+          <span className="text-xs text-muted">Score delta</span>
+          <div className="text-base font-bold font-mono text-primary">
+            {improvement >= 0 ? `+${improvement.toFixed(1)}` : improvement.toFixed(1)} points improvement
+          </div>
         </div>
-        {onCreatePullRequest && (
-          <button
-            onClick={onCreatePullRequest}
-            disabled={isCreatingPR}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition disabled:opacity-50"
-          >
-            <GitPullRequest size={16} />
-            {isCreatingPR ? 'Opening Pull Request...' : 'Create Verified Remediation PR'}
-          </button>
-        )}
+        <button
+          onClick={() => window.print()}
+          className="px-3.5 py-1.5 bg-background border border-border hover:bg-surface-2 text-foreground text-xs font-medium rounded-control cursor-pointer transition-colors"
+        >
+          Export / Print report
+        </button>
       </div>
     </div>
   );
