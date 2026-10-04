@@ -21,25 +21,25 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+    'inline-flex items-center justify-center font-medium rounded-control transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
 
   const variants = {
     primary:
-      'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 active:bg-indigo-700',
+      'bg-primary hover:bg-primary/90 text-white active:bg-primary/80',
     secondary:
-      'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 active:bg-slate-850',
+      'bg-surface-1 hover:bg-surface-2 text-foreground border border-border active:bg-surface-2',
     outline:
-      'bg-transparent hover:bg-slate-800/60 text-slate-300 border border-slate-700 active:bg-slate-800',
+      'bg-transparent hover:bg-surface-1 text-foreground border border-border active:bg-surface-2',
     danger:
-      'bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:bg-rose-700',
+      'bg-destructive hover:bg-destructive/90 text-white active:bg-destructive/80',
     success:
-      'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 active:bg-emerald-700',
+      'bg-[#2F7A4D] hover:bg-[#266B42] text-white active:bg-[#1E5A36]',
   };
 
   const sizes = {
     sm: 'text-xs px-3 py-1.5 gap-1.5',
     md: 'text-sm px-4 py-2 gap-2',
-    lg: 'text-base px-6 py-2.5 gap-2.5',
+    lg: 'text-base px-5 py-2.5 gap-2',
   };
 
   return (

@@ -6,23 +6,31 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"IBM Plex Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
       colors: {
-        background: {
-          primary: "#0a0c14",
-          secondary: "#101423",
-          card: "rgba(22, 27, 46, 0.7)",
+        background: '#FAFAF8',
+        foreground: '#1C1D21',
+        border: '#E4E2DD',
+        primary: '#2F5DA8',
+        destructive: '#B5472A',
+        severity: {
+          critical: '#B5472A',
+          high: '#C77D3F',
+          medium: '#A68B3D',
+          low: '#6B7280',
         },
-        border: {
-          subtle: "rgba(255, 255, 255, 0.08)",
-          active: "rgba(99, 102, 241, 0.3)",
+        surface: {
+          0: '#FAFAF8',
+          1: '#F5F4F1',
+          2: '#EEEDEA',
         },
-        accent: {
-          cyan: "#06b6d4",
-          indigo: "#6366f1",
-          emerald: "#10b981",
-          rose: "#f43f5e",
-          amber: "#f59e0b",
-        },
+        muted: '#71726E',
+      },
+      borderRadius: {
+        control: '4px',
       },
     },
   },

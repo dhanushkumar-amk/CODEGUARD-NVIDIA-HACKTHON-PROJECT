@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { ProposedFix } from '../types';
 import {
-  ShieldCheck,
   AlertTriangle,
   Copy,
   CheckCheck,
-  Sparkles,
   FileCode,
   Check,
   Columns,
@@ -44,7 +42,6 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
   onVerifySandbox,
   isVerifying,
 }) => {
-  // Normalize props from either `fix` object or individual props
   const filePath = fix?.file || propFilePath || 'Component.tsx';
   const diff = fix?.diff || propDiff || '';
   const original = fix?.original_lines || fix?.original_code || propOriginalCode || '';
@@ -72,31 +69,19 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
   const getConfidenceBadge = () => {
     switch (confidence) {
       case 'high':
-        return (
-          <Badge variant="success" size="sm">
-            High Confidence
-          </Badge>
-        );
+        return <Badge variant="success" size="sm">high confidence</Badge>;
       case 'medium':
-        return (
-          <Badge variant="warning" size="sm">
-            Medium Confidence
-          </Badge>
-        );
+        return <Badge variant="warning" size="sm">medium confidence</Badge>;
       case 'low':
       default:
-        return (
-          <Badge variant="critical" size="sm">
-            Low Confidence
-          </Badge>
-        );
+        return <Badge variant="danger" size="sm">low confidence</Badge>;
     }
   };
 
   const renderUnifiedDiff = () => {
     if (!diff) {
       return (
-        <div className="p-4 text-xs font-mono text-slate-400 italic">
+        <div className="p-4 text-xs font-mono text-muted italic">
           No diff patch generated for this violation.
         </div>
       );
@@ -104,32 +89,34 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
 
     const lines = diff.split('\n');
     return (
-      <div className="divide-y divide-slate-800/40">
+      <div>
         {lines.map((line, idx) => {
-          let lineStyle = 'text-slate-300 bg-transparent';
+          let lineStyle = 'text-foreground/70';
+          let bgStyle = '';
 
           if (line.startsWith('+++') || line.startsWith('---')) {
-            lineStyle = 'text-slate-400 bg-slate-950/60 font-semibold';
+            lineStyle = 'text-muted font-medium';
+            bgStyle = 'bg-surface-1';
           } else if (line.startsWith('@@')) {
-            lineStyle =
-              'text-indigo-300 bg-indigo-950/30 border-y border-indigo-900/40 font-semibold';
+            lineStyle = 'text-primary font-medium';
+            bgStyle = 'bg-primary/5';
           } else if (line.startsWith('+')) {
-            lineStyle =
-              'text-emerald-300 bg-emerald-950/35 border-l-2 border-emerald-500 font-medium';
+            lineStyle = 'text-[#2F7A4D]';
+            bgStyle = 'bg-[#2F7A4D]/5 border-l-2 border-[#2F7A4D]';
           } else if (line.startsWith('-')) {
-            lineStyle =
-              'text-rose-300 bg-rose-950/35 border-l-2 border-rose-500 font-medium';
+            lineStyle = 'text-destructive';
+            bgStyle = 'bg-destructive/5 border-l-2 border-destructive';
           }
 
           return (
             <div
               key={idx}
-              className={`px-3 py-1 flex items-start font-mono text-xs leading-relaxed transition-colors hover:bg-slate-800/30 ${lineStyle}`}
+              className={`px-3 py-0.5 flex items-start font-mono text-xs leading-relaxed ${bgStyle}`}
             >
-              <span className="select-none text-slate-600 w-8 shrink-0 text-right pr-3 font-mono text-[11px]">
+              <span className="select-none text-muted/50 w-8 shrink-0 text-right pr-3 text-[11px]">
                 {idx + 1}
               </span>
-              <span className="whitespace-pre overflow-x-auto flex-1">{line}</span>
+              <span className={`whitespace-pre overflow-x-auto flex-1 ${lineStyle}`}>{line}</span>
             </div>
           );
         })}
@@ -138,126 +125,114 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-lg transition">
+    <div className="border border-border bg-background overflow-hidden">
       {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-950 border-b border-slate-800">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-surface-1 border-b border-border">
         <div className="flex items-center gap-2">
-          <FileCode size={15} className="text-indigo-400" />
-          <span className="font-mono text-xs font-semibold text-slate-200">{filePath}</span>
+          <FileCode size={14} className="text-muted" />
+          <span className="font-mono text-xs font-medium text-foreground">{filePath}</span>
           {lineStart && (
-            <span className="text-[11px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded">
+            <span className="text-[11px] font-mono text-muted">
               L{lineStart}
-              {lineEnd && lineEnd !== lineStart ? `-${lineEnd}` : ''}
+              {lineEnd && lineEnd !== lineStart ? `–${lineEnd}` : ''}
             </span>
           )}
           {status === 'proposed' ? (
-            <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-medium bg-emerald-950/40 border border-emerald-800/50 px-2 py-0.5 rounded">
-              <Check size={12} /> Proposed Fix
-            </span>
+            <Badge variant="success" size="sm">proposed fix</Badge>
           ) : (
-            <span className="flex items-center gap-1 text-[11px] text-rose-400 font-medium bg-rose-950/40 border border-rose-800/50 px-2 py-0.5 rounded">
-              <AlertTriangle size={12} /> Unresolved / Failed
-            </span>
+            <Badge variant="danger" size="sm">unresolved</Badge>
           )}
         </div>
 
         <div className="flex items-center gap-2">
           {getConfidenceBadge()}
 
-          {/* View toggle (Unified vs Split) if both original & fixed code exist */}
           {original && fixed && (
-            <div className="flex items-center bg-slate-850 border border-slate-800 rounded-lg p-0.5 text-xs">
+            <div className="flex items-center border border-border rounded-control p-0.5 text-xs">
               <button
                 onClick={() => setViewMode('unified')}
-                className={`flex items-center gap-1 px-2 py-1 rounded transition text-[11px] ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-control transition text-[11px] ${
                   viewMode === 'unified'
-                    ? 'bg-indigo-600 text-white font-medium'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-white'
+                    : 'text-muted hover:text-foreground'
                 }`}
-                title="Unified Git Diff View"
               >
-                <Split size={12} /> Unified
+                <Split size={11} /> Unified
               </button>
               <button
                 onClick={() => setViewMode('split')}
-                className={`flex items-center gap-1 px-2 py-1 rounded transition text-[11px] ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-control transition text-[11px] ${
                   viewMode === 'split'
-                    ? 'bg-indigo-600 text-white font-medium'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-primary text-white'
+                    : 'text-muted hover:text-foreground'
                 }`}
-                title="Side-by-side Split View"
               >
-                <Columns size={12} /> Split
+                <Columns size={11} /> Split
               </button>
             </div>
           )}
 
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg transition"
-            title="Copy patch to clipboard"
+            className="flex items-center gap-1 px-2.5 py-1 bg-surface-1 hover:bg-surface-2 text-foreground text-xs rounded-control transition border border-border"
           >
-            {copied ? <CheckCheck size={13} className="text-emerald-400" /> : <Copy size={13} />}
-            <span>{copied ? 'Copied!' : 'Copy'}</span>
+            {copied ? <CheckCheck size={12} className="text-[#2F7A4D]" /> : <Copy size={12} />}
+            <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
 
           {onVerifySandbox && status === 'proposed' && (
             <button
               onClick={onVerifySandbox}
               disabled={isVerifying}
-              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1 bg-primary hover:bg-primary/90 text-white text-xs font-medium rounded-control transition disabled:opacity-50"
             >
-              <ShieldCheck size={14} />
-              {isVerifying ? 'Verifying...' : 'Verify in Sandbox'}
+              {isVerifying ? 'Verifying...' : 'Verify in sandbox'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Explanation of change banner */}
+      {/* Explanation */}
       {explanation && (
-        <div className="px-4 py-2.5 bg-indigo-950/20 border-b border-slate-800 flex items-start gap-2 text-xs text-indigo-200">
-          <Sparkles size={14} className="text-indigo-400 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            <span className="font-semibold text-white">Remediation Rationale: </span>
-            {explanation}
-          </div>
+        <div className="px-4 py-2 bg-surface-1 border-b border-border text-xs text-foreground/80">
+          <span className="font-medium text-foreground">Rationale: </span>
+          {explanation}
         </div>
       )}
 
-      {/* Failure reason banner if status === failed */}
+      {/* Failure banner */}
       {status === 'failed' && (
-        <div className="px-4 py-2.5 bg-rose-950/30 border-b border-rose-900/40 flex items-start gap-2 text-xs text-rose-300">
-          <AlertTriangle size={14} className="text-rose-400 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">
-            <span className="font-semibold text-rose-200">Auto-Fix Not Applied: </span>
+        <div className="px-4 py-2 bg-destructive/5 border-b border-destructive/20 flex items-start gap-2 text-xs text-destructive">
+          <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+          <div>
+            <span className="font-medium">Auto-fix not applied: </span>
             {failureReason ||
-              'This defect was detected and diagnosed, but code patch generation failed quality/syntax validation.'}
+              'Code patch generation failed quality/syntax validation.'}
           </div>
         </div>
       )}
 
-      {/* Main Diff Content Container */}
+      {/* Diff content */}
       <div className="font-mono text-xs overflow-x-auto">
         {viewMode === 'split' && original && fixed ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-800">
-            <div className="p-3 bg-rose-950/15">
-              <div className="text-rose-400 font-semibold mb-2 flex items-center justify-between">
-                <span>Original (Violating)</span>
-                {lineStart && <span className="text-[10px] text-slate-500 font-mono">Lines {lineStart}-{lineEnd}</span>}
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+            <div className="p-3 bg-destructive/[0.02]">
+              <div className="text-destructive font-medium mb-2 flex items-center justify-between text-xs">
+                <span>Original</span>
+                {lineStart && <span className="text-muted text-[10px]">L{lineStart}–{lineEnd}</span>}
               </div>
-              <pre className="text-slate-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+              <pre className="text-foreground/60 overflow-x-auto whitespace-pre-wrap leading-relaxed text-xs">
                 {original}
               </pre>
             </div>
-            <div className="p-3 bg-emerald-950/15">
-              <div className="text-emerald-400 font-semibold mb-2 flex items-center justify-between">
+            <div className="p-3 bg-[#2F7A4D]/[0.02]">
+              <div className="text-[#2F7A4D] font-medium mb-2 flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1">
-                  <Check size={14} /> Nemotron Remediated
+                  <Check size={13} /> Remediated
                 </span>
-                <span className="text-[10px] text-emerald-500/80 font-mono">WCAG 2.2 AA</span>
+                <span className="text-muted text-[10px]">WCAG 2.2 AA</span>
               </div>
-              <pre className="text-slate-100 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+              <pre className="text-foreground/80 overflow-x-auto whitespace-pre-wrap leading-relaxed text-xs">
                 {fixed}
               </pre>
             </div>

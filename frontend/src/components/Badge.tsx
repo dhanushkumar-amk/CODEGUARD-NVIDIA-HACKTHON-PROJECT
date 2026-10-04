@@ -10,7 +10,8 @@ export type BadgeVariant =
   | 'minor'
   | 'success'
   | 'info'
-  | 'purple'
+  | 'warning'
+  | 'danger'
   | 'default';
 
 export interface BadgeProps {
@@ -28,31 +29,32 @@ export const Badge: React.FC<BadgeProps> = ({
 }) => {
   const normalizedVariant = variant.toLowerCase();
 
-  // Color coding: critical=red, high=orange, medium=yellow, low=gray
+  // Muted severity palette — only used on badges, never decoratively
   const variantStyles: Record<string, string> = {
-    critical: 'bg-rose-500/15 text-rose-400 border-rose-500/30', // Red
-    high: 'bg-orange-500/15 text-orange-400 border-orange-500/30', // Orange
-    serious: 'bg-orange-500/15 text-orange-400 border-orange-500/30', // Legacy high
-    medium: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30', // Yellow
-    moderate: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30', // Legacy medium
-    low: 'bg-slate-700/40 text-slate-300 border-slate-600/40', // Gray
-    minor: 'bg-slate-700/40 text-slate-300 border-slate-600/40', // Legacy low
-    success: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    info: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
-    purple: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-    default: 'bg-slate-800 text-slate-300 border-slate-700',
+    critical: 'bg-severity-critical/10 text-severity-critical border-severity-critical/25',
+    high: 'bg-severity-high/10 text-severity-high border-severity-high/25',
+    serious: 'bg-severity-high/10 text-severity-high border-severity-high/25',
+    medium: 'bg-severity-medium/10 text-severity-medium border-severity-medium/25',
+    moderate: 'bg-severity-medium/10 text-severity-medium border-severity-medium/25',
+    low: 'bg-severity-low/10 text-severity-low border-severity-low/25',
+    minor: 'bg-severity-low/10 text-severity-low border-severity-low/25',
+    success: 'bg-[#2F7A4D]/10 text-[#2F7A4D] border-[#2F7A4D]/25',
+    warning: 'bg-severity-medium/10 text-severity-medium border-severity-medium/25',
+    danger: 'bg-destructive/10 text-destructive border-destructive/25',
+    info: 'bg-primary/10 text-primary border-primary/25',
+    default: 'bg-surface-1 text-muted border-border',
   };
 
   const currentVariant = variantStyles[normalizedVariant] || variantStyles.default;
 
   const sizeStyles = {
     sm: 'text-[11px] px-2 py-0.5',
-    md: 'text-xs px-2.5 py-1',
+    md: 'text-xs px-2.5 py-0.5',
   };
 
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-full border tracking-wide uppercase font-mono ${currentVariant} ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center font-medium rounded-control border font-mono ${currentVariant} ${sizeStyles[size]} ${className}`}
     >
       {children}
     </span>
