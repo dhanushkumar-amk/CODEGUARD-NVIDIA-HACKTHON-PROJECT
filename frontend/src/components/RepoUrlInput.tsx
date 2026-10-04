@@ -160,10 +160,9 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               onClick={handlePrefillDemo}
               disabled={isLoading}
               data-testid="prefill-demo-btn"
-              className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium cursor-pointer disabled:opacity-50"
+              className="text-primary hover:underline text-xs cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0"
             >
-              <Sparkles size={12} className="text-primary" />
-              <span>Try demo repository</span>
+              Try our demo repo
             </button>
             <span className="text-border">&bull;</span>
             <span className="text-muted">Pre-seeded with 12 WCAG issues</span>

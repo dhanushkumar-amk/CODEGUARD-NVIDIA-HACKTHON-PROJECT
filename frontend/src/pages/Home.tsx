@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  Sparkles,
   Search,
   Cpu,
   Wrench,
@@ -12,6 +11,7 @@ import {
 import { startScan } from '../api/client';
 import { HowItWorksStep } from '../components/HowItWorksStep';
 import { RepoUrlInput, DEFAULT_DEMO_REPO } from '../components/RepoUrlInput';
+import { LiveFixDemo } from '../components/LiveFixDemo';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -44,36 +44,40 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl flex flex-col gap-10 py-4 text-left">
-      {/* Hero Section - Left-aligned, no gradient text, no shadows */}
-      <section className="flex flex-col items-start gap-4">
-        <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-control bg-surface-1 border border-border text-xs font-medium text-foreground">
-          <Sparkles size={13} className="text-primary" />
-          <span>Autonomous WCAG 2.2 AA Remediation Agent</span>
+    <div className="max-w-5xl flex flex-col gap-12 py-4 text-left">
+      {/* Hero Section: Two-column grid, left-aligned, flat, no gradients or shadows */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start">
+        {/* Left Column */}
+        <div className="flex flex-col gap-6">
+          <div className="space-y-3">
+            <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-foreground leading-[1.15] tracking-tight">
+              Every fix, tested before you trust it.
+            </h1>
+            <p className="text-[17px] leading-relaxed text-foreground/70">
+              CodeGuard scans your repo for accessibility violations, writes fixes with NVIDIA Nemotron, and confirms each one in an isolated sandbox before you merge anything.
+            </p>
+          </div>
+
+          <RepoUrlInput
+            onStartScan={handleStartScan}
+            isLoading={isLoading}
+            serverError={error}
+            onClearError={() => setError(null)}
+            demoRepoUrl={DEFAULT_DEMO_REPO}
+          />
+
+          <div className="pt-4 border-t border-border text-[13px] text-muted">
+            Powered by NVIDIA Nemotron on Nebius Token Factory
+          </div>
         </div>
 
-        <div className="space-y-2.5 max-w-2xl">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground leading-tight">
-            Find and Fix Accessibility Issues — Automatically, Verified
-          </h1>
-          <p className="text-muted text-sm sm:text-base leading-relaxed">
-            CodeGuard audits frontend repositories for WCAG 2.2 AA compliance, synthesizes minimal non-breaking fixes using NVIDIA Nemotron models, and verifies compliance through automated browser sandboxes.
-          </p>
+        {/* Right Column: LiveFixDemo editor panel */}
+        <div className="w-full pt-1">
+          <LiveFixDemo />
         </div>
       </section>
 
-      {/* Scan Input Section */}
-      <section className="w-full">
-        <RepoUrlInput
-          onStartScan={handleStartScan}
-          isLoading={isLoading}
-          serverError={error}
-          onClearError={() => setError(null)}
-          demoRepoUrl={DEFAULT_DEMO_REPO}
-        />
-      </section>
-
-      {/* How It Works Section - Flat container, structural border, no rounded-2xl or shadows */}
+      {/* How It Works Section */}
       <section className="w-full border border-border bg-background p-6">
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-4 border-b border-border mb-6">
           <div>

@@ -27,20 +27,17 @@ export const HomePage: React.FC = () => {
   }, [fetchHealth]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-      <section className="hero">
-        <div className="hero-pill">
-          <Sparkles size={14} color="#818cf8" />
-          Autonomous Accessibility Remediation
+    <div className="flex flex-col gap-6 text-left">
+      <section className="flex flex-col items-start gap-3">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-control bg-surface-1 border border-border text-xs text-foreground">
+          <Sparkles size={13} className="text-primary" />
+          Autonomous accessibility remediation
         </div>
-        <h1>
-          Protect & Repair with <span className="gradient-text">CodeGuard</span>
+        <h1 className="text-3xl font-bold text-foreground">
+          Protect and repair with CodeGuard
         </h1>
-        <p>
-          Continuous accessibility scanner and automated remediation agent. Powered by{' '}
-          <strong style={{ color: '#f8fafc' }}>NVIDIA Nemotron</strong> models via{' '}
-          <strong style={{ color: '#f8fafc' }}>Nebius Token Factory</strong>, verified inside{' '}
-          <strong style={{ color: '#f8fafc' }}>isolated Nebius sandboxes</strong> with axe-core.
+        <p className="text-sm text-muted max-w-2xl leading-relaxed">
+          Continuous accessibility scanner and automated remediation agent. Powered by NVIDIA Nemotron models via Nebius Token Factory, verified inside isolated Nebius sandboxes with axe-core.
         </p>
       </section>
 
@@ -53,34 +50,34 @@ export const HomePage: React.FC = () => {
         />
       </section>
 
-      <section className="features-grid">
-        <div className="feature-card">
-          <div className="card-icon violet">
-            <ShieldCheck size={24} />
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="border border-border bg-background p-4 flex flex-col gap-2">
+          <div className="text-primary">
+            <ShieldCheck size={20} />
           </div>
-          <h3>1. Automated a11y Scanning</h3>
-          <p>
+          <h3 className="text-sm font-semibold text-foreground">1. Automated a11y scanning</h3>
+          <p className="text-xs text-muted leading-relaxed">
             Scans UI source files (JSX, TSX, Vue, HTML) for WCAG 2.2 AA violations, contrast failures, missing ARIA attributes, and keyboard navigation issues.
           </p>
         </div>
 
-        <div className="feature-card">
-          <div className="card-icon cyan">
-            <Sparkles size={24} />
+        <div className="border border-border bg-background p-4 flex flex-col gap-2">
+          <div className="text-primary">
+            <Sparkles size={20} />
           </div>
-          <h3>2. Nemotron AI Synthesis</h3>
-          <p>
-            Leverages NVIDIA Nemotron-4-340B (Ultra) for contextual reasoning and minimal idiomatic code fixes, and Nemotron-Mini (Nano) for rapid triage.
+          <h3 className="text-sm font-semibold text-foreground">2. Nemotron AI synthesis</h3>
+          <p className="text-xs text-muted leading-relaxed">
+            Leverages NVIDIA Nemotron models for contextual reasoning and minimal idiomatic code fixes.
           </p>
         </div>
 
-        <div className="feature-card">
-          <div className="card-icon emerald">
-            <TerminalSquare size={24} />
+        <div className="border border-border bg-background p-4 flex flex-col gap-2">
+          <div className="text-primary">
+            <TerminalSquare size={20} />
           </div>
-          <h3>3. Nebius Sandbox Verification</h3>
-          <p>
-            Executes axe-core checks and project unit test suites within isolated Nebius sandboxes to guarantee zero regressions before submitting PRs.
+          <h3 className="text-sm font-semibold text-foreground">3. Nebius sandbox verification</h3>
+          <p className="text-xs text-muted leading-relaxed">
+            Executes axe-core checks within isolated Nebius sandboxes to guarantee zero regressions before submitting PRs.
           </p>
         </div>
       </section>

@@ -16,31 +16,24 @@ export const ConnectivityStatus: React.FC<ConnectivityStatusProps> = ({
   onRefresh,
 }) => {
   return (
-    <div className="connectivity-card">
-      <div className="connectivity-header">
-        <div className="status-indicator">
-          {status === 'loading' && <span className="pulse-dot loading" />}
-          {status === 'success' && <span className="pulse-dot success" />}
-          {status === 'error' && <span className="pulse-dot error" />}
-          {status === 'idle' && <span className="pulse-dot loading" />}
+    <div className="border border-border bg-background p-4 rounded-control text-left">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          {status === 'loading' && <Loader2 size={16} className="text-primary animate-spin" />}
+          {status === 'success' && <CheckCircle2 size={16} className="text-primary" />}
+          {status === 'error' && <XCircle size={16} className="text-destructive" />}
 
           <div>
-            <div className="status-title">
+            <div className="text-xs font-semibold text-foreground">
               {status === 'loading' && 'Checking FastAPI backend connectivity...'}
               {status === 'success' && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <CheckCircle2 size={18} color="#10b981" />
-                  Backend Connected: <span className="code-pill">GET /health: {JSON.stringify(data)}</span>
+                <span className="flex items-center gap-1.5 font-mono">
+                  Backend connected: {JSON.stringify(data)}
                 </span>
               )}
-              {status === 'error' && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#f43f5e' }}>
-                  <XCircle size={18} color="#f43f5e" />
-                  Backend Connection Failed
-                </span>
-              )}
+              {status === 'error' && 'Backend connection failed'}
             </div>
-            <div className="status-desc">
+            <div className="text-[11px] text-muted mt-0.5">
               {status === 'success' && 'FastAPI server is active and responding with status: ok'}
               {status === 'error' && (error || 'Ensure FastAPI backend is running on http://localhost:8000')}
               {status === 'loading' && 'Querying http://localhost:8000/health...'}
@@ -49,18 +42,17 @@ export const ConnectivityStatus: React.FC<ConnectivityStatusProps> = ({
         </div>
 
         <button
-          className="retry-btn"
+          className="px-3 py-1.5 bg-surface-1 hover:bg-surface-2 border border-border text-foreground text-xs font-medium rounded-control cursor-pointer transition-colors inline-flex items-center gap-1.5 shrink-0"
           onClick={onRefresh}
           disabled={status === 'loading'}
-          title="Re-check health endpoint"
         >
           {status === 'loading' ? (
             <>
-              <Loader2 size={16} className="spin" /> Checking...
+              <Loader2 size={13} className="animate-spin" /> Checking...
             </>
           ) : (
             <>
-              <RefreshCw size={16} /> Re-check /health
+              <RefreshCw size={13} /> Re-check health
             </>
           )}
         </button>
