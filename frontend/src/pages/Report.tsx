@@ -26,6 +26,7 @@ import { ScoreReadout } from '../components/ScoreReadout';
 import { StatCard } from '../components/StatCard';
 import { ViolationsPieChart } from '../components/ViolationsPieChart';
 import { FilterableViolationsList } from '../components/FilterableViolationsList';
+import { Toast, ToastData } from '../components/Toast';
 
 export const Report: React.FC = () => {
   const { scanId } = useParams<{ scanId: string }>();
@@ -34,21 +35,47 @@ export const Report: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isCreatingPr, setIsCreatingPr] = useState<boolean>(false);
   const [prResult, setPrResult] = useState<CreatePRResponse | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   const handleCreatePR = async () => {
     if (!report || !report.scan_id || isCreatingPr) return;
     setIsCreatingPr(true);
     setPrResult(null);
+    setToast({
+      type: 'loading',
+      message: 'Creating remediation PR...',
+      detail: 'Opening branch & committing verified fixes to GitHub',
+    });
 
     try {
       const result = await createRemediationPR(report.scan_id, report.repo_url);
       setPrResult(result);
+      if (result.status === 'success' && result.pr_url) {
+        setToast({
+          type: 'success',
+          message: 'Pull Request Created!',
+          detail: `Committed remediations across ${result.files_changed || 1} file(s).`,
+          actionUrl: result.pr_url,
+          actionLabel: 'View on GitHub',
+        });
+      } else {
+        setToast({
+          type: 'error',
+          message: 'Could not create PR',
+          detail: result.error || 'Failed to open remediation PR.',
+        });
+      }
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'Failed to request remediation PR from backend';
       setPrResult({
         status: 'failed',
         error: msg,
+      });
+      setToast({
+        type: 'error',
+        message: 'Could not create PR',
+        detail: msg,
       });
     } finally {
       setIsCreatingPr(false);

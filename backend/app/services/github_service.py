@@ -107,6 +107,26 @@ def get_verified_fixes_for_scan(scan_id: str) -> List[Tuple[ProposedFix, Optiona
             if vr and (getattr(vr, "verified", False) or getattr(vr, "violations_resolved", False)):
                 verified_fixes.append((fx, viol_map.get(fx.violation_id)))
 
+    # 3. Fallback: proposed fixes with code patches if sandbox verification was skipped/pending
+    if not verified_fixes and report and getattr(report, "unified_records", None):
+        for rec in report.unified_records:
+            fx = getattr(rec, "fix", None) or (
+                rec.get("fix") if isinstance(rec, dict) else None
+            )
+            vl = getattr(rec, "violation", None) or (
+                rec.get("violation") if isinstance(rec, dict) else None
+            )
+            if fx and (fx.fixed_lines or fx.remediated_code or fx.diff):
+                verified_fixes.append((fx, vl))
+
+    # 4. Fallback: scan['fixes'] directly with patch code
+    if not verified_fixes:
+        fixes = scan.get("fixes", [])
+        viol_map = {v.id: v for v in scan.get("violations", [])}
+        for fx in fixes:
+            if fx and (fx.fixed_lines or fx.remediated_code or fx.diff):
+                verified_fixes.append((fx, viol_map.get(fx.violation_id)))
+
     return verified_fixes
 
 
