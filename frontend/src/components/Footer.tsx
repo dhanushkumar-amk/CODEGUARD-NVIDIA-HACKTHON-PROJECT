@@ -67,7 +67,7 @@ export const Footer: React.FC = () => {
             </li>
             <li>
               <Link to="/" className="hover:text-ink transition-colors">
-                WCAG 2.2 Catalog
+                Autonomous Remediation
               </Link>
             </li>
             <li>
@@ -143,6 +143,11 @@ export const Footer: React.FC = () => {
           </span>
           <ul className="space-y-2 text-muted font-sans">
             <li>
+              <Link to="/team" className="hover:text-ink transition-colors">
+                Team & Contributors
+              </Link>
+            </li>
+            <li>
               <Link to="/privacy" className="hover:text-ink transition-colors">
                 Privacy Policy
               </Link>
@@ -153,15 +158,9 @@ export const Footer: React.FC = () => {
               </Link>
             </li>
             <li>
-              <a
-                href="https://github.com/dhanushkumar-amk/CODEGUARD---NVIDIA-HACKTHON-PROJECT/issues"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-ink transition-colors inline-flex items-center gap-1"
-              >
-                <span>Security Disclosure</span>
-                <ArrowUpRight size={10} />
-              </a>
+              <Link to="/security" className="hover:text-ink transition-colors">
+                Security Disclosure
+              </Link>
             </li>
           </ul>
         </div>
