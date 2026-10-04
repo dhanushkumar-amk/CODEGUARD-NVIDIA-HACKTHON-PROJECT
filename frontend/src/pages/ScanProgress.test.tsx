@@ -155,6 +155,6 @@ describe('ScanProgress Page', () => {
     fireEvent.click(retryBtn);
     expect(mockRetry).toHaveBeenCalledTimes(1);
 
-    expect(screen.getByRole('button', { name: /Back to Home/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
   });
 });

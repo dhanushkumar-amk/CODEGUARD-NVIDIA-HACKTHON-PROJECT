@@ -241,7 +241,7 @@ export const ScanProgress: React.FC = () => {
                   leftIcon={<HomeIcon size={13} />}
                   className="text-xs"
                 >
-                  Back to Home
+                  Try Again
                 </Button>
               </Link>
             </div>

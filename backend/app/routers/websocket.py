@@ -93,10 +93,16 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
     scan_status = scan_data.get("status") if scan_data else None
 
     # Determine if this is a real actively monitored scan or a standalone/mock session
-    is_real_scan = bool(scan_data and scan_status)
+    is_active_real = bool(scan_data and scan_data.get("is_active_real_scan", False))
+    is_real_scan = is_active_real and not (
+        scan_id.startswith("mock")
+        or scan_id.startswith("demo_sim")
+        or scan_id.startswith("scan_stream")
+        or scan_id.startswith("test")
+    )
 
     try:
-        if not is_real_scan or scan_id.startswith("mock") or scan_id.startswith("demo_sim"):
+        if not is_real_scan or scan_id.startswith("mock") or scan_id.startswith("demo_sim") or scan_id.startswith("scan_stream"):
             # Simulated pipeline sequence for live progress animations & tests
             files_count = scan_data.get("file_count", len(scan_data.get("files", []))) or 20
             batch_count = scan_data.get("batch_count", len(scan_data.get("scan_batch", []))) or 15
@@ -125,37 +131,72 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
                 ),
                 WebSocketMessage(
                     stage="preparing",
-                    progress=40,
+                    progress=35,
                     message=f"Parsed {files_count}/{files_count} files ({batch_count} chunks extracted)",
                     data={"files_parsed": files_count, "total_files": files_count, "batch_count": batch_count},
                     timestamp=datetime.now(timezone.utc),
                 ),
                 WebSocketMessage(
                     stage="scanning",
+                    progress=45,
+                    message="Scanning AST & axe-core rules — 2 violations found so far",
+                    data={"violations_count": 2, "violations_found": 2, "current_cost_usd": 0.0008},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="scanning",
                     progress=55,
                     message="Scanned 6/6 chunks — 4 violations found so far",
-                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0012},
+                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0018},
                     timestamp=datetime.now(timezone.utc),
                 ),
                 WebSocketMessage(
                     stage="diagnosing",
-                    progress=68,
-                    message="Diagnosed root causes with Nemotron Nano.",
-                    data={"current_cost_usd": 0.0035},
+                    progress=65,
+                    message="Diagnosed root causes and WCAG failure modes with Nemotron Nano.",
+                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0042},
                     timestamp=datetime.now(timezone.utc),
                 ),
                 WebSocketMessage(
-                    stage="fixing",
+                    stage="explaining",
+                    progress=72,
+                    message="Generated plain-English impact summaries for compliance & developers.",
+                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0076},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="generating_fixes",
                     progress=80,
                     message="Synthesized WCAG 2.2 AA compliant patches using Nemotron Ultra.",
-                    data={"fixes_count": 4, "current_cost_usd": 0.0158},
+                    data={"violations_count": 4, "violations_found": 4, "fixes_count": 4, "current_cost_usd": 0.0165},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="preparing_sandbox",
+                    progress=86,
+                    message="Spinning up isolated ephemeral execution container.",
+                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0190},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="applying_fix",
+                    progress=90,
+                    message="Applied synthesized code patches into sandbox workspace.",
+                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0215},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="testing_accessibility",
+                    progress=94,
+                    message="Executed axe-core headless checks and regression test suite (0 regressions).",
+                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0252},
                     timestamp=datetime.now(timezone.utc),
                 ),
                 WebSocketMessage(
                     stage="verifying",
-                    progress=92,
+                    progress=97,
                     message="Patches verified in isolated Nebius Sandboxes with 0 regressions.",
-                    data={"verified_count": 4, "current_cost_usd": 0.0245},
+                    data={"violations_count": 4, "violations_found": 4, "verified_count": 4, "current_cost_usd": 0.0285},
                     timestamp=datetime.now(timezone.utc),
                 ),
                 WebSocketMessage(
@@ -176,7 +217,7 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
             for stage_msg in stages:
                 await manager.send_message(websocket, stage_msg)
                 await asyncio.sleep(0.2)
-        elif scan_status == "complete":
+        elif scan_status in ("complete", "completed"):
             # If the scan completed before the WebSocket connected, send completion immediately
             report = scan_data.get("report")
             verified_count = scan_data.get("verified_count", 0)
