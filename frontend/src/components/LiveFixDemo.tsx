@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Check } from 'lucide-react';
 
 export const LiveFixDemo: React.FC = () => {
@@ -37,50 +37,45 @@ export const LiveFixDemo: React.FC = () => {
           // Header.tsx
         </div>
 
-        {/* Line 2: Code line with badge */}
-        <div className="min-h-[28px] flex items-center">
-          <AnimatePresence mode="wait">
-            {activeFixed ? (
-              <motion.div
-                key="fixed-state"
+        {/* Line 2: Code with inline badge */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-h-[28px]">
+          <span>
+            &lt;img src=&quot;logo.png&quot;
+            {activeFixed && (
+              <motion.span
                 initial={shouldReduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
                 transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2"
+                className="bg-[#2F5DA8]/15 px-1 py-0.5 rounded-[2px] text-foreground mx-1"
               >
-                <span>
-                  &lt;img src=&quot;logo.png&quot;{' '}
-                  <span className="bg-[#2F5DA8]/15 px-1 py-0.5 rounded-[2px] text-foreground">
-                    alt=&quot;Company logo&quot;
-                  </span>{' '}
-                  /&gt;
-                </span>
+                alt=&quot;Company logo&quot;
+              </motion.span>
+            )}{' '}
+            /&gt;
+          </span>
 
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans bg-[#2F5DA8]/10 text-primary">
-                  <Check size={12} strokeWidth={2.5} />
-                  <span>Verified in sandbox</span>
-                </span>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="broken-state"
-                initial={shouldReduceMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="flex flex-wrap items-center gap-x-3 gap-y-2"
-              >
-                <span>
-                  &lt;img src=&quot;logo.png&quot; /&gt;
-                </span>
-
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-[#B5472A]/10 text-destructive">
-                  Missing alt text
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {activeFixed ? (
+            <motion.span
+              key="verified-badge"
+              initial={shouldReduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, ease: 'easeInOut' }}
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans bg-[#2F5DA8]/10 text-primary"
+            >
+              <Check size={12} strokeWidth={2.5} />
+              <span>Verified in sandbox</span>
+            </motion.span>
+          ) : (
+            <motion.span
+              key="missing-badge"
+              initial={shouldReduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, ease: 'easeInOut' }}
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-[#B5472A]/10 text-destructive"
+            >
+              Missing alt text
+            </motion.span>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitBranch, ArrowRight, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import { GitBranch, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from './Button';
 
 export interface RepoUrlInputProps {
