@@ -1,29 +1,45 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Sparkles, GitBranch, ArrowRight, Play, CheckCircle } from 'lucide-react';
+import axios from 'axios';
+import { motion } from 'framer-motion';
+import {
+  Sparkles,
+  Search,
+  Cpu,
+  Wrench,
+  ShieldCheck,
+  Zap,
+  Box,
+  CheckCircle2,
+} from 'lucide-react';
 import { startScan } from '../api/client';
-import { Button } from '../components/Button';
-import { Card } from '../components/Card';
+import { HowItWorksStep } from '../components/HowItWorksStep';
+import { RepoUrlInput, DEFAULT_DEMO_REPO } from '../components/RepoUrlInput';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
-  const [repoUrl, setRepoUrl] = useState<string>('https://github.com/facebook/react');
-  const [branch, setBranch] = useState<string>('main');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!repoUrl.trim()) return;
-
+  const handleStartScan = async (repoUrl: string, branch: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const { scan_id } = await startScan(repoUrl.trim(), branch.trim() || 'main');
+      const { scan_id } = await startScan(repoUrl, branch);
       navigate(`/scan/${scan_id}`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to initiate repository scan';
+      let message = 'Failed to initiate repository scan. Please verify the URL and try again.';
+      const responseDetail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      if (typeof responseDetail === 'string') {
+        message = responseDetail;
+      } else if (Array.isArray(responseDetail) && responseDetail.length > 0) {
+        message = (responseDetail[0] as { msg?: string })?.msg || JSON.stringify(responseDetail);
+      } else if (axios.isAxiosError(err) && err.message) {
+        message = err.message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
       setError(message);
     } finally {
       setIsLoading(false);
@@ -31,121 +47,116 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-10 py-6">
-      {/* Hero Header */}
-      <section className="text-center flex flex-col items-center gap-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-medium text-indigo-300">
-          <Sparkles size={14} className="text-indigo-400" />
-          Autonomous WCAG 2.2 AA Remediation Agent
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: 'easeOut' }}
+      className="max-w-5xl mx-auto flex flex-col gap-12 py-8 px-2"
+    >
+      {/* Hero Section */}
+      <section className="text-center flex flex-col items-center gap-5">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-xs font-medium text-indigo-300 shadow-sm shadow-indigo-950/40"
+        >
+          <Sparkles size={14} className="text-indigo-400 animate-pulse" />
+          <span>Autonomous WCAG 2.2 AA Remediation Agent</span>
+        </motion.div>
+
+        <div className="space-y-3 max-w-3xl">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.15]">
+            Find and Fix Accessibility Issues —{' '}
+            <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-cyan-400 bg-clip-text text-transparent">
+              Automatically, Verified
+            </span>
+          </h1>
+          <p className="text-slate-300/90 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed font-normal">
+            CodeGuard uses <span className="text-indigo-300 font-medium">NVIDIA Nemotron</span> models to audit frontend code, synthesize non-breaking fixes, and prove compliance in <span className="text-emerald-300 font-medium">isolated execution sandboxes</span>.
+          </p>
         </div>
-        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
-          Protect & Repair with{' '}
-          <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-cyan-400 bg-clip-text text-transparent">
-            CodeGuard
-          </span>
-        </h1>
-        <p className="text-slate-400 text-base sm:text-lg max-w-2xl">
-          Automated accessibility auditing powered by{' '}
-          <strong className="text-slate-200">NVIDIA Nemotron</strong> models via{' '}
-          <strong className="text-slate-200">Nebius Token Factory</strong>, with guaranteed validation
-          inside <strong className="text-slate-200">Nebius execution sandboxes</strong>.
-        </p>
       </section>
 
-      {/* Main Scan Trigger Card */}
-      <Card
-        title="Start Accessibility Audit"
-        subtitle="Provide a remote Git repository URL to clone, analyze, and synthesize fixes."
-        className="border-indigo-500/30 shadow-2xl shadow-indigo-500/10"
-      >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs">
-              {error}
-            </div>
-          )}
+      {/* Prominent Scan Input Section */}
+      <section className="w-full">
+        <RepoUrlInput
+          onStartScan={handleStartScan}
+          isLoading={isLoading}
+          serverError={error}
+          onClearError={() => setError(null)}
+          demoRepoUrl={DEFAULT_DEMO_REPO}
+        />
+      </section>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <label htmlFor="repoUrl" className="block text-xs font-medium text-slate-400 mb-1.5">
-                Repository HTTPS URL
-              </label>
-              <input
-                id="repoUrl"
-                type="url"
-                required
-                value={repoUrl}
-                onChange={(e) => setRepoUrl(e.target.value)}
-                placeholder="https://github.com/org/repo"
-                className="w-full px-4 py-2.5 rounded-lg bg-slate-950 border border-slate-700/80 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm font-mono"
-              />
-            </div>
-
-            <div className="sm:w-36">
-              <label htmlFor="branch" className="block text-xs font-medium text-slate-400 mb-1.5">
-                Branch
-              </label>
-              <div className="relative">
-                <GitBranch size={15} className="absolute left-3 top-3 text-slate-500" />
-                <input
-                  id="branch"
-                  type="text"
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  placeholder="main"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-slate-950 border border-slate-700/80 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-sm font-mono"
-                />
-              </div>
-            </div>
+      {/* How It Works Strip (4-Stage Pipeline) */}
+      <section className="w-full bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 sm:p-8 backdrop-blur-md shadow-xl shadow-black/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-6 border-b border-slate-800/80 mb-6">
+          <div>
+            <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+              <Zap size={16} className="text-indigo-400" />
+              Autonomous Audit Pipeline
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              From raw source code to verified accessibility fixes in four reproducible stages
+            </p>
           </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <ShieldCheck size={16} className="text-emerald-400" />
-              <span>Tested safely in ephemeral sandboxes</span>
-            </div>
-            <Button
-              type="submit"
-              variant="primary"
-              size="md"
-              isLoading={isLoading}
-              rightIcon={<ArrowRight size={16} />}
-            >
-              Start Automated Scan
-            </Button>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono bg-slate-950 border border-slate-800 text-slate-300">
+              <CheckCircle2 size={12} className="text-emerald-400" /> Zero False Positives
+            </span>
           </div>
-        </form>
-      </Card>
-
-      {/* Feature Highlights Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 flex flex-col gap-2">
-          <div className="text-indigo-400 font-semibold text-sm flex items-center gap-1.5">
-            <Play size={16} /> 1. Deep AST & axe-core Scan
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Scans UI files for WCAG 2.2 AA violations and uses Nemotron Nano to eliminate false alarms.
-          </p>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 flex flex-col gap-2">
-          <div className="text-purple-400 font-semibold text-sm flex items-center gap-1.5">
-            <Sparkles size={16} /> 2. Nemotron Ultra Fixes
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Synthesizes non-breaking, idiomatic code diffs matching existing component design tokens.
-          </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+          <HowItWorksStep
+            stepNumber={1}
+            title="Scan"
+            description="AST parser and axe-core inspect UI components to extract scannable markup chunks and locate violations."
+            icon={<Search size={18} />}
+            badge="AST + axe-core"
+          />
+
+          <HowItWorksStep
+            stepNumber={2}
+            title="Diagnose"
+            description="Nemotron Nano filters benign false alarms, analyzes WCAG rules, and isolates root causes."
+            icon={<Cpu size={18} />}
+            badge="Nemotron Nano"
+          />
+
+          <HowItWorksStep
+            stepNumber={3}
+            title="Fix"
+            description="Nemotron Ultra synthesizes exact, minimal unified diffs preserving design tokens and project styling."
+            icon={<Wrench size={18} />}
+            badge="Nemotron Ultra"
+          />
+
+          <HowItWorksStep
+            stepNumber={4}
+            title="Verify"
+            description="Ephemeral sandboxes spin up Playwright & rerun axe-core to objectively confirm score improvements."
+            icon={<ShieldCheck size={18} />}
+            badge="Nebius Sandbox"
+            isLast={true}
+          />
+        </div>
+      </section>
+
+      {/* Trust & Sponsor Footer Line */}
+      <footer className="w-full pt-4 pb-2 border-t border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-mono">
+        <div className="flex items-center gap-2 text-slate-400">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>System Status: Ready for repository scans</span>
         </div>
 
-        <div className="p-4 rounded-xl bg-slate-900/50 border border-slate-800 flex flex-col gap-2">
-          <div className="text-emerald-400 font-semibold text-sm flex items-center gap-1.5">
-            <CheckCircle size={16} /> 3. Nebius Sandbox Proof
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Verifies every patch inside isolated environments using Playwright and existing test suites.
-          </p>
+        <div className="flex items-center gap-3">
+          <span className="text-slate-400 flex items-center gap-1.5">
+            <Box size={14} className="text-indigo-400" /> Powered by <strong className="text-slate-200">NVIDIA Nemotron</strong> on <strong className="text-slate-200">Nebius Token Factory</strong>
+          </span>
         </div>
-      </div>
-    </div>
+      </footer>
+    </motion.div>
   );
 };
