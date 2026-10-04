@@ -99,6 +99,12 @@ from app.services.verification_service import (
     verify_all_fixes,
     calculate_overall_improvement,
 )
+from app.services.test_runner_service import (
+    detect_test_command,
+    has_test_files,
+    parse_test_counts,
+    run_test_suite,
+)
 
 __all__ = [
     "call_nemotron",
@@ -172,4 +178,8 @@ __all__ = [
     "verify_single_fix",
     "verify_all_fixes",
     "calculate_overall_improvement",
+    "detect_test_command",
+    "has_test_files",
+    "parse_test_counts",
+    "run_test_suite",
 ]

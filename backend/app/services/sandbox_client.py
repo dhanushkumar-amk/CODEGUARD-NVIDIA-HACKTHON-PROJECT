@@ -403,7 +403,7 @@ async def destroy_sandbox(sandbox_id: str) -> None:
     global _active_sandboxes
 
     # 1. Local isolated sandbox teardown
-    if sandbox_id in _local_sandboxes:
+    if sandbox_id in _local_sandboxes or sandbox_id.startswith("sb-local-"):
         sb_dir = _local_sandboxes.pop(sandbox_id, None)
         if sb_dir and sb_dir.exists():
             shutil.rmtree(sb_dir, ignore_errors=True)

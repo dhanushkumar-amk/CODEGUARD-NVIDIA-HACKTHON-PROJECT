@@ -27,6 +27,7 @@ from app.services.fix_applier_service import (
     apply_fix_to_file,
     read_file_from_sandbox,
 )
+from app.services.test_runner_service import run_test_suite
 from app.services.sandbox_client import (
     destroy_sandbox,
     run_command,
@@ -211,16 +212,16 @@ async def verify_single_fix(
         still_present = _match_violation_in_axe(violation, raw_axe_violations, fix)
 
         # 4. Run project regression test suite if present
+        test_run_res = await run_test_suite(sandbox_id=sandbox_id, repo_path=repo_path, timeout=60)
         tests_passed: Optional[bool] = None
-        try:
-            test_run = await run_command(sandbox_id=sandbox_id, command="npm test", timeout=45)
-            if test_run.exit_code == 0:
-                tests_passed = True
-            elif "missing script: test" in test_run.stderr.lower() or "no test specified" in test_run.stdout.lower():
-                tests_passed = None  # No test suite configured
-            else:
-                tests_passed = False
-        except Exception:
+        test_status: Optional[str] = test_run_res.status
+
+        if test_run_res.status == "passed":
+            tests_passed = True
+        elif test_run_res.status == "failed":
+            tests_passed = False
+        else:
+            # timeout, no_tests_found, error -> None
             tests_passed = None
 
         # 5. Determine verification verdict
@@ -244,7 +245,8 @@ async def verify_single_fix(
 
         logger.info(
             f"Fix {fix.fix_id} verification result: verified={verified} "
-            f"(before={baseline}%, after={after_score}%, cleared={not still_present}, reason={reason})"
+            f"(before={baseline}%, after={after_score}%, cleared={not still_present}, "
+            f"test_status={test_status}, reason={reason})"
         )
 
         return VerificationResult(
@@ -254,6 +256,7 @@ async def verify_single_fix(
             axe_score_after=after_score,
             violation_still_present=still_present,
             tests_passed=tests_passed,
+            test_status=test_status,
             verified=verified,
             reason=reason,
             violations_resolved=not still_present,
@@ -304,7 +307,9 @@ async def verify_all_fixes(scan_id: str) -> List[VerificationResult]:
     total_count = len(eligible_fixes)
     logger.info(f"Starting verification of {total_count} fixes for scan {scan_id}...")
 
-    semaphore = asyncio.Semaphore(settings.SANDBOX_MAX_CONCURRENT)
+    # Reserve 1 sandbox slot for active baseline sandbox to avoid quota exhaustion
+    max_workers = max(1, settings.SANDBOX_MAX_CONCURRENT - 1)
+    semaphore = asyncio.Semaphore(max_workers)
     results: List[VerificationResult] = []
     completed_count = 0
     confirmed_count = 0

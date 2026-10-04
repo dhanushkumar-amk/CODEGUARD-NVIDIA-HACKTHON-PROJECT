@@ -116,11 +116,23 @@ class VerificationResult(BaseModel):
     axe_score_after: float = Field(description="Axe score after fix (0-100)")
     violation_still_present: bool = Field(default=False, description="Whether targeted defect still appears in axe-core audit")
     tests_passed: Optional[bool] = Field(default=None, description="Whether project test suite passed (None if no test suite configured)")
+    test_status: Optional[str] = Field(default=None, description="Status string: 'passed', 'failed', 'timeout', 'no_tests_found', 'error'")
     verified: bool = Field(description="Whether fix is verified clean with improved accessibility score and no test regressions")
     reason: Optional[str] = Field(default=None, description="Detailed explanation if verification failed or was skipped")
     violations_resolved: bool = Field(default=True, description="Whether targeted defect was resolved")
     sandbox_id: Optional[str] = Field(default=None, description="Nebius sandbox container ID")
     sandbox_logs: Optional[str] = Field(default=None, description="Execution logs from sandbox")
+
+
+class TestRunResult(BaseModel):
+    """Result of running regression tests in an isolated sandbox."""
+    __test__ = False  # Prevent pytest from treating this model as a test suite
+    status: str = Field(description="Test run status: 'passed', 'failed', 'timeout', 'no_tests_found', 'error'")
+    passed: Optional[bool] = Field(default=None, description="Whether all tests passed (None if skipped, timed out, or no tests)")
+    passed_count: Optional[int] = Field(default=None, description="Number of passed tests extracted from runner output")
+    failed_count: Optional[int] = Field(default=None, description="Number of failed tests extracted from runner output")
+    raw_output: str = Field(default="", description="Captured stdout and stderr from test execution")
+    duration_seconds: float = Field(default=0.0, description="Total test execution duration in seconds")
 
 
 class ScanReport(BaseModel):

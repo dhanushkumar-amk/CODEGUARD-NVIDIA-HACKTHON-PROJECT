@@ -87,11 +87,21 @@ export interface VerificationResult {
   axe_score_after: number;
   violation_still_present?: boolean;
   tests_passed?: boolean | null;
+  test_status?: 'passed' | 'failed' | 'timeout' | 'no_tests_found' | 'error' | string | null;
   violations_resolved?: boolean;
   verified: boolean;
   reason?: string | null;
   sandbox_id?: string | null;
   sandbox_logs?: string | null;
+}
+
+export interface TestRunResult {
+  status: 'passed' | 'failed' | 'timeout' | 'no_tests_found' | 'error' | string;
+  passed?: boolean | null;
+  passed_count?: number | null;
+  failed_count?: number | null;
+  raw_output: string;
+  duration_seconds: number;
 }
 
 export interface ScanReport {
