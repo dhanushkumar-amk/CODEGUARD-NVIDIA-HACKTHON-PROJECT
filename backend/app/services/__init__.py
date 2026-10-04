@@ -81,6 +81,13 @@ from app.services.sandbox_orchestrator import (
     collect_repo_files,
 )
 from app.services.report_service import generate_compliance_report
+from app.services.fix_applier_service import (
+    read_file_from_sandbox,
+    apply_fix_to_file,
+    create_fix_verification_sandbox,
+    apply_and_prepare_fix,
+    FixApplicationError,
+)
 
 __all__ = [
     "call_nemotron",
@@ -142,4 +149,9 @@ __all__ = [
     "cleanup_scan_sandboxes",
     "collect_repo_files",
     "generate_compliance_report",
+    "read_file_from_sandbox",
+    "apply_fix_to_file",
+    "create_fix_verification_sandbox",
+    "apply_and_prepare_fix",
+    "FixApplicationError",
 ]
