@@ -387,9 +387,9 @@ export const FilterableViolationsList: React.FC<FilterableViolationsListProps> =
                                   : 'Verification failed in execution sandbox'}
                               </span>
                             </div>
-                            {item.verification.axe_raw_output && (
+                            {item.verification.axe_score_after !== undefined && (
                               <span className="text-[11px] font-mono text-muted">
-                                axe-core score: {item.verification.axe_raw_output.violations_after ?? 0} remaining violations
+                                axe-core score: {item.verification.axe_score_after}/100
                               </span>
                             )}
                           </div>
