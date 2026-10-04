@@ -33,7 +33,9 @@ describe('Home Page', () => {
 
     expect(screen.getByText(/Every fix, tested before you trust it/i)).toBeInTheDocument();
     expect(screen.getByText(/CodeGuard scans your repo for accessibility violations/i)).toBeInTheDocument();
-    expect(screen.getByTestId('live-fix-demo')).toBeInTheDocument();
+    expect(screen.getByText('Automated WCAG Detection')).toBeInTheDocument();
+    expect(screen.getByText('Autonomous Code Remediation')).toBeInTheDocument();
+    expect(screen.getByText('Deterministic Sandbox Proof')).toBeInTheDocument();
     expect(screen.getByText('Detect')).toBeInTheDocument();
     expect(screen.getByText('Fix')).toBeInTheDocument();
     expect(screen.getByText('Verify')).toBeInTheDocument();

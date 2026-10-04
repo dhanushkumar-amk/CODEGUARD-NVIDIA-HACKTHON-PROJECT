@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Check } from 'lucide-react';
 
 export const LiveFixDemo: React.FC = () => {
@@ -12,7 +12,7 @@ export const LiveFixDemo: React.FC = () => {
     let timeoutId: ReturnType<typeof setTimeout>;
 
     const runLoop = (fixedState: boolean) => {
-      const delay = fixedState ? 3500 : 1400;
+      const delay = fixedState ? 3500 : 1200;
       timeoutId = setTimeout(() => {
         setIsFixed(!fixedState);
         runLoop(!fixedState);
@@ -51,7 +51,7 @@ export const LiveFixDemo: React.FC = () => {
               key="alt-prop"
               initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.35, ease: 'easeOut' }}
               className="bg-emerald-500/30 border border-emerald-400/40 px-1.5 py-0.5 rounded-[3px] text-emerald-100 mx-1 font-mono font-medium inline-block shadow-sm"
             >
               alt=&quot;Company logo&quot;
@@ -61,34 +61,30 @@ export const LiveFixDemo: React.FC = () => {
         </span>
       </div>
 
-      {/* Dedicated status badge row: buttery smooth crossfade */}
+      {/* Dedicated status badge row */}
       <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center min-h-[26px]">
-        <AnimatePresence mode="wait">
-          {activeFixed ? (
-            <motion.span
-              key="verified-badge"
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 3 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={shouldReduceMotion ? false : { opacity: 0, y: -3 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-sans bg-emerald/30 text-white border border-emerald/50"
-            >
-              <Check size={11} strokeWidth={2.5} />
-              <span>Verified in sandbox</span>
-            </motion.span>
-          ) : (
-            <motion.span
-              key="missing-badge"
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 3 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={shouldReduceMotion ? false : { opacity: 0, y: -3 }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-coral/30 text-white border border-coral/50"
-            >
-              Missing alt text
-            </motion.span>
-          )}
-        </AnimatePresence>
+        {activeFixed ? (
+          <motion.span
+            key="verified-badge"
+            initial={shouldReduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-sans bg-emerald/30 text-white border border-emerald/50"
+          >
+            <Check size={11} strokeWidth={2.5} />
+            <span>Verified in sandbox</span>
+          </motion.span>
+        ) : (
+          <motion.span
+            key="missing-badge"
+            initial={shouldReduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-coral/30 text-white border border-coral/50"
+          >
+            Missing alt text
+          </motion.span>
+        )}
       </div>
     </div>
   );
