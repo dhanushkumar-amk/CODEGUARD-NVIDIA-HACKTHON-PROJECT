@@ -82,6 +82,14 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 # Phase 16: Synthesize code-fix patches with Nemotron Ultra
                 from app.services.fixer_service import generate_all_fixes
                 await generate_all_fixes(scan_id)
+
+                # Phase 20: Verify fixes with axe-core in isolated sandboxes
+                from app.services.verification_service import (
+                    verify_all_fixes,
+                    calculate_overall_improvement,
+                )
+                await verify_all_fixes(scan_id)
+                await calculate_overall_improvement(scan_id)
             except Exception as bg_err:
                 logger.error(f"Error during background violation pipeline for {scan_id}: {bg_err}", exc_info=True)
                 await cleanup_scan_sandboxes(scan_id)

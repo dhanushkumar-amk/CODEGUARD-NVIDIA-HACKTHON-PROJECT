@@ -85,9 +85,11 @@ export interface VerificationResult {
   violation_id?: string | null;
   axe_score_before: number;
   axe_score_after: number;
-  tests_passed: boolean;
+  violation_still_present?: boolean;
+  tests_passed?: boolean | null;
   violations_resolved?: boolean;
   verified: boolean;
+  reason?: string | null;
   sandbox_id?: string | null;
   sandbox_logs?: string | null;
 }

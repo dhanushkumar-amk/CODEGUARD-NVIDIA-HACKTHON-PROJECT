@@ -93,6 +93,12 @@ from app.services.axe_runner_service import (
     run_axe_check,
     get_axe_score_for_sandbox,
 )
+from app.services.verification_service import (
+    get_baseline_score,
+    verify_single_fix,
+    verify_all_fixes,
+    calculate_overall_improvement,
+)
 
 __all__ = [
     "call_nemotron",
@@ -162,4 +168,8 @@ __all__ = [
     "ensure_playwright_installed",
     "run_axe_check",
     "get_axe_score_for_sandbox",
+    "get_baseline_score",
+    "verify_single_fix",
+    "verify_all_fixes",
+    "calculate_overall_improvement",
 ]

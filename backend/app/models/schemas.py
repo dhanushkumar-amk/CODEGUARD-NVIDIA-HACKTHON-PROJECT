@@ -114,9 +114,11 @@ class VerificationResult(BaseModel):
     violation_id: Optional[str] = Field(default=None, description="Identifier of the tested violation")
     axe_score_before: float = Field(description="Axe score before fix (0-100)")
     axe_score_after: float = Field(description="Axe score after fix (0-100)")
-    tests_passed: bool = Field(description="Whether regression test suite passed")
+    violation_still_present: bool = Field(default=False, description="Whether targeted defect still appears in axe-core audit")
+    tests_passed: Optional[bool] = Field(default=None, description="Whether project test suite passed (None if no test suite configured)")
+    verified: bool = Field(description="Whether fix is verified clean with improved accessibility score and no test regressions")
+    reason: Optional[str] = Field(default=None, description="Detailed explanation if verification failed or was skipped")
     violations_resolved: bool = Field(default=True, description="Whether targeted defect was resolved")
-    verified: bool = Field(description="Whether fix is verified clean with 0 regressions")
     sandbox_id: Optional[str] = Field(default=None, description="Nebius sandbox container ID")
     sandbox_logs: Optional[str] = Field(default=None, description="Execution logs from sandbox")
 
