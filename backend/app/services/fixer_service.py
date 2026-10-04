@@ -502,12 +502,21 @@ async def generate_fix(
                 "And ensure 'fixed_lines' has balanced brackets/tags and is non-empty. "
                 "Respond ONLY with a valid JSON object."
             )
-            raw_response = await call_nemotron_ultra(
-                prompt=retry_prompt,
-                system_prompt=system_prompt,
-                max_tokens=1500,
-                scan_id=scan_id,
-            )
+            try:
+                raw_response = await call_nemotron_ultra(
+                    prompt=retry_prompt,
+                    system_prompt=system_prompt,
+                    max_tokens=1500,
+                    scan_id=scan_id,
+                )
+            except UltraBudgetExceededError:
+                from app.services.llm_client import call_nemotron_fast
+                raw_response = await call_nemotron_fast(
+                    prompt=retry_prompt,
+                    system_prompt=system_prompt,
+                    max_tokens=1500,
+                    scan_id=scan_id,
+                )
             parsed_json = _extract_json_fix(raw_response)
             is_valid = validate_fix_output(parsed_json, expected_original) if parsed_json else False
         except Exception as retry_err:

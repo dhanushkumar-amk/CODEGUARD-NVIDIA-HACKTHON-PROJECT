@@ -7,6 +7,7 @@ import { ScanReport } from '../types';
 
 vi.mock('../api/client', () => ({
   getReport: vi.fn(),
+  createRemediationPR: vi.fn(),
 }));
 
 class MockResizeObserver {
@@ -302,5 +303,74 @@ describe('Report Page', () => {
 
     const scanAnotherLink = screen.getByTestId('scan-another-repo-btn');
     expect(scanAnotherLink).toHaveAttribute('href', '/');
+  });
+
+  it('clicking Create remediation PR opens real PR link and shows files changed on success', async () => {
+    vi.mocked(api.getReport).mockResolvedValueOnce(mockFullReport);
+    vi.mocked(api.createRemediationPR).mockResolvedValueOnce({
+      status: 'success',
+      pr_url: 'https://github.com/example/accessible-app/pull/42',
+      files_changed: 2,
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/report/scan_report_123']}>
+        <Routes>
+          <Route path="/report/:scanId" element={<Report />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-remediation-pr-btn')).toBeInTheDocument();
+    });
+
+    const prBtn = screen.getByTestId('create-remediation-pr-btn');
+    fireEvent.click(prBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pr-success-banner')).toBeInTheDocument();
+    });
+
+    expect(api.createRemediationPR).toHaveBeenCalledWith(
+      'scan_report_123',
+      'https://github.com/example/accessible-app'
+    );
+    expect(screen.getByText(/Pull Request Created Successfully!/i)).toBeInTheDocument();
+    expect(screen.getByText(/2 files/i)).toBeInTheDocument();
+
+    const link = screen.getByTestId('pr-success-link');
+    expect(link).toHaveAttribute('href', 'https://github.com/example/accessible-app/pull/42');
+    expect(link).toHaveAttribute('target', '_blank');
+  });
+
+  it('clicking Create remediation PR displays clean error banner when backend reports failure', async () => {
+    vi.mocked(api.getReport).mockResolvedValueOnce(mockFullReport);
+    vi.mocked(api.createRemediationPR).mockResolvedValueOnce({
+      status: 'failed',
+      error: 'No write access to repository. You must have write permissions to open a remediation branch and PR.',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/report/scan_report_123']}>
+        <Routes>
+          <Route path="/report/:scanId" element={<Report />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-remediation-pr-btn')).toBeInTheDocument();
+    });
+
+    const prBtn = screen.getByTestId('create-remediation-pr-btn');
+    fireEvent.click(prBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pr-error-banner')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Could not create remediation PR/i)).toBeInTheDocument();
+    expect(screen.getByText(/No write access to repository/i)).toBeInTheDocument();
   });
 });

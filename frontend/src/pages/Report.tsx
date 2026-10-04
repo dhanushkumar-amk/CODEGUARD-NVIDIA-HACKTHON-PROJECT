@@ -499,7 +499,7 @@ export const Report: React.FC = () => {
                 variant="secondary"
                 size="md"
                 leftIcon={<RotateCcw size={14} />}
-                data-testid="scan-another-repo-btn"
+                data-testid="scan-another-repo-footer-btn"
               >
                 Scan another repo
               </Button>

@@ -166,20 +166,25 @@ async def install_dependencies(
     Returns:
         CommandResult with stdout, stderr, exit_code, and duration_ms.
     """
-    # Detect package manager lockfile
+    # Detect package manager lockfile and package.json location
     is_yarn = False
-    if repo_path:
-        yarn_lock = Path(repo_path) / "yarn.lock"
-        if yarn_lock.exists() and yarn_lock.is_file():
+    pkg_subpath = ""
+    r_path = (
+        Path(repo_path)
+        if repo_path
+        else (Path(get_scan(scan_id).get("repo_path")) if scan_id and get_scan(scan_id) else None)
+    )
+    if r_path and r_path.exists():
+        if (r_path / "yarn.lock").exists():
             is_yarn = True
-    else:
-        # Check active scans if repo_path not passed explicitly
-        if scan_id:
-            scan_data = get_scan(scan_id)
-            if scan_data and scan_data.get("repo_path"):
-                is_yarn = (Path(scan_data["repo_path"]) / "yarn.lock").exists()
+        elif not (r_path / "package.json").exists() and (r_path / "frontend" / "package.json").exists():
+            pkg_subpath = "frontend"
+            is_yarn = (r_path / "frontend" / "yarn.lock").exists()
 
-    install_cmd = "yarn install" if is_yarn else "npm install"
+    if pkg_subpath:
+        install_cmd = f"yarn --cwd {pkg_subpath} install" if is_yarn else f"npm --prefix {pkg_subpath} install"
+    else:
+        install_cmd = "yarn install" if is_yarn else "npm install"
 
     await _notify_progress(
         scan_id=scan_id,
