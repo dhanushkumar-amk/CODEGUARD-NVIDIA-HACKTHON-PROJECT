@@ -135,19 +135,51 @@ class TestRunResult(BaseModel):
     duration_seconds: float = Field(default=0.0, description="Total test execution duration in seconds")
 
 
+class UnifiedViolationRecord(BaseModel):
+    """Unified record linking a detected violation, its remediation fix, sandbox verification, and final status."""
+    violation: DiagnosedViolation = Field(description="Diagnosed accessibility violation with root-cause and user impact")
+    fix: Optional[ProposedFix] = Field(default=None, description="Synthesized remediation patch if attempted")
+    verification: Optional[VerificationResult] = Field(default=None, description="Sandbox verification result if tested")
+    final_status: str = Field(
+        description="Unified status: 'fixed_and_verified', 'fixed_not_verified', 'fix_failed', 'detected_only', 'verification_skipped'"
+    )
+
+
+class CostBreakdown(BaseModel):
+    """Cost breakdown for LLM inference during scan and remediation."""
+    fast_cost: float = Field(default=0.0, description="Cost in USD for Nemotron Fast calls")
+    ultra_cost: float = Field(default=0.0, description="Cost in USD for Nemotron Ultra calls")
+    total_cost: float = Field(default=0.0, description="Total cost in USD")
+
+
+class ScoreImprovement(BaseModel):
+    """Compliance score delta and points gained."""
+    score_before: float = Field(description="Baseline accessibility score (0-100)")
+    score_after: float = Field(description="Post-remediation accessibility score (0-100)")
+    improvement_points: float = Field(description="Absolute percentage points improved")
+
+
 class ScanReport(BaseModel):
     """Comprehensive accessibility audit and verification report."""
     scan_id: str = Field(description="Unique scan job identifier")
     repo_url: str = Field(description="Repository URL that was audited")
     branch: str = Field(default="main", description="Git branch audited")
-    violations: List[Violation] = Field(default_factory=list, description="List of detected violations")
-    fixes: List[ProposedFix] = Field(default_factory=list, description="List of synthesized fixes")
+    violations: List[Violation] = Field(default_factory=list, description="List of detected violations (backward compat)")
+    fixes: List[ProposedFix] = Field(default_factory=list, description="List of synthesized fixes (backward compat)")
     verification_results: List[VerificationResult] = Field(
-        default_factory=list, description="List of sandbox verification results"
+        default_factory=list, description="List of sandbox verification results (backward compat)"
+    )
+    unified_records: List[UnifiedViolationRecord] = Field(
+        default_factory=list, description="Unified violation-fix-verification records"
     )
     overall_score_before: float = Field(description="Baseline repository accessibility score (0-100)")
     overall_score_after: float = Field(description="Post-remediation accessibility score (0-100)")
-    summary: Optional[Dict[str, Any]] = Field(default=None, description="Violation taxonomy summary counts")
+    overall_improvement: Optional[ScoreImprovement] = Field(
+        default=None, description="Score delta and points gained"
+    )
+    summary: Optional[Dict[str, Any]] = Field(default=None, description="Detailed taxonomy and final status summary statistics")
+    cost_breakdown: Optional[CostBreakdown] = Field(default=None, description="LLM token spend breakdown")
+    total_duration_seconds: float = Field(default=0.0, description="Total elapsed seconds for the complete audit pipeline")
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Completion timestamp")
     status: str = Field(default="completed", description="Scan execution status")
 

@@ -53,6 +53,8 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
         scan_batch = prepare_scan_batch(repo_path, scannable_files)
 
         # 5. Save metadata and scan batches to in-memory state store
+        import time
+        start_time_val = time.time()
         update_scan(
             scan_id=scan_id,
             repo_path=repo_path,
@@ -63,6 +65,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             scan_batch=scan_batch,
             batch_count=len(scan_batch),
             status="prepared",
+            start_timestamp=start_time_val,
         )
 
         # 6. Kick off detection and diagnosis pipeline as background task
@@ -90,6 +93,29 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 )
                 await verify_all_fixes(scan_id)
                 await calculate_overall_improvement(scan_id)
+
+                # Phase 22: Build final unified ScanReport and broadcast completion
+                from app.services.aggregator_service import build_scan_report
+                from app.routers.websocket import broadcast_progress
+
+                final_report = build_scan_report(scan_id)
+                stats = final_report.summary or {}
+                verified_count = stats.get("fixed_and_verified", 0)
+                total_violations = stats.get("total_violations", len(final_report.violations))
+
+                completion_msg = f"Scan complete — {verified_count} of {total_violations} violations fixed and verified"
+                await broadcast_progress(
+                    scan_id=scan_id,
+                    stage="complete",
+                    progress=100,
+                    message=completion_msg,
+                    data={
+                        "fixed_and_verified": verified_count,
+                        "total_violations": total_violations,
+                        "score_before": final_report.overall_score_before,
+                        "score_after": final_report.overall_score_after,
+                    },
+                )
             except Exception as bg_err:
                 logger.error(f"Error during background violation pipeline for {scan_id}: {bg_err}", exc_info=True)
                 await cleanup_scan_sandboxes(scan_id)

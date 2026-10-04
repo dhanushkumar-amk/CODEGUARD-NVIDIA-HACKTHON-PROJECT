@@ -105,6 +105,11 @@ from app.services.test_runner_service import (
     parse_test_counts,
     run_test_suite,
 )
+from app.services.aggregator_service import (
+    link_violation_to_fix_and_verification,
+    calculate_summary_stats,
+    build_scan_report,
+)
 
 __all__ = [
     "call_nemotron",
@@ -182,4 +187,7 @@ __all__ = [
     "has_test_files",
     "parse_test_counts",
     "run_test_suite",
+    "link_violation_to_fix_and_verification",
+    "calculate_summary_stats",
+    "build_scan_report",
 ]

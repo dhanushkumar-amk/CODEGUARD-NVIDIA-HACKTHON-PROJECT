@@ -104,6 +104,25 @@ export interface TestRunResult {
   duration_seconds: number;
 }
 
+export interface UnifiedViolationRecord {
+  violation: DiagnosedViolation;
+  fix?: ProposedFix | null;
+  verification?: VerificationResult | null;
+  final_status: 'fixed_and_verified' | 'fixed_not_verified' | 'fix_failed' | 'detected_only' | 'verification_skipped' | string;
+}
+
+export interface CostBreakdown {
+  fast_cost: number;
+  ultra_cost: number;
+  total_cost: number;
+}
+
+export interface ScoreImprovement {
+  score_before: number;
+  score_after: number;
+  improvement_points: number;
+}
+
 export interface ScanReport {
   scan_id: string;
   repo_url: string;
@@ -111,9 +130,13 @@ export interface ScanReport {
   violations: Violation[];
   fixes: ProposedFix[];
   verification_results: VerificationResult[];
+  unified_records?: UnifiedViolationRecord[];
   overall_score_before: number;
   overall_score_after: number;
-  summary?: ViolationSummary | null;
+  overall_improvement?: ScoreImprovement | null;
+  summary?: any | null;
+  cost_breakdown?: CostBreakdown | null;
+  total_duration_seconds?: number;
   timestamp: string;
   status: string;
 }
