@@ -6,6 +6,11 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from app.models.schemas import ProposedFix
+from app.services.axe_runner_service import (
+    ensure_playwright_installed,
+    run_axe_check,
+    get_axe_score_for_sandbox,
+)
 from app.services.fix_applier_service import (
     apply_and_prepare_fix,
     read_file_from_sandbox,
@@ -272,5 +277,76 @@ async def test_sandbox_apply_fix(request: Optional[ApplyFixTestRequest] = None):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error applying fix in sandbox: {str(exc)}",
         )
+
+
+class AxeCheckTestRequest(BaseModel):
+    repo_path: Optional[str] = Field(
+        default=None,
+        description="Path to local repository clone. Defaults to sandbox-scripts/demo-app",
+    )
+    scan_id: Optional[str] = Field(
+        default=None,
+        description="Optional scan ID for tracking. Auto-generated if omitted.",
+    )
+    timeout: Optional[int] = Field(
+        default=60,
+        description="Timeout in seconds for axe-core verification.",
+    )
+
+
+@router.post("/axe-check")
+async def test_sandbox_axe_check(request: Optional[AxeCheckTestRequest] = None):
+    """
+    Test endpoint for Phase 19:
+    Takes repo_path (defaulting to demo-app), prepares/reuses base sandbox via
+    get_or_create_base_sandbox(), ensures Playwright is installed, runs run_axe_check(),
+    and returns raw violations, passes count, url tested, and compliance score.
+    """
+    req = request or AxeCheckTestRequest()
+
+    if req.repo_path and req.repo_path.strip():
+        repo_path = req.repo_path.strip()
+    else:
+        demo_path = Path(__file__).resolve().parent.parent.parent.parent / "sandbox-scripts" / "demo-app"
+        repo_path = str(demo_path)
+
+    scan_id = req.scan_id or create_scan(repo_url="https://github.com/example/demo-app")
+    timeout = req.timeout or 60
+
+    start_time = time.time()
+    try:
+        # 1. Provision or reuse base sandbox
+        sandbox_id = await get_or_create_base_sandbox(repo_path=repo_path, scan_id=scan_id)
+
+        # 2. Ensure Playwright and Chromium are installed
+        await ensure_playwright_installed(sandbox_id)
+
+        # 3. Execute axe-core verification
+        axe_res = await run_axe_check(sandbox_id=sandbox_id, timeout=timeout, scan_id=scan_id)
+        total_time = round(time.time() - start_time, 2)
+
+        return {
+            "sandbox_id": sandbox_id,
+            "scan_id": scan_id,
+            "repo_path": repo_path,
+            "total_elapsed_seconds": total_time,
+            **axe_res,
+        }
+
+    except SandboxAuthenticationError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
+    except SandboxQuotaExceededError as exc:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(exc))
+    except SandboxTimeoutError as exc:
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc))
+    except (SandboxCreationError, SandboxError) as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
+    except Exception as exc:
+        logger.error(f"Unexpected error in /test-sandbox/axe-check: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error running axe-core check: {str(exc)}",
+        )
+
 
 

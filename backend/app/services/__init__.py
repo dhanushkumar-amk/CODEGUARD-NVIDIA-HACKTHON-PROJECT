@@ -88,6 +88,11 @@ from app.services.fix_applier_service import (
     apply_and_prepare_fix,
     FixApplicationError,
 )
+from app.services.axe_runner_service import (
+    ensure_playwright_installed,
+    run_axe_check,
+    get_axe_score_for_sandbox,
+)
 
 __all__ = [
     "call_nemotron",
@@ -154,4 +159,7 @@ __all__ = [
     "create_fix_verification_sandbox",
     "apply_and_prepare_fix",
     "FixApplicationError",
+    "ensure_playwright_installed",
+    "run_axe_check",
+    "get_axe_score_for_sandbox",
 ]
