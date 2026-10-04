@@ -58,8 +58,8 @@ export const FrameworkStrip: React.FC = () => {
   ];
 
   return (
-    <div className="w-full flex flex-col gap-3 text-left">
-      <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted">
+    <section className="w-full border-t border-line py-12 md:py-24 text-left">
+      <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted block mb-6">
         Built to check codebases like
       </span>
 
@@ -68,7 +68,7 @@ export const FrameworkStrip: React.FC = () => {
         {frameworks.map((fw) => (
           <div
             key={fw.name}
-            className="flex items-center justify-center gap-2.5 py-4 px-3 text-muted hover:text-ink transition-colors"
+            className="h-16 flex items-center justify-center gap-3 py-4 px-6 text-muted hover:text-ink transition-colors"
           >
             {fw.svg}
             <span className="font-mono text-xs uppercase tracking-[0.08em] font-medium">
@@ -77,6 +77,6 @@ export const FrameworkStrip: React.FC = () => {
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 };

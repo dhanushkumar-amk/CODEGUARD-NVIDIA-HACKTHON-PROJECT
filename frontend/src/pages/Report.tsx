@@ -63,37 +63,33 @@ export const Report: React.FC = () => {
   if (isLoading) {
     return (
       <div data-testid="report-skeleton-loader" className="max-w-4xl flex flex-col gap-6 py-4 text-left animate-pulse font-sans">
-        {/* Top bar skeleton */}
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 pb-3 border-b border-line">
           <div className="space-y-2">
-            <div className="h-3 w-28 bg-surface-2 rounded-control" />
-            <div className="h-7 w-64 bg-surface-2 rounded-control" />
-            <div className="h-3 w-40 bg-surface-2 rounded-control" />
+            <div className="h-3 w-28 bg-surface-2 rounded-[4px]" />
+            <div className="h-7 w-64 bg-surface-2 rounded-[4px]" />
+            <div className="h-3 w-40 bg-surface-2 rounded-[4px]" />
           </div>
           <div className="flex gap-2">
-            <div className="h-8 w-28 bg-surface-2 rounded-control" />
-            <div className="h-8 w-28 bg-surface-2 rounded-control" />
+            <div className="h-8 w-28 bg-surface-2 rounded-[4px]" />
+            <div className="h-8 w-28 bg-surface-2 rounded-[4px]" />
           </div>
         </div>
 
-        {/* Hero score skeleton */}
         <div className="h-44 w-full border border-line bg-paper p-6 flex flex-col justify-between">
-          <div className="h-4 w-44 bg-surface-2 rounded-control" />
+          <div className="h-4 w-44 bg-surface-2 rounded-[4px]" />
           <div className="flex gap-8 items-end">
-            <div className="h-16 w-28 bg-surface-2 rounded-control" />
-            <div className="h-10 flex-1 bg-surface-2 rounded-control" />
-            <div className="h-16 w-28 bg-surface-2 rounded-control" />
+            <div className="h-16 w-28 bg-surface-2 rounded-[4px]" />
+            <div className="h-10 flex-1 bg-surface-2 rounded-[4px]" />
+            <div className="h-16 w-28 bg-surface-2 rounded-[4px]" />
           </div>
         </div>
 
-        {/* Stats strip skeleton */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="h-20 border border-line bg-paper p-3" />
           ))}
         </div>
 
-        {/* Breakdown skeleton */}
         <div className="h-48 border border-line bg-paper p-5" />
       </div>
     );
@@ -103,10 +99,10 @@ export const Report: React.FC = () => {
   if (error || !report) {
     return (
       <div className="max-w-md py-12 text-left flex flex-col items-start gap-4 font-sans">
-        <div className="p-2.5 rounded-control bg-coral/10 text-coral border border-coral/20">
+        <div className="p-2.5 rounded-[6px] bg-coral/10 text-coral border border-coral/20">
           <ShieldAlert size={28} />
         </div>
-        <h2 className="text-xl font-bold text-ink">Report unavailable</h2>
+        <h2 className="text-xl font-bold font-sans text-ink">Report unavailable</h2>
         <p className="text-sm text-muted leading-relaxed">
           {error || 'Could not retrieve report data for this scan.'}
         </p>
@@ -170,9 +166,9 @@ export const Report: React.FC = () => {
       {/* Top Action & Navigation Header */}
       <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 pb-3 border-b border-line">
         <div>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs font-medium text-muted flex items-center gap-1.5">
-              <Sparkles size={12} className="text-azure" />
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted flex items-center gap-1.5">
+              <Sparkles size={12} className="text-primary" />
               Audit complete &bull; Verified in Nebius sandboxes
             </span>
             <Badge variant="fixed_and_verified" size="sm">
@@ -180,10 +176,10 @@ export const Report: React.FC = () => {
             </Badge>
           </div>
 
-          <h1 className="text-2xl font-bold text-ink">
+          <h1 className="text-2xl font-bold font-sans text-ink">
             Accessibility Compliance Audit
           </h1>
-          <p className="text-xs text-muted font-mono mt-0.5">
+          <p className="text-xs text-muted font-mono mt-1">
             Scan ID: <span className="text-ink">{report.scan_id}</span> &bull;{' '}
             Branch: <span className="text-ink">{report.branch || 'main'}</span>
           </p>
@@ -218,7 +214,7 @@ export const Report: React.FC = () => {
         </div>
       </div>
 
-      {/* A. HERO SCORE SECTION - Source Serif 4 numerals for before (coral) & after (emerald) */}
+      {/* A. HERO SCORE SECTION */}
       <ScoreReadout
         scoreBefore={report.overall_score_before}
         scoreAfter={report.overall_score_after}
@@ -232,7 +228,7 @@ export const Report: React.FC = () => {
       {allFixesFailed && (
         <div
           data-testid="all-fixes-failed-alert"
-          className="p-3.5 rounded-control bg-coral/10 border border-coral/20 flex items-start gap-2.5 text-coral"
+          className="p-3.5 rounded-[6px] bg-coral/10 border border-coral/20 flex items-start gap-2.5 text-coral"
         >
           <AlertTriangle size={16} className="shrink-0 mt-0.5" />
           <div className="text-xs leading-relaxed">
@@ -244,10 +240,10 @@ export const Report: React.FC = () => {
         </div>
       )}
 
-      {/* B. STATS STRIP - Flat cards */}
+      {/* B. STATS STRIP - Restyled to match StatsRow mono-label treatment */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <StatCard
-          label="Total violations"
+          label="VIOLATIONS FOUND"
           value={totalViolations}
           subtext="Detected in codebase"
           icon={<ShieldAlert size={14} className={totalViolations > 0 ? 'text-coral' : 'text-emerald'} />}
@@ -255,7 +251,7 @@ export const Report: React.FC = () => {
         />
 
         <StatCard
-          label="Fixes verified"
+          label="FIXES VERIFIED"
           value={`${verifiedFixesCount} / ${totalViolations}`}
           subtext="0 regressions found"
           icon={<CheckCircle2 size={14} className="text-emerald" />}
@@ -263,15 +259,15 @@ export const Report: React.FC = () => {
         />
 
         <StatCard
-          label="Fix success rate"
+          label="SUCCESS RATE"
           value={`${fixSuccessRate}%`}
           subtext="Remediation accuracy"
-          icon={<Award size={14} className="text-azure" />}
+          icon={<Award size={14} className="text-primary" />}
           testId="stat-success-rate"
         />
 
         <StatCard
-          label="Total scan time"
+          label="TOTAL SCAN TIME"
           value={`${durationSec.toFixed(1)}s`}
           subtext="End-to-end execution"
           icon={<Clock size={14} className="text-muted" />}
@@ -279,10 +275,10 @@ export const Report: React.FC = () => {
         />
 
         <StatCard
-          label="Total cost"
+          label="TOTAL COST"
           value={`$${totalCost.toFixed(4)}`}
           subtext="NVIDIA Nemotron spend"
-          icon={<DollarSign size={14} className="text-violet" />}
+          icon={<DollarSign size={14} className="text-primary" />}
           testId="stat-total-cost"
         />
       </div>
@@ -291,13 +287,13 @@ export const Report: React.FC = () => {
       {totalViolations === 0 ? (
         <div
           data-testid="zero-violations-empty-state"
-          className="p-8 border border-emerald/30 bg-[#FFFFFF] flex flex-col items-start gap-3 rounded-control"
+          className="p-8 border border-emerald/30 bg-paper flex flex-col items-start gap-3 rounded-[6px]"
         >
-          <div className="w-10 h-10 rounded-control border border-emerald/20 bg-emerald/10 flex items-center justify-center text-emerald">
+          <div className="w-10 h-10 rounded-[6px] border border-emerald/20 bg-emerald/10 flex items-center justify-center text-emerald">
             <CheckCircle2 size={20} />
           </div>
           <div className="max-w-md">
-            <h3 className="text-lg font-bold text-ink">
+            <h3 className="text-lg font-bold font-sans text-ink">
               No Accessibility Violations Found!
             </h3>
             <p className="text-xs text-muted mt-1 leading-relaxed">
@@ -316,8 +312,8 @@ export const Report: React.FC = () => {
           <section className="flex flex-col gap-4">
             <div className="flex items-baseline justify-between border-b border-line pb-2">
               <div>
-                <h2 className="text-sm font-bold text-ink flex items-center gap-2">
-                  <Activity size={15} className="text-azure" />
+                <h2 className="text-sm font-bold font-sans text-ink flex items-center gap-2">
+                  <Activity size={15} className="text-primary" />
                   Violations and remediation breakdown
                 </h2>
                 <p className="text-xs text-muted mt-0.5">
@@ -343,29 +339,29 @@ export const Report: React.FC = () => {
         </>
       )}
 
-      {/* D. COST & MODEL USAGE SECTION - Fast tier (azure accent) vs Ultra tier (violet accent) */}
+      {/* D. COST & MODEL USAGE SECTION - Monad hairline treatment with primary accent */}
       <section className="border border-line bg-paper p-5 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-3 border-b border-line">
           <div>
-            <h3 className="text-sm font-semibold text-ink flex items-center gap-2">
-              <Cpu size={15} className="text-violet" />
+            <h3 className="text-sm font-semibold font-sans text-ink flex items-center gap-2">
+              <Cpu size={15} className="text-primary" />
               NVIDIA Nemotron and Nebius Token Factory usage
             </h3>
             <p className="text-xs text-muted mt-0.5">
               Cost-efficient tiered inference across fast routine screening and deep AI reasoning
             </p>
           </div>
-          <div className="text-xs font-mono text-ink font-semibold">
+          <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-ink font-semibold">
             Total spend: ${totalCost.toFixed(4)} USD
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Fast-tier card: Azure accent */}
-          <div className="p-3.5 border border-line border-l-[3px] border-l-azure bg-[#FFFFFF] rounded-control flex flex-col justify-between gap-2.5">
+          {/* Fast-tier card */}
+          <div className="p-3.5 border border-line bg-paper rounded-[6px] flex flex-col justify-between gap-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-azure flex items-center gap-1.5">
-                <Zap size={13} className="text-azure" /> Nemotron Fast (12B)
+              <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-ink font-semibold flex items-center gap-1.5">
+                <Zap size={13} className="text-primary" /> Nemotron Fast (12B)
               </span>
               <span className="text-xs font-mono font-medium text-ink">
                 ${(costBreakdown.fast_cost || 0.0042).toFixed(4)}
@@ -374,9 +370,9 @@ export const Report: React.FC = () => {
             <p className="text-xs text-muted leading-relaxed">
               Routine AST extraction, false-positive pruning, and high-throughput categorization.
             </p>
-            <div className="w-full bg-surface-2 h-1.5 rounded-control overflow-hidden">
+            <div className="w-full bg-surface-2 h-1.5 rounded-[4px] overflow-hidden">
               <div
-                className="bg-azure h-full"
+                className="bg-primary h-full"
                 style={{
                   width: `${Math.min(100, Math.max(10, ((costBreakdown.fast_cost || 0.0042) / totalCost) * 100))}%`,
                 }}
@@ -384,11 +380,11 @@ export const Report: React.FC = () => {
             </div>
           </div>
 
-          {/* Ultra-tier card: Violet accent (deep AI reasoning) */}
-          <div className="p-3.5 border border-line border-l-[3px] border-l-violet bg-[#FFFFFF] rounded-control flex flex-col justify-between gap-2.5">
+          {/* Ultra-tier card */}
+          <div className="p-3.5 border border-line bg-paper rounded-[6px] flex flex-col justify-between gap-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-violet flex items-center gap-1.5">
-                <Sparkles size={13} className="text-violet" /> Nemotron Ultra (70B)
+              <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-ink font-semibold flex items-center gap-1.5">
+                <Sparkles size={13} className="text-primary" /> Nemotron Ultra (70B)
               </span>
               <span className="text-xs font-mono font-medium text-ink">
                 ${(costBreakdown.ultra_cost || 0.0293).toFixed(4)}
@@ -397,9 +393,9 @@ export const Report: React.FC = () => {
             <p className="text-xs text-muted leading-relaxed">
               Deep AI root-cause reasoning, user impact synthesis, and non-breaking code patches.
             </p>
-            <div className="w-full bg-surface-2 h-1.5 rounded-control overflow-hidden">
+            <div className="w-full bg-surface-2 h-1.5 rounded-[4px] overflow-hidden">
               <div
-                className="bg-violet h-full"
+                className="bg-primary h-full"
                 style={{
                   width: `${Math.min(100, Math.max(10, ((costBreakdown.ultra_cost || 0.0293) / totalCost) * 100))}%`,
                 }}
@@ -410,7 +406,7 @@ export const Report: React.FC = () => {
       </section>
 
       {/* E. FOOTER ACTIONS */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 border border-line bg-surface-1 rounded-control">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 border border-line bg-paper rounded-[6px]">
         <div className="text-xs text-muted">
           Ready to open a GitHub pull request with verified remediations?
         </div>

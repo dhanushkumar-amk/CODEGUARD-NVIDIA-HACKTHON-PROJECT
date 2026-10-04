@@ -61,7 +61,7 @@ export const ScanProgress: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 pb-3 border-b border-line">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-xs font-medium text-muted">
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted">
               Autonomous remediation loop
             </span>
             <Badge
@@ -69,25 +69,25 @@ export const ScanProgress: React.FC = () => {
               size="sm"
             >
               {isConnected ? (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 font-mono text-[10px] tracking-wider uppercase">
                   <Wifi size={11} /> Live stream connected
                 </span>
               ) : isReconnecting ? (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 font-mono text-[10px] tracking-wider uppercase">
                   <Loader2 size={11} className="animate-spin" /> Reconnecting...
                 </span>
               ) : (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 font-mono text-[10px] tracking-wider uppercase">
                   <WifiOff size={11} /> Disconnected
                 </span>
               )}
             </Badge>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold text-ink flex items-center gap-2">
-            <Shield className="text-azure shrink-0" size={20} />
+          <h1 className="text-xl sm:text-2xl font-bold font-sans text-ink flex items-center gap-2">
+            <Shield className="text-primary shrink-0" size={20} />
             <span>Auditing scan:</span>
-            <span className="font-mono text-azure text-base sm:text-xl font-medium truncate max-w-xs sm:max-w-md">
+            <span className="font-mono text-primary text-base sm:text-xl font-medium truncate max-w-xs sm:max-w-md">
               {scanId}
             </span>
           </h1>
@@ -95,10 +95,9 @@ export const ScanProgress: React.FC = () => {
 
         {/* Live Counters */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Number ticks up in IBM Plex Mono, small coral dot pulses next to it each time it increments */}
           <LiveCounter
             value={violationsCount}
-            label="Violations"
+            label="VIOLATIONS"
             pulseDot={violationsCount > 0}
             icon={<AlertTriangle size={13} className="text-coral" />}
             testId="violations-counter"
@@ -106,10 +105,10 @@ export const ScanProgress: React.FC = () => {
           {currentCost > 0 && (
             <LiveCounter
               value={currentCost}
-              label="Model spend"
+              label="MODEL SPEND"
               prefix="$"
               decimals={4}
-              icon={<DollarSign size={13} className="text-azure" />}
+              icon={<DollarSign size={13} className="text-primary" />}
               testId="cost-counter"
             />
           )}
@@ -119,13 +118,13 @@ export const ScanProgress: React.FC = () => {
       {/* Stage Timeline Stepper */}
       <StageTimeline currentStage={stage} isCompleted={isCompleted} />
 
-      {/* Main Live Progress Section - Flat, no shadows */}
+      {/* Main Live Progress Section - Flat hairline border, no shadows */}
       <div className="border border-line bg-paper p-5 sm:p-6 flex flex-col gap-5">
-        {/* Progress Bar with solid azure primary fill */}
+        {/* Progress Bar with solid primary fill */}
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between text-xs font-mono">
-            <span className="text-muted flex items-center gap-1.5 font-sans">
-              <Activity size={13} className="text-azure" />
+            <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted flex items-center gap-1.5">
+              <Activity size={13} className="text-primary" />
               Overall pipeline progress
             </span>
             <span className="text-ink font-semibold" data-testid="progress-percentage">
@@ -135,32 +134,32 @@ export const ScanProgress: React.FC = () => {
 
           <div
             data-testid="progress-bar-container"
-            className="w-full h-2.5 bg-surface-2 rounded-control overflow-hidden border border-line"
+            className="w-full h-2 bg-surface-2 rounded-[4px] overflow-hidden border border-line"
           >
             <div
               data-testid="progress-bar-fill"
-              className="h-full bg-azure transition-all duration-300 ease-out"
+              className="h-full bg-primary transition-all duration-300 ease-out"
               style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
             />
           </div>
         </div>
 
         {/* Current Stage Narrative Area */}
-        <div className="p-4 rounded-control bg-surface-1 border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="p-4 rounded-[6px] bg-surface-1 border border-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start sm:items-center gap-3">
-            <div className="p-2 rounded-control bg-paper border border-line shrink-0">
+            <div className="p-2 rounded-[6px] bg-paper border border-line shrink-0">
               {isCompleted ? (
                 <CheckCircle2 size={20} className="text-emerald" />
               ) : isLlmActive ? (
-                <Loader2 size={20} className="animate-spin text-violet" />
+                <Loader2 size={20} className="animate-spin text-primary" />
               ) : (
-                <Loader2 size={20} className="animate-spin text-azure" />
+                <Loader2 size={20} className="animate-spin text-primary" />
               )}
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted">
+                <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted">
                   Current stage
                 </span>
                 <span className="text-line">&bull;</span>
@@ -171,9 +170,9 @@ export const ScanProgress: React.FC = () => {
                   {displayStageTitle}
                 </span>
 
-                {/* AI LLM Tag (small violet Nemotron badge) */}
+                {/* AI LLM Tag in primary accent */}
                 {isLlmActive && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-control text-[10px] font-sans font-medium bg-violet/10 text-violet border border-violet/20">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] text-[10px] font-mono uppercase tracking-[0.08em] font-medium bg-primary/10 text-primary border border-primary/20">
                     Nemotron
                   </span>
                 )}
@@ -194,7 +193,7 @@ export const ScanProgress: React.FC = () => {
               <Button
                 variant="primary"
                 size="md"
-                rightIcon={<ArrowRight size={15} />}
+                rightIcon={<ArrowRight size={14} />}
               >
                 View audit report
               </Button>
@@ -206,7 +205,7 @@ export const ScanProgress: React.FC = () => {
         {error && (
           <div
             data-testid="scan-error-alert"
-            className="p-4 rounded-control bg-coral/10 border border-coral/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-coral"
+            className="p-4 rounded-[6px] bg-coral/10 border border-coral/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-coral"
           >
             <div className="flex items-center gap-2.5">
               <AlertTriangle size={18} className="shrink-0 text-coral" />
@@ -224,7 +223,6 @@ export const ScanProgress: React.FC = () => {
                 size="sm"
                 onClick={retryConnection}
                 leftIcon={<RotateCcw size={13} />}
-                className="text-xs"
               >
                 Retry Stream
               </Button>
@@ -233,7 +231,6 @@ export const ScanProgress: React.FC = () => {
                   variant="secondary"
                   size="sm"
                   leftIcon={<HomeIcon size={13} />}
-                  className="text-xs"
                 >
                   Try Again
                 </Button>
@@ -243,14 +240,14 @@ export const ScanProgress: React.FC = () => {
         )}
       </div>
 
-      {/* Real-time Event Feed - Flat table/log view */}
+      {/* Real-time Event Feed - Flat hairline borders */}
       <div className="border border-line bg-paper p-4 sm:p-5">
         <div className="flex items-center justify-between pb-2.5 border-b border-line mb-3">
-          <div className="text-xs font-semibold text-ink flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-azure" />
+          <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-ink font-semibold flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
             Live event feed
           </div>
-          <span className="text-xs font-mono text-muted">
+          <span className="text-[11px] font-mono text-muted">
             {history.length} events logged
           </span>
         </div>

@@ -14,10 +14,10 @@ export const StageTimeline: React.FC<StageTimelineProps> = ({
   const activeIndex = isCompleted ? PIPELINE_STEPS.length : getStepIndexForStage(currentStage);
 
   return (
-    <div className="w-full border border-line bg-paper p-4">
-      <div className="text-xs text-muted font-medium mb-3 flex items-center justify-between">
+    <div className="w-full border border-line bg-paper p-4 text-left">
+      <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-3 flex items-center justify-between">
         <span>Pipeline stages</span>
-        <span className="font-mono text-azure">
+        <span className="font-mono text-primary font-semibold">
           {Math.min(activeIndex + 1, PIPELINE_STEPS.length)} of {PIPELINE_STEPS.length}
         </span>
       </div>
@@ -39,9 +39,9 @@ export const StageTimeline: React.FC<StageTimelineProps> = ({
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono mb-1.5 ${
                     isDone
-                      ? 'border border-emerald/40 bg-emerald/10 text-emerald'
+                      ? 'border border-ink/20 bg-surface-1 text-ink'
                       : isActive
-                      ? 'border-2 border-azure bg-azure/10 text-azure ring-2 ring-azure/30 ring-offset-1 animate-pulse'
+                      ? 'border-2 border-primary bg-primary/10 text-primary ring-2 ring-primary/20 ring-offset-1 animate-pulse'
                       : 'border border-line bg-transparent text-muted/30'
                   }`}
                 >
@@ -57,16 +57,16 @@ export const StageTimeline: React.FC<StageTimelineProps> = ({
                 {/* Step label */}
                 <div className="text-center min-w-0 px-1 flex flex-col items-center">
                   <div
-                    className={`text-[11px] font-medium truncate ${
-                      isActive ? 'text-azure' : isDone ? 'text-ink' : 'text-muted'
+                    className={`text-[11px] font-mono uppercase tracking-[0.08em] truncate ${
+                      isActive ? 'text-primary font-semibold' : isDone ? 'text-ink font-medium' : 'text-muted'
                     }`}
                   >
                     {step.shortLabel}
                   </div>
 
-                  {/* AI LLM call indicator tag (small violet Nemotron badge) */}
+                  {/* AI LLM call indicator tag */}
                   {isActive && isLlmStep && (
-                    <span className="inline-block mt-0.5 px-1 py-0.2 text-[9px] font-sans font-medium rounded-control bg-violet/10 text-violet border border-violet/20">
+                    <span className="inline-block mt-0.5 px-1 py-0.2 text-[9px] font-mono uppercase tracking-[0.08em] rounded-[3px] bg-primary/10 text-primary border border-primary/20">
                       Nemotron
                     </span>
                   )}
@@ -78,7 +78,7 @@ export const StageTimeline: React.FC<StageTimelineProps> = ({
                 <div className="flex items-center pt-3.5 -mx-1">
                   <div
                     className={`h-px w-4 sm:w-6 ${
-                      index < activeIndex || isCompleted ? 'bg-emerald/40' : 'bg-line'
+                      index < activeIndex || isCompleted ? 'bg-ink/30' : 'bg-line'
                     }`}
                   />
                 </div>

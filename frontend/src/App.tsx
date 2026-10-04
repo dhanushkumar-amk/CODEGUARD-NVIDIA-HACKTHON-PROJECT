@@ -8,9 +8,9 @@ import { Report } from './pages/Report';
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-background text-foreground flex flex-col px-4 sm:px-8 max-w-5xl mx-auto">
+      <div className="min-h-screen text-ink flex flex-col px-6 md:px-8 max-w-[1120px] mx-auto w-full">
         <Header />
-        <main className="flex-1">
+        <main className="flex-1 w-full">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/scan/:scanId" element={<ScanProgress />} />
@@ -18,8 +18,9 @@ export const App: React.FC = () => {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-        <footer className="py-6 border-t border-border text-xs text-muted font-mono">
-          CodeGuard &bull; Powered by NVIDIA Nemotron on Nebius Token Factory &amp; Nebius AI Cloud Sandboxes
+        <footer className="py-8 mt-12 border-t border-line text-[11px] text-muted font-mono uppercase tracking-[0.08em] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span>CodeGuard &bull; Autonomous Accessibility Agent</span>
+          <span>Powered by NVIDIA Nemotron on Nebius Token Factory</span>
         </footer>
       </div>
     </BrowserRouter>

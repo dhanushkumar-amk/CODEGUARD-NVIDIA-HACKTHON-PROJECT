@@ -86,10 +86,10 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
   const activeError = validationError || serverError;
 
   return (
-    <div className="w-full flex flex-col gap-4 font-sans text-left">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        {/* Main Input Row */}
-        <div className="flex flex-col sm:flex-row gap-2 p-1.5 rounded-[6px] bg-paper border border-line focus-within:border-primary transition-colors">
+    <div className="w-full flex flex-col items-center font-sans text-center">
+      <form onSubmit={handleSubmit} className="w-full flex flex-col items-center">
+        {/* Main Input Row: Centered bar with hairline border */}
+        <div className="w-full max-w-[560px] flex flex-col sm:flex-row gap-2 p-1.5 rounded-[6px] bg-paper border border-line focus-within:border-primary transition-colors text-left mb-4">
           <div className="relative flex-1 flex items-center">
             <input
               id="repo-url-input"
@@ -121,8 +121,8 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
           </div>
         </div>
 
-        {/* Primary button + Secondary button side by side */}
-        <div className="flex items-center gap-3 flex-wrap">
+        {/* Primary button + Secondary button side by side, centered, gap 12px (stacks on mobile) */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto">
           <Button
             type="submit"
             variant="primary"
@@ -130,6 +130,7 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
             isLoading={isLoading}
             disabled={isLoading}
             data-testid="start-scan-button"
+            className="w-full sm:w-auto px-6"
             rightIcon={<ArrowRight size={14} />}
           >
             {isLoading ? 'Scanning...' : 'Start scan'}
@@ -141,16 +142,20 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
             onClick={handlePrefillDemo}
             disabled={isLoading}
             data-testid="prefill-demo-btn"
+            className="w-full sm:w-auto px-6"
           >
             Try our demo repo
           </Button>
+        </div>
 
-          {isDemoActive && (
-            <span className="inline-flex items-center gap-1 text-xs text-ink/70 font-mono">
+        {/* Feedback chips */}
+        {isDemoActive && (
+          <div className="mt-3 flex items-center justify-center">
+            <span className="inline-flex items-center gap-1.5 text-xs text-ink/80 font-mono">
               <CheckCircle2 size={13} className="text-primary" /> Seeded demo repo loaded
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Error message presentation */}
         <AnimatePresence>
@@ -161,7 +166,7 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
               data-testid="repo-error-banner"
-              className="flex items-center gap-2 px-3 py-2 rounded-[6px] bg-coral/10 border border-coral/20 text-coral text-xs font-medium"
+              className="mt-4 flex items-center gap-2 px-4 py-2 rounded-[6px] bg-coral/10 border border-coral/20 text-coral text-xs font-medium text-left max-w-[560px] w-full"
             >
               <AlertCircle size={14} className="shrink-0 text-coral" />
               <span>{activeError}</span>
@@ -169,9 +174,9 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Hairline divider with small "Powered by NVIDIA..." label below */}
-        <div className="pt-3 border-t border-line flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.08em] text-muted">
-          <span>Powered by NVIDIA Nemotron on Nebius Token Factory</span>
+        {/* Powered by NVIDIA Nemotron: centered, 40px spacing above, no hairline divider */}
+        <div className="mt-10 text-[11px] font-mono uppercase tracking-[0.08em] text-muted text-center select-none">
+          Powered by NVIDIA Nemotron on Nebius Token Factory
         </div>
       </form>
     </div>
