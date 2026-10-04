@@ -65,6 +65,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             scan_batch=scan_batch,
             batch_count=len(scan_batch),
             status="prepared",
+            is_active_real_scan=True,
             start_timestamp=start_time_val,
         )
 

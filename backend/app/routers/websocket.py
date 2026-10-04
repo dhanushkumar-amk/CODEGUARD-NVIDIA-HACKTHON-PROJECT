@@ -58,12 +58,24 @@ async def broadcast_progress(
     message: str,
     data: Optional[Dict[str, Any]] = None,
 ):
-    """Broadcasts a WebSocketMessage to all active WebSocket connections for scan_id."""
+    """
+    Broadcasts a WebSocketMessage to all active WebSocket connections for scan_id.
+    Automatically enriches payload data with running estimated LLM cost.
+    """
+    payload_data = dict(data) if data else {}
+    if "current_cost_usd" not in payload_data:
+        try:
+            from app.services.llm_client import get_scan_usage_stats
+            usage = get_scan_usage_stats(scan_id)
+            payload_data["current_cost_usd"] = usage.get("total_cost_usd", 0.0)
+        except Exception:
+            pass
+
     msg = WebSocketMessage(
         stage=stage,
         progress=progress,
         message=message,
-        data=data,
+        data=payload_data,
         timestamp=datetime.now(timezone.utc),
     )
     await manager.broadcast_to_scan(scan_id, msg)
@@ -73,85 +85,131 @@ async def broadcast_progress(
 async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
     """
     Live streaming endpoint for a specific scan_id.
-    Simulates progressive pipeline stages upon connection to support frontend live testing.
+    Maintains connection for real pipeline broadcasts, or streams mock progression
+    for standalone frontend / simulated preview tests.
     """
     await manager.connect(scan_id, websocket)
     scan_data = get_scan(scan_id)
+    scan_status = scan_data.get("status") if scan_data else None
 
-    # Simulated pipeline sequence for live progress animations
-    files_count = scan_data.get("file_count", len(scan_data.get("files", []))) or 20
-    batch_count = scan_data.get("batch_count", len(scan_data.get("scan_batch", []))) or 15
-    parsed_mid = max(1, files_count // 2)
-
-    stages = [
-        WebSocketMessage(
-            stage="init",
-            progress=5,
-            message="Initialized scan request. Connecting to repository...",
-            timestamp=datetime.now(timezone.utc),
-        ),
-        WebSocketMessage(
-            stage="cloning",
-            progress=15,
-            message=f"Repository cloned. Discovered {files_count} UI component files.",
-            data={"branch": scan_data.get("branch", "main"), "files_count": files_count},
-            timestamp=datetime.now(timezone.utc),
-        ),
-        WebSocketMessage(
-            stage="preparing",
-            progress=25,
-            message=f"Parsed {parsed_mid}/{files_count} files",
-            data={"files_parsed": parsed_mid, "total_files": files_count},
-            timestamp=datetime.now(timezone.utc),
-        ),
-        WebSocketMessage(
-            stage="preparing",
-            progress=40,
-            message=f"Parsed {files_count}/{files_count} files ({batch_count} chunks extracted)",
-            data={"files_parsed": files_count, "total_files": files_count, "batch_count": batch_count},
-            timestamp=datetime.now(timezone.utc),
-        ),
-        WebSocketMessage(
-            stage="scanning",
-            progress=55,
-            message="Accessibility audit complete: 4 actionable violations detected.",
-            data={"violations_count": len(scan_data.get("violations", []))},
-            timestamp=datetime.now(timezone.utc),
-        ),
-        WebSocketMessage(
-            stage="fixing",
-            progress=75,
-            message="Synthesized WCAG 2.2 AA compliant patches using Nemotron Ultra.",
-            data={"fixes_count": len(scan_data.get("fixes", []))},
-            timestamp=datetime.now(timezone.utc),
-        ),
-        WebSocketMessage(
-            stage="verifying",
-            progress=90,
-            message="Patches verified in isolated Nebius Sandboxes with 0 regressions.",
-            data={"verified_count": len(scan_data.get("verification_results", []))},
-            timestamp=datetime.now(timezone.utc),
-        ),
-        WebSocketMessage(
-            stage="completed",
-            progress=100,
-            message="All violations remediated and verified in Nebius Sandboxes.",
-            data={
-                "overall_score_before": 62.5,
-                "overall_score_after": 100.0,
-                "status": "completed",
-            },
-            timestamp=datetime.now(timezone.utc),
-        ),
-    ]
+    # Determine if this is a real actively monitored scan or a standalone/mock session
+    is_real_scan = bool(scan_data and scan_status)
 
     try:
-        # Stream the mock stages with a short realistic delay
-        for stage_msg in stages:
-            await manager.send_message(websocket, stage_msg)
-            await asyncio.sleep(0.15)
+        if not is_real_scan or scan_id.startswith("mock") or scan_id.startswith("demo_sim"):
+            # Simulated pipeline sequence for live progress animations & tests
+            files_count = scan_data.get("file_count", len(scan_data.get("files", []))) or 20
+            batch_count = scan_data.get("batch_count", len(scan_data.get("scan_batch", []))) or 15
+            parsed_mid = max(1, files_count // 2)
 
-        # Keep connection open for client echo / ping messages
+            stages = [
+                WebSocketMessage(
+                    stage="init",
+                    progress=5,
+                    message="Initialized scan request. Connecting to repository...",
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="cloning",
+                    progress=15,
+                    message=f"Repository cloned. Discovered {files_count} UI component files.",
+                    data={"branch": scan_data.get("branch", "main"), "files_count": files_count},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="preparing",
+                    progress=25,
+                    message=f"Parsed {parsed_mid}/{files_count} files",
+                    data={"files_parsed": parsed_mid, "total_files": files_count},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="preparing",
+                    progress=40,
+                    message=f"Parsed {files_count}/{files_count} files ({batch_count} chunks extracted)",
+                    data={"files_parsed": files_count, "total_files": files_count, "batch_count": batch_count},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="scanning",
+                    progress=55,
+                    message="Scanned 6/6 chunks — 4 violations found so far",
+                    data={"violations_count": 4, "violations_found": 4, "current_cost_usd": 0.0012},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="diagnosing",
+                    progress=68,
+                    message="Diagnosed root causes with Nemotron Nano.",
+                    data={"current_cost_usd": 0.0035},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="fixing",
+                    progress=80,
+                    message="Synthesized WCAG 2.2 AA compliant patches using Nemotron Ultra.",
+                    data={"fixes_count": 4, "current_cost_usd": 0.0158},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="verifying",
+                    progress=92,
+                    message="Patches verified in isolated Nebius Sandboxes with 0 regressions.",
+                    data={"verified_count": 4, "current_cost_usd": 0.0245},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+                WebSocketMessage(
+                    stage="complete",
+                    progress=100,
+                    message="All violations remediated and verified in Nebius Sandboxes.",
+                    data={
+                        "fixed_and_verified": 4,
+                        "total_violations": 4,
+                        "score_before": 58.0,
+                        "score_after": 91.0,
+                        "current_cost_usd": 0.0335,
+                    },
+                    timestamp=datetime.now(timezone.utc),
+                ),
+            ]
+
+            for stage_msg in stages:
+                await manager.send_message(websocket, stage_msg)
+                await asyncio.sleep(0.2)
+        elif scan_status == "complete":
+            # If the scan completed before the WebSocket connected, send completion immediately
+            report = scan_data.get("report")
+            verified_count = scan_data.get("verified_count", 0)
+            total_violations = len(scan_data.get("violations", []))
+            await manager.send_message(
+                websocket,
+                WebSocketMessage(
+                    stage="complete",
+                    progress=100,
+                    message=f"Scan complete — {verified_count} of {total_violations} violations fixed and verified",
+                    data={
+                        "fixed_and_verified": verified_count,
+                        "total_violations": total_violations,
+                        "score_before": getattr(report, "overall_score_before", 50.0) if report else 50.0,
+                        "score_after": getattr(report, "overall_score_after", 100.0) if report else 100.0,
+                    },
+                    timestamp=datetime.now(timezone.utc),
+                ),
+            )
+        else:
+            # Active scan is running in background. Send immediate greeting event:
+            await manager.send_message(
+                websocket,
+                WebSocketMessage(
+                    stage="preparing",
+                    progress=10,
+                    message="Connected to active CodeGuard audit pipeline...",
+                    data={"status": scan_status},
+                    timestamp=datetime.now(timezone.utc),
+                ),
+            )
+
+        # Keep connection open for real broadcast events streamed from background workers
         while True:
             client_msg = await websocket.receive_text()
             await websocket.send_text(json.dumps({"type": "pong", "received": client_msg}))
