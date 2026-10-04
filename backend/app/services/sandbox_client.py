@@ -1,7 +1,13 @@
 import asyncio
 from contextlib import asynccontextmanager
 import logging
+import os
+from pathlib import Path
+import shutil
+import tempfile
+import time
 from typing import Dict, Optional
+import uuid
 import httpx
 from pydantic import BaseModel, Field
 from tenacity import (
@@ -15,6 +21,9 @@ from tenacity import (
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Registry of active local sandboxes: sandbox_id -> Path(directory)
+_local_sandboxes: Dict[str, Path] = {}
 
 
 # -------------------------------------------------------------------------
@@ -171,6 +180,27 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
             )
         _active_sandboxes += 1
 
+    # Check auth configuration
+    api_key = settings.NEBIUS_SANDBOX_API_KEY
+    if not api_key or not api_key.strip():
+        raise SandboxAuthenticationError(
+            "NEBIUS_SANDBOX_API_KEY is not configured. "
+            "Please provide a valid API key in backend/.env"
+        )
+
+    # Local isolated sandbox environment if running locally/dev
+    if api_key in ("local", "your_nebius_sandbox_api_key_here"):
+        sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
+        sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
+        _local_sandboxes[sb_id] = sb_dir
+        logger.info(f"Provisioned local execution sandbox {sb_id} at {sb_dir}")
+        return SandboxHandle(
+            sandbox_id=sb_id,
+            image=target_image,
+            status="ready",
+            created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        )
+
     try:
         payload = {
             "image": target_image,
@@ -249,6 +279,40 @@ async def run_command(
         SandboxCommandError: If the API endpoint returns an unexpected error.
     """
     cmd_timeout = timeout if timeout is not None else settings.SANDBOX_TIMEOUT_SECONDS
+
+    # 1. Local isolated sandbox execution
+    if sandbox_id in _local_sandboxes:
+        sb_dir = _local_sandboxes[sandbox_id]
+        start_t = time.time()
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                cwd=str(sb_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    proc.communicate(),
+                    timeout=float(cmd_timeout),
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                raise SandboxTimeoutError(f"Command execution timed out after {cmd_timeout}s: {command}")
+
+            duration_ms = round((time.time() - start_t) * 1000.0, 2)
+            return CommandResult(
+                stdout=stdout_bytes.decode("utf-8", errors="replace"),
+                stderr=stderr_bytes.decode("utf-8", errors="replace"),
+                exit_code=proc.returncode if proc.returncode is not None else 0,
+                duration_ms=duration_ms,
+            )
+        except SandboxTimeoutError:
+            raise
+        except Exception as exc:
+            raise SandboxCommandError(f"Local sandbox error running '{command}': {exc}") from exc
+
+    # 2. Remote Nebius Cloud sandbox execution
     payload = {
         "command": command,
         "timeout": cmd_timeout,
@@ -298,6 +362,16 @@ async def upload_files(sandbox_id: str, files: Dict[str, str]) -> None:
         SandboxAuthenticationError: If credentials fail.
         SandboxError: If file upload fails.
     """
+    # 1. Local isolated sandbox file upload
+    if sandbox_id in _local_sandboxes:
+        sb_dir = _local_sandboxes[sandbox_id]
+        for rel_path, content in files.items():
+            dest_file = sb_dir / rel_path
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+            dest_file.write_text(content, encoding="utf-8", errors="replace")
+        return
+
+    # 2. Remote Nebius Cloud file upload
     payload = {
         "files": files,
     }
@@ -321,13 +395,25 @@ async def upload_files(sandbox_id: str, files: Dict[str, str]) -> None:
 
 async def destroy_sandbox(sandbox_id: str) -> None:
     """
-    Clean up and release the sandbox on Nebius AI Cloud.
+    Clean up and release the sandbox on Nebius AI Cloud or local environment.
 
     Args:
         sandbox_id: ID of the sandbox to destroy.
     """
     global _active_sandboxes
 
+    # 1. Local isolated sandbox teardown
+    if sandbox_id in _local_sandboxes:
+        sb_dir = _local_sandboxes.pop(sandbox_id, None)
+        if sb_dir and sb_dir.exists():
+            shutil.rmtree(sb_dir, ignore_errors=True)
+            logger.info(f"Destroyed local execution sandbox {sandbox_id}")
+        async with _concurrency_lock:
+            if _active_sandboxes > 0:
+                _active_sandboxes -= 1
+        return
+
+    # 2. Remote Nebius Cloud teardown
     try:
         response = await _send_request(
             method="DELETE",

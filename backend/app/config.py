@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     NEBIUS_SANDBOX_DEFAULT_IMAGE: str = "node:20"
     SANDBOX_TIMEOUT_SECONDS: int = 120
     SANDBOX_MAX_CONCURRENT: int = 3
+    NPM_INSTALL_TIMEOUT_SECONDS: int = 180
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [

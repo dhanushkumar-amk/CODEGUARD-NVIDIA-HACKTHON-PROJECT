@@ -193,6 +193,9 @@ def generate_mock_scan_data(scan_id: str, repo_url: str, branch: str = "main") -
         "fixes": fixes,
         "verification_results": verification_results,
         "report": report,
+        "base_sandbox_id": None,
+        "verification_sandbox_ids": [],
+        "sandbox_map": {},
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -222,3 +225,52 @@ def update_scan(scan_id: str, **kwargs) -> Optional[Dict[str, Any]]:
 def remove_scan(scan_id: str) -> Optional[Dict[str, Any]]:
     """Removes a scan from in-memory state."""
     return scans.pop(scan_id, None)
+
+
+def track_base_sandbox(scan_id: str, sandbox_id: str) -> None:
+    """Tracks the base clean baseline sandbox for a scan."""
+    scan = get_scan(scan_id)
+    if scan:
+        scan["base_sandbox_id"] = sandbox_id
+
+
+def get_base_sandbox(scan_id: str) -> Optional[str]:
+    """Retrieves the base clean baseline sandbox ID for a scan if provisioned."""
+    scan = get_scan(scan_id)
+    return scan.get("base_sandbox_id") if scan else None
+
+
+def track_verification_sandbox(scan_id: str, sandbox_id: str, fix_id: Optional[str] = None) -> None:
+    """Tracks a verification sandbox provisioned for testing a specific fix."""
+    scan = get_scan(scan_id)
+    if scan:
+        v_list = scan.setdefault("verification_sandbox_ids", [])
+        if sandbox_id not in v_list:
+            v_list.append(sandbox_id)
+        if fix_id:
+            s_map = scan.setdefault("sandbox_map", {})
+            s_map[fix_id] = sandbox_id
+
+
+def get_scan_sandboxes(scan_id: str) -> List[str]:
+    """Returns all sandbox IDs (base and verification) associated with a scan."""
+    scan = get_scan(scan_id)
+    if not scan:
+        return []
+    sandboxes: List[str] = []
+    base_id = scan.get("base_sandbox_id")
+    if base_id:
+        sandboxes.append(base_id)
+    for v_id in scan.get("verification_sandbox_ids", []):
+        if v_id and v_id not in sandboxes:
+            sandboxes.append(v_id)
+    return sandboxes
+
+
+def clear_scan_sandboxes(scan_id: str) -> None:
+    """Resets all tracked sandbox IDs for a scan."""
+    scan = get_scan(scan_id)
+    if scan:
+        scan["base_sandbox_id"] = None
+        scan["verification_sandbox_ids"] = []
+        scan["sandbox_map"] = {}

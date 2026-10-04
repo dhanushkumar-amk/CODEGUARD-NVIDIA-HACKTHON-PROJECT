@@ -42,6 +42,7 @@ class PipelineStage(str, Enum):
     DIAGNOSING = "diagnosing"
     EXPLAINING = "explaining"
     FIXING = "fixing"
+    PREPARING_SANDBOX = "preparing_sandbox"
     VERIFYING = "verifying"
     COMPLETED = "completed"
     ERROR = "error"

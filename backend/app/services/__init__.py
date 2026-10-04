@@ -73,6 +73,13 @@ from app.services.fixer_service import (
     generate_remediation_patch,
 )
 from app.services.verifier_service import verify_patch_in_sandbox
+from app.services.sandbox_orchestrator import (
+    prepare_verification_sandbox,
+    install_dependencies,
+    get_or_create_base_sandbox,
+    cleanup_scan_sandboxes,
+    collect_repo_files,
+)
 from app.services.report_service import generate_compliance_report
 
 __all__ = [
@@ -129,5 +136,10 @@ __all__ = [
     "generate_all_fixes",
     "generate_remediation_patch",
     "verify_patch_in_sandbox",
+    "prepare_verification_sandbox",
+    "install_dependencies",
+    "get_or_create_base_sandbox",
+    "cleanup_scan_sandboxes",
+    "collect_repo_files",
     "generate_compliance_report",
 ]

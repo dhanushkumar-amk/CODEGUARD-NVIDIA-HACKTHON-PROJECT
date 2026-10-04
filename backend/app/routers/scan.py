@@ -17,6 +17,7 @@ from app.services.git_service import (
     CloneFailedError,
 )
 from app.services.scanner_service import prepare_scan_batch
+from app.services.sandbox_orchestrator import cleanup_scan_sandboxes
 from app.state import create_scan, get_scan, update_scan, remove_scan
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 await generate_all_fixes(scan_id)
             except Exception as bg_err:
                 logger.error(f"Error during background violation pipeline for {scan_id}: {bg_err}", exc_info=True)
+                await cleanup_scan_sandboxes(scan_id)
 
         asyncio.create_task(run_detection_pipeline())
 
@@ -99,6 +101,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
         )
 
     except InvalidRepoUrlError as exc:
+        await cleanup_scan_sandboxes(scan_id)
         cleanup_repo(scan_id)
         remove_scan(scan_id)
         raise HTTPException(
@@ -106,6 +109,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             detail=str(exc),
         )
     except RepoNotFoundError as exc:
+        await cleanup_scan_sandboxes(scan_id)
         cleanup_repo(scan_id)
         remove_scan(scan_id)
         raise HTTPException(
@@ -113,6 +117,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             detail=str(exc),
         )
     except RepoTooLargeError as exc:
+        await cleanup_scan_sandboxes(scan_id)
         cleanup_repo(scan_id)
         remove_scan(scan_id)
         raise HTTPException(
@@ -120,6 +125,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             detail=str(exc),
         )
     except CloneFailedError as exc:
+        await cleanup_scan_sandboxes(scan_id)
         cleanup_repo(scan_id)
         remove_scan(scan_id)
         raise HTTPException(
@@ -127,6 +133,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             detail=str(exc),
         )
     except Exception as exc:
+        await cleanup_scan_sandboxes(scan_id)
         cleanup_repo(scan_id)
         remove_scan(scan_id)
         logger.error(f"Unexpected error in start_scan: {exc}", exc_info=True)
@@ -176,6 +183,7 @@ async def get_scan_batch(scan_id: str):
 )
 async def delete_scan(scan_id: str):
     """Deletes temporary repository clone and removes scan from memory."""
+    await cleanup_scan_sandboxes(scan_id)
     cleanup_repo(scan_id)
     remove_scan(scan_id)
     return {
