@@ -50,7 +50,7 @@ export const Header: React.FC = () => {
       {/* Right: Primary button */}
       <div className="flex items-center gap-3">
         <Link to="/">
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" aria-label="Start accessibility scan">
             START SCAN
           </Button>
         </Link>
