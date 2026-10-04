@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import {
-  Search,
-  Cpu,
-  Wrench,
-  ShieldCheck,
-  CheckCircle2,
-} from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { startScan } from '../api/client';
 import { HowItWorksStep } from '../components/HowItWorksStep';
 import { RepoUrlInput, DEFAULT_DEMO_REPO } from '../components/RepoUrlInput';
@@ -50,10 +44,11 @@ export const Home: React.FC = () => {
         {/* Left Column */}
         <div className="flex flex-col gap-6">
           <div className="space-y-3">
-            <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-foreground leading-[1.15] tracking-tight">
+            {/* Headline in Source Serif 4 (Rule: used ONLY for hero headline on Home and score numerals on Report) */}
+            <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold font-serif text-ink leading-[1.15] tracking-tight">
               Every fix, tested before you trust it.
             </h1>
-            <p className="text-[17px] leading-relaxed text-foreground/70">
+            <p className="font-sans text-[17px] leading-relaxed text-ink/70">
               CodeGuard scans your repo for accessibility violations, writes fixes with NVIDIA Nemotron, and confirms each one in an isolated sandbox before you merge anything.
             </p>
           </div>
@@ -66,7 +61,7 @@ export const Home: React.FC = () => {
             demoRepoUrl={DEFAULT_DEMO_REPO}
           />
 
-          <div className="pt-4 border-t border-border text-[13px] text-muted">
+          <div className="pt-4 border-t border-line text-[13px] text-muted">
             Powered by NVIDIA Nemotron on Nebius Token Factory
           </div>
         </div>
@@ -77,11 +72,11 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="w-full border border-border bg-background p-6">
-        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-4 border-b border-border mb-6">
+      {/* How It Works Section - 4-step strip with azure / violet / azure / emerald accent dots */}
+      <section className="w-full border border-line bg-paper p-6">
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-4 border-b border-line mb-6">
           <div>
-            <h2 className="text-sm font-semibold text-foreground">
+            <h2 className="text-sm font-semibold text-ink">
               Remediation pipeline
             </h2>
             <p className="text-xs text-muted mt-0.5">
@@ -89,7 +84,7 @@ export const Home: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted font-mono">
-            <CheckCircle2 size={13} className="text-primary" />
+            <CheckCircle2 size={13} className="text-emerald" />
             <span>Deterministic verification</span>
           </div>
         </div>
@@ -99,7 +94,7 @@ export const Home: React.FC = () => {
             stepNumber={1}
             title="Scan"
             description="AST parser and axe-core inspect UI components to extract scannable markup chunks and locate violations."
-            icon={<Search size={16} />}
+            accentColor="azure"
             badge="AST + axe-core"
           />
 
@@ -107,7 +102,7 @@ export const Home: React.FC = () => {
             stepNumber={2}
             title="Diagnose"
             description="Nemotron Nano filters benign false alarms, analyzes WCAG rules, and isolates root causes."
-            icon={<Cpu size={16} />}
+            accentColor="violet"
             badge="Nemotron Nano"
           />
 
@@ -115,7 +110,7 @@ export const Home: React.FC = () => {
             stepNumber={3}
             title="Fix"
             description="Nemotron Ultra synthesizes exact, minimal unified diffs preserving design tokens and project styling."
-            icon={<Wrench size={16} />}
+            accentColor="azure"
             badge="Nemotron Ultra"
           />
 
@@ -123,7 +118,7 @@ export const Home: React.FC = () => {
             stepNumber={4}
             title="Verify"
             description="Ephemeral sandboxes run browser heuristics to objectively confirm accessibility compliance."
-            icon={<ShieldCheck size={16} />}
+            accentColor="emerald"
             badge="Nebius Sandbox"
             isLast={true}
           />
@@ -131,9 +126,9 @@ export const Home: React.FC = () => {
       </section>
 
       {/* System Status / Engine line */}
-      <footer className="w-full pt-4 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-muted font-mono">
+      <footer className="w-full pt-4 border-t border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-muted font-mono">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-primary" />
+          <span className="w-2 h-2 rounded-full bg-emerald" />
           <span>System ready for repository scans</span>
         </div>
 

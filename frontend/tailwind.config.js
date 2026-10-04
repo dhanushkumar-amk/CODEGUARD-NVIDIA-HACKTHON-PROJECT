@@ -7,27 +7,40 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"IBM Plex Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        sans: ['"Public Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
       colors: {
-        background: '#FAFAF8',
-        foreground: '#1C1D21',
-        border: '#E4E2DD',
-        primary: '#2F5DA8',
-        destructive: '#B5472A',
-        severity: {
-          critical: '#B5472A',
-          high: '#C77D3F',
-          medium: '#A68B3D',
-          low: '#6B7280',
-        },
+        paper: '#FBFAF7',
+        ink: '#14171F',
+        line: '#E3DFD6',
+        azure: '#2457C5',
+        violet: '#6D4AFF',
+        amber: '#F2A93C',
+        emerald: '#1F9D55',
+        coral: '#E0562F',
+
+        // Semantic bindings
+        background: '#FBFAF7',
+        foreground: '#14171F',
+        border: '#E3DFD6',
+        primary: '#2457C5',
+        destructive: '#E0562F',
+        muted: '#6C707A',
+
         surface: {
-          0: '#FAFAF8',
-          1: '#F5F4F1',
-          2: '#EEEDEA',
+          0: '#FBFAF7',
+          1: '#F5F3EC',
+          2: '#EAE6DC',
         },
-        muted: '#71726E',
+
+        severity: {
+          critical: '#E0562F',
+          high: '#F2A93C',
+          medium: '#D48B22',
+          low: '#6C707A',
+        },
       },
       borderRadius: {
         control: '4px',

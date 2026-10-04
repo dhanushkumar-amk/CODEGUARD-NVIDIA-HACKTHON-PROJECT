@@ -8,53 +8,66 @@ export type BadgeVariant =
   | 'moderate'
   | 'low'
   | 'minor'
+  | 'fixed_and_verified'
+  | 'fix_failed'
+  | 'fixed_not_verified'
+  | 'detected_only'
   | 'success'
   | 'info'
   | 'warning'
   | 'danger'
+  | 'violet'
+  | 'ai'
   | 'default';
 
 export interface BadgeProps {
   children: React.ReactNode;
-  variant?: BadgeVariant | string;
-  className?: string;
+  variant?: BadgeVariant;
   size?: 'sm' | 'md';
+  className?: string;
 }
+
+const variantStyles: Record<BadgeVariant, string> = {
+  // Severity badges: solid-but-soft background tints
+  critical: 'bg-coral/10 text-coral border border-coral/20',
+  serious: 'bg-coral/10 text-coral border border-coral/20',
+  high: 'bg-amber/10 text-amber border border-amber/20',
+  medium: 'bg-amber/10 text-amber border border-amber/20',
+  moderate: 'bg-amber/10 text-amber border border-amber/20',
+  low: 'bg-[#6C707A]/10 text-muted border border-line',
+  minor: 'bg-[#6C707A]/10 text-muted border border-line',
+
+  // Status badges: directly mapped to emerald, coral, amber
+  fixed_and_verified: 'bg-emerald/10 text-emerald border border-emerald/20',
+  fix_failed: 'bg-coral/10 text-coral border border-coral/20',
+  fixed_not_verified: 'bg-amber/10 text-amber border border-amber/20',
+  detected_only: 'bg-[#6C707A]/10 text-muted border border-line',
+
+  // Semantic shortcuts
+  success: 'bg-emerald/10 text-emerald border border-emerald/20',
+  danger: 'bg-coral/10 text-coral border border-coral/20',
+  warning: 'bg-amber/10 text-amber border border-amber/20',
+  info: 'bg-azure/10 text-azure border border-azure/20',
+
+  // AI model layer
+  violet: 'bg-violet/10 text-violet border border-violet/20',
+  ai: 'bg-violet/10 text-violet border border-violet/20',
+
+  default: 'bg-[#6C707A]/10 text-muted border border-line',
+};
 
 export const Badge: React.FC<BadgeProps> = ({
   children,
   variant = 'default',
-  className = '',
   size = 'md',
+  className = '',
 }) => {
-  const normalizedVariant = variant.toLowerCase();
-
-  // Muted severity palette — only used on badges, never decoratively
-  const variantStyles: Record<string, string> = {
-    critical: 'bg-severity-critical/10 text-severity-critical border-severity-critical/25',
-    high: 'bg-severity-high/10 text-severity-high border-severity-high/25',
-    serious: 'bg-severity-high/10 text-severity-high border-severity-high/25',
-    medium: 'bg-severity-medium/10 text-severity-medium border-severity-medium/25',
-    moderate: 'bg-severity-medium/10 text-severity-medium border-severity-medium/25',
-    low: 'bg-severity-low/10 text-severity-low border-severity-low/25',
-    minor: 'bg-severity-low/10 text-severity-low border-severity-low/25',
-    success: 'bg-[#2F7A4D]/10 text-[#2F7A4D] border-[#2F7A4D]/25',
-    warning: 'bg-severity-medium/10 text-severity-medium border-severity-medium/25',
-    danger: 'bg-destructive/10 text-destructive border-destructive/25',
-    info: 'bg-primary/10 text-primary border-primary/25',
-    default: 'bg-surface-1 text-muted border-border',
-  };
-
-  const currentVariant = variantStyles[normalizedVariant] || variantStyles.default;
-
-  const sizeStyles = {
-    sm: 'text-[11px] px-2 py-0.5',
-    md: 'text-xs px-2.5 py-0.5',
-  };
+  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-0.5 text-xs';
+  const colorClass = variantStyles[variant] || variantStyles.default;
 
   return (
     <span
-      className={`inline-flex items-center font-medium rounded-control border font-mono ${currentVariant} ${sizeStyles[size]} ${className}`}
+      className={`inline-flex items-center gap-1 font-medium rounded-control transition-colors ${sizeClasses} ${colorClass} ${className}`}
     >
       {children}
     </span>

@@ -86,10 +86,10 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
   const activeError = validationError || serverError;
 
   return (
-    <div className="w-full flex flex-col gap-3">
+    <div className="w-full flex flex-col gap-3 font-sans">
       <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
         {/* Main Input Bar */}
-        <div className="flex flex-col sm:flex-row gap-2 p-1.5 rounded-control bg-background border border-border focus-within:border-primary transition-colors">
+        <div className="flex flex-col sm:flex-row gap-2 p-1.5 rounded-control bg-paper border border-line focus-within:border-azure transition-colors">
           <div className="relative flex-1 flex items-center">
             <input
               id="repo-url-input"
@@ -100,12 +100,12 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               placeholder="https://github.com/your-username/your-repo"
               aria-label="Repository URL"
               disabled={isLoading}
-              className="w-full px-3 py-2 bg-transparent text-foreground placeholder:text-muted text-sm font-mono focus:outline-none disabled:opacity-60"
+              className="w-full px-3 py-2 bg-transparent text-ink placeholder:text-muted text-sm font-mono focus:outline-none disabled:opacity-60"
             />
           </div>
 
           {/* Branch selector */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-control bg-surface-1 border border-border sm:w-36">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-control bg-surface-1 border border-line sm:w-36">
             <GitBranch size={13} className="text-muted shrink-0" />
             <input
               id="repo-branch-input"
@@ -116,7 +116,7 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               placeholder="branch"
               aria-label="Branch"
               disabled={isLoading}
-              className="w-full bg-transparent text-foreground text-xs font-mono placeholder:text-muted focus:outline-none disabled:opacity-60"
+              className="w-full bg-transparent text-ink text-xs font-mono placeholder:text-muted focus:outline-none disabled:opacity-60"
             />
           </div>
 
@@ -144,9 +144,9 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
               data-testid="repo-error-banner"
-              className="flex items-center gap-2 px-3 py-2 rounded-control bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium"
+              className="flex items-center gap-2 px-3 py-2 rounded-control bg-coral/10 border border-coral/20 text-coral text-xs font-medium"
             >
-              <AlertCircle size={14} className="shrink-0 text-destructive" />
+              <AlertCircle size={14} className="shrink-0 text-coral" />
               <span>{activeError}</span>
             </motion.div>
           )}
@@ -160,16 +160,16 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               onClick={handlePrefillDemo}
               disabled={isLoading}
               data-testid="prefill-demo-btn"
-              className="text-primary hover:underline text-xs cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0"
+              className="text-azure hover:underline text-xs cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0 font-sans"
             >
               Try our demo repo
             </button>
-            <span className="text-border">&bull;</span>
+            <span className="text-line">&bull;</span>
             <span className="text-muted">Pre-seeded with 12 WCAG issues</span>
           </div>
 
           {isDemoActive && (
-            <span className="inline-flex items-center gap-1 text-xs text-primary font-mono">
+            <span className="inline-flex items-center gap-1 text-xs text-emerald font-mono">
               <CheckCircle2 size={12} /> Seeded demo repo loaded
             </span>
           )}

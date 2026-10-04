@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { animate } from 'framer-motion';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  ReferenceDot,
-  YAxis,
-} from 'recharts';
+import { ArrowRight } from 'lucide-react';
 
 export interface ScoreReadoutProps {
   scoreBefore: number;
@@ -18,10 +12,12 @@ export interface ScoreReadoutProps {
 }
 
 /**
- * ScoreReadout matching the mono-numeral + sparkline spec.
- * Large IBM Plex Mono numerals with a thin horizontal sparkline showing
- * before vs after as two marks on one line.
- * One motion moment: the score counts up on page load.
+ * ScoreReadout:
+ * score_before in coral Source Serif 4 numerals,
+ * score_after in emerald Source Serif 4 numerals,
+ * connected by a thin azure line/arrow between them,
+ * improvement_points shown as a small emerald pill.
+ * Source Serif 4 used ONLY for score numerals here.
  */
 export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
   scoreBefore,
@@ -58,86 +54,48 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
     };
   }, [scoreBefore, scoreAfter]);
 
-  // Sparkline data: simple 2-point line from before to after
-  const sparklineData = [
-    { x: 0, score: scoreBefore },
-    { x: 1, score: scoreAfter },
-  ];
-
   return (
-    <div data-testid="hero-score-section" className="border border-border bg-background p-6">
+    <div data-testid="hero-score-section" className="border border-line bg-paper p-6 text-left">
       {/* Section label */}
       <div className="text-xs text-muted font-medium mb-4">
         Compliance score improvement &middot; WCAG 2.2 AA
         {repoUrl && (
-          <span className="font-mono ml-2 text-muted/70">
+          <span className="font-mono ml-2 text-muted">
             {repoUrl} {branch && `(${branch})`}
           </span>
         )}
       </div>
 
-      {/* Score numerals + sparkline row */}
-      <div className="flex items-end gap-8 flex-wrap">
-        {/* Before score */}
+      {/* Score numerals in Source Serif 4 connected by thin azure line/arrow */}
+      <div className="flex items-center gap-6 sm:gap-8 flex-wrap">
+        {/* Before score: coral Source Serif 4 */}
         <div data-testid="score-before-display">
-          <div className="text-xs text-muted mb-1">Before</div>
-          <div className="text-5xl sm:text-6xl font-bold font-mono text-foreground/40 tracking-tight leading-none">
-            {animatedBefore}<span className="text-3xl sm:text-4xl">%</span>
+          <div className="text-xs text-muted mb-1 font-sans">Before</div>
+          <div className="text-5xl sm:text-6xl font-serif font-bold text-coral tracking-tight leading-none">
+            {animatedBefore}<span className="text-3xl sm:text-4xl font-sans text-coral/80">%</span>
           </div>
         </div>
 
-        {/* Sparkline: thin horizontal line with two marks */}
-        <div className="flex-1 min-w-[120px] max-w-[280px] h-12 self-center">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={sparklineData} margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
-              <YAxis domain={[0, 100]} hide />
-              <Line
-                type="linear"
-                dataKey="score"
-                stroke="var(--border)"
-                strokeWidth={1.5}
-                dot={false}
-                isAnimationActive={false}
-              />
-              <ReferenceDot
-                x={0}
-                y={scoreBefore}
-                r={5}
-                fill="var(--foreground)"
-                fillOpacity={0.25}
-                stroke="var(--foreground)"
-                strokeWidth={1.5}
-                strokeOpacity={0.4}
-              />
-              <ReferenceDot
-                x={1}
-                y={scoreAfter}
-                r={5}
-                fill="var(--primary)"
-                stroke="var(--primary)"
-                strokeWidth={1.5}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        {/* Thin azure connecting line with arrow */}
+        <div className="flex items-center gap-2 flex-1 min-w-[80px] max-w-[200px] self-center">
+          <div className="h-0.5 flex-1 bg-azure" />
+          <ArrowRight size={18} className="text-azure shrink-0" strokeWidth={2} />
         </div>
 
-        {/* After score */}
+        {/* After score: emerald Source Serif 4 */}
         <div data-testid="score-after-display">
-          <div className="text-xs text-muted mb-1">After</div>
-          <div className="text-5xl sm:text-6xl font-bold font-mono text-primary tracking-tight leading-none">
-            {animatedAfter}<span className="text-3xl sm:text-4xl">%</span>
+          <div className="text-xs text-muted mb-1 font-sans">After</div>
+          <div className="text-5xl sm:text-6xl font-serif font-bold text-emerald tracking-tight leading-none">
+            {animatedAfter}<span className="text-3xl sm:text-4xl font-sans text-emerald/80">%</span>
           </div>
         </div>
 
-        {/* Delta */}
+        {/* Improvement points: small emerald pill */}
         <div
           data-testid="score-improvement-delta"
-          className="px-3 py-2 border border-border bg-surface-1 rounded-control self-center"
+          className="px-3 py-1.5 rounded-control bg-emerald/10 border border-emerald/20 text-emerald font-mono font-bold text-sm sm:text-base self-center"
         >
-          <div className="text-xs text-muted mb-0.5">Delta</div>
-          <div className="text-2xl font-bold font-mono text-primary tracking-tight">
-            {calculatedDelta >= 0 ? `+${calculatedDelta}` : calculatedDelta} points
-          </div>
+          {calculatedDelta >= 0 ? `+${calculatedDelta}` : calculatedDelta} points
         </div>
       </div>
 
@@ -145,12 +103,12 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
       {executiveSummary && (
         <div
           data-testid="executive-summary-story"
-          className="mt-6 pt-4 border-t border-border"
+          className="mt-6 pt-4 border-t border-line"
         >
-          <div className="text-xs text-muted font-medium mb-1.5">
+          <div className="text-xs text-muted font-medium mb-1 font-sans">
             Executive summary
           </div>
-          <p className="text-sm text-foreground leading-relaxed">
+          <p className="text-sm font-sans text-ink leading-relaxed">
             {executiveSummary}
           </p>
         </div>

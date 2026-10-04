@@ -43,7 +43,16 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
 }) => {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
   const categoryLabel = formatCategoryLabel(violation.category);
-  const severityLabel = violation.severity || 'high';
+  const severityLabel = (violation.severity || 'medium').toLowerCase();
+
+  const leftStripeClass =
+    severityLabel === 'critical'
+      ? 'border-l-[3px] border-l-coral'
+      : ['high', 'serious'].includes(severityLabel)
+      ? 'border-l-[3px] border-l-amber'
+      : ['medium', 'moderate'].includes(severityLabel)
+      ? 'border-l-[3px] border-l-amber'
+      : 'border-l-[3px] border-l-[#6C707A]';
 
   const diagnosed = violation as DiagnosedViolation;
   const hasTechnicalDetails = Boolean(
@@ -51,15 +60,15 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
   );
 
   return (
-    <div className="border border-border bg-background p-4 flex flex-col gap-3">
+    <div className={`border border-line bg-[#FFFFFF] p-4 flex flex-col gap-3 ${leftStripeClass}`}>
       {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={severityLabel} size="sm">
-            {severityLabel}
+          <Badge variant={violation.severity as any || 'medium'} size="sm">
+            {violation.severity || 'medium'}
           </Badge>
 
-          <span className="font-medium text-sm text-foreground">
+          <span className="font-medium text-sm text-ink">
             {categoryLabel}
           </span>
 
@@ -80,7 +89,7 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
           <button
             onClick={() => onGenerateFix(violation.id)}
             disabled={isFixing}
-            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-control bg-primary hover:bg-primary/90 text-white transition disabled:opacity-50 self-start sm:self-auto shrink-0"
+            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-control bg-azure hover:bg-azure/90 text-white transition disabled:opacity-50 self-start sm:self-auto shrink-0 cursor-pointer"
           >
             {isFixing ? 'Synthesizing...' : 'Synthesize fix'}
           </button>
@@ -92,24 +101,24 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
         <span>{violation.type}</span>
         {violation.wcag_criterion && (
           <>
-            <span className="text-border">&middot;</span>
+            <span className="text-line">&middot;</span>
             <span>{violation.wcag_criterion}</span>
           </>
         )}
-        <span className="text-border">&middot;</span>
-        <span className="text-foreground/70">
+        <span className="text-line">&middot;</span>
+        <span className="text-ink/70">
           {violation.file}{violation.line ? `:${violation.line}` : ''}
         </span>
       </div>
 
       {/* Description */}
-      <p className="text-xs sm:text-sm text-foreground/80 leading-relaxed">
+      <p className="text-xs sm:text-sm text-ink/80 leading-relaxed font-sans">
         {diagnosed.plain_explanation || violation.description}
       </p>
 
       {/* Code snippet */}
       {violation.context_snippet && (
-        <pre className="p-2.5 bg-surface-1 border border-border text-xs font-mono text-foreground/70 overflow-x-auto whitespace-pre-wrap">
+        <pre className="p-2.5 bg-surface-1 border border-line text-xs font-mono text-ink/80 overflow-x-auto whitespace-pre-wrap">
           {violation.context_snippet}
         </pre>
       )}
@@ -120,18 +129,18 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
           <button
             type="button"
             onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition py-1 focus:outline-none"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-azure hover:text-azure/80 transition py-1 focus:outline-none cursor-pointer"
           >
             {showTechnicalDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             <span>{showTechnicalDetails ? 'Hide technical details' : 'Show root-cause & impact'}</span>
           </button>
 
           {showTechnicalDetails && (
-            <div className="mt-2 p-3 bg-surface-1 border border-border flex flex-col gap-2.5 text-xs">
+            <div className="mt-2 p-3 bg-surface-1 border border-line flex flex-col gap-2.5 text-xs">
               {diagnosed.affected_element && (
                 <div>
-                  <span className="font-medium text-muted">Affected element:</span>
-                  <code className="ml-2 font-mono text-[11px] text-foreground/80">
+                  <span className="font-medium text-muted font-sans">Affected element:</span>
+                  <code className="ml-2 font-mono text-[11px] text-ink/80">
                     {diagnosed.affected_element}
                   </code>
                 </div>
@@ -139,26 +148,26 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
 
               {diagnosed.root_cause && (
                 <div>
-                  <span className="font-medium text-foreground">Root cause:</span>
-                  <p className="text-muted mt-0.5 leading-relaxed">{diagnosed.root_cause}</p>
+                  <span className="font-medium text-ink font-sans">Root cause:</span>
+                  <p className="text-muted mt-0.5 leading-relaxed font-sans">{diagnosed.root_cause}</p>
                 </div>
               )}
 
               {diagnosed.user_impact && (
                 <div>
-                  <span className="font-medium text-foreground">User impact:</span>
-                  <p className="text-muted mt-0.5 leading-relaxed">{diagnosed.user_impact}</p>
+                  <span className="font-medium text-ink font-sans">User impact:</span>
+                  <p className="text-muted mt-0.5 leading-relaxed font-sans">{diagnosed.user_impact}</p>
                 </div>
               )}
 
               {diagnosed.fix_strategy && (
                 <div>
-                  <span className="font-medium text-foreground">Remediation strategy:</span>
-                  <p className="text-primary/80 mt-0.5 leading-relaxed">{diagnosed.fix_strategy}</p>
+                  <span className="font-medium text-ink font-sans">Remediation strategy:</span>
+                  <p className="text-azure mt-0.5 leading-relaxed font-sans">{diagnosed.fix_strategy}</p>
                 </div>
               )}
 
-              <div className="flex items-center gap-3 pt-1 text-[11px] text-muted font-mono border-t border-border">
+              <div className="flex items-center gap-3 pt-1 text-[11px] text-muted font-mono border-t border-line">
                 <span>Engine: {diagnosed.diagnosis_source === 'llm' ? 'Nemotron Ultra' : 'deterministic'}</span>
                 {diagnosed.confidence && <span>&middot; Confidence: {diagnosed.confidence}</span>}
               </div>

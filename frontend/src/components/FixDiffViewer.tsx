@@ -69,12 +69,12 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
   const getConfidenceBadge = () => {
     switch (confidence) {
       case 'high':
-        return <Badge variant="success" size="sm">high confidence</Badge>;
+        return <Badge variant="fixed_and_verified" size="sm">high confidence</Badge>;
       case 'medium':
-        return <Badge variant="warning" size="sm">medium confidence</Badge>;
+        return <Badge variant="fixed_not_verified" size="sm">medium confidence</Badge>;
       case 'low':
       default:
-        return <Badge variant="danger" size="sm">low confidence</Badge>;
+        return <Badge variant="fix_failed" size="sm">low confidence</Badge>;
     }
   };
 
@@ -91,21 +91,21 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
     return (
       <div>
         {lines.map((line, idx) => {
-          let lineStyle = 'text-foreground/70';
+          let lineStyle = 'text-ink/70';
           let bgStyle = '';
 
           if (line.startsWith('+++') || line.startsWith('---')) {
             lineStyle = 'text-muted font-medium';
             bgStyle = 'bg-surface-1';
           } else if (line.startsWith('@@')) {
-            lineStyle = 'text-primary font-medium';
-            bgStyle = 'bg-primary/5';
+            lineStyle = 'text-azure font-medium';
+            bgStyle = 'bg-azure/5';
           } else if (line.startsWith('+')) {
-            lineStyle = 'text-[#2F7A4D]';
-            bgStyle = 'bg-[#2F7A4D]/5 border-l-2 border-[#2F7A4D]';
+            lineStyle = 'text-emerald';
+            bgStyle = 'bg-emerald/10 border-l-2 border-emerald';
           } else if (line.startsWith('-')) {
-            lineStyle = 'text-destructive';
-            bgStyle = 'bg-destructive/5 border-l-2 border-destructive';
+            lineStyle = 'text-coral';
+            bgStyle = 'bg-coral/10 border-l-2 border-coral';
           }
 
           return (
@@ -125,12 +125,12 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
   };
 
   return (
-    <div className="border border-border bg-background overflow-hidden">
+    <div className="border border-line bg-[#FFFFFF] overflow-hidden">
       {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-surface-1 border-b border-border">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-surface-1 border-b border-line">
         <div className="flex items-center gap-2">
           <FileCode size={14} className="text-muted" />
-          <span className="font-mono text-xs font-medium text-foreground">{filePath}</span>
+          <span className="font-mono text-xs font-medium text-ink">{filePath}</span>
           {lineStart && (
             <span className="text-[11px] font-mono text-muted">
               L{lineStart}
@@ -138,33 +138,33 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
             </span>
           )}
           {status === 'proposed' ? (
-            <Badge variant="success" size="sm">proposed fix</Badge>
+            <Badge variant="fixed_and_verified" size="sm">proposed fix</Badge>
           ) : (
-            <Badge variant="danger" size="sm">unresolved</Badge>
+            <Badge variant="fix_failed" size="sm">unresolved</Badge>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 font-sans">
           {getConfidenceBadge()}
 
           {original && fixed && (
-            <div className="flex items-center border border-border rounded-control p-0.5 text-xs">
+            <div className="flex items-center border border-line rounded-control p-0.5 text-xs">
               <button
                 onClick={() => setViewMode('unified')}
-                className={`flex items-center gap-1 px-2 py-1 rounded-control transition text-[11px] ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-control transition text-[11px] cursor-pointer ${
                   viewMode === 'unified'
-                    ? 'bg-primary text-white'
-                    : 'text-muted hover:text-foreground'
+                    ? 'bg-azure text-white'
+                    : 'text-muted hover:text-ink'
                 }`}
               >
                 <Split size={11} /> Unified
               </button>
               <button
                 onClick={() => setViewMode('split')}
-                className={`flex items-center gap-1 px-2 py-1 rounded-control transition text-[11px] ${
+                className={`flex items-center gap-1 px-2 py-1 rounded-control transition text-[11px] cursor-pointer ${
                   viewMode === 'split'
-                    ? 'bg-primary text-white'
-                    : 'text-muted hover:text-foreground'
+                    ? 'bg-azure text-white'
+                    : 'text-muted hover:text-ink'
                 }`}
               >
                 <Columns size={11} /> Split
@@ -174,9 +174,9 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
 
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1 px-2.5 py-1 bg-surface-1 hover:bg-surface-2 text-foreground text-xs rounded-control transition border border-border"
+            className="flex items-center gap-1 px-2.5 py-1 bg-surface-1 hover:bg-surface-2 text-ink text-xs rounded-control transition border border-line cursor-pointer"
           >
-            {copied ? <CheckCheck size={12} className="text-[#2F7A4D]" /> : <Copy size={12} />}
+            {copied ? <CheckCheck size={12} className="text-emerald" /> : <Copy size={12} />}
             <span>{copied ? 'Copied' : 'Copy'}</span>
           </button>
 
@@ -184,7 +184,7 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
             <button
               onClick={onVerifySandbox}
               disabled={isVerifying}
-              className="flex items-center gap-1.5 px-3 py-1 bg-primary hover:bg-primary/90 text-white text-xs font-medium rounded-control transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1 bg-azure hover:bg-azure/90 text-white text-xs font-medium rounded-control transition disabled:opacity-50 cursor-pointer"
             >
               {isVerifying ? 'Verifying...' : 'Verify in sandbox'}
             </button>
@@ -194,15 +194,15 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
 
       {/* Explanation */}
       {explanation && (
-        <div className="px-4 py-2 bg-surface-1 border-b border-border text-xs text-foreground/80">
-          <span className="font-medium text-foreground">Rationale: </span>
+        <div className="px-4 py-2 bg-surface-1 border-b border-line text-xs text-ink/80 font-sans">
+          <span className="font-medium text-ink">Rationale: </span>
           {explanation}
         </div>
       )}
 
       {/* Failure banner */}
       {status === 'failed' && (
-        <div className="px-4 py-2 bg-destructive/5 border-b border-destructive/20 flex items-start gap-2 text-xs text-destructive">
+        <div className="px-4 py-2 bg-coral/10 border-b border-coral/20 flex items-start gap-2 text-xs text-coral font-sans">
           <AlertTriangle size={13} className="shrink-0 mt-0.5" />
           <div>
             <span className="font-medium">Auto-fix not applied: </span>
@@ -215,24 +215,24 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
       {/* Diff content */}
       <div className="font-mono text-xs overflow-x-auto">
         {viewMode === 'split' && original && fixed ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
-            <div className="p-3 bg-destructive/[0.02]">
-              <div className="text-destructive font-medium mb-2 flex items-center justify-between text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-line">
+            <div className="p-3 bg-coral/[0.04]">
+              <div className="text-coral font-medium mb-2 flex items-center justify-between text-xs font-sans">
                 <span>Original</span>
-                {lineStart && <span className="text-muted text-[10px]">L{lineStart}–{lineEnd}</span>}
+                {lineStart && <span className="text-muted text-[10px] font-mono">L{lineStart}–{lineEnd}</span>}
               </div>
-              <pre className="text-foreground/60 overflow-x-auto whitespace-pre-wrap leading-relaxed text-xs">
+              <pre className="text-ink/60 overflow-x-auto whitespace-pre-wrap leading-relaxed text-xs font-mono">
                 {original}
               </pre>
             </div>
-            <div className="p-3 bg-[#2F7A4D]/[0.02]">
-              <div className="text-[#2F7A4D] font-medium mb-2 flex items-center justify-between text-xs">
+            <div className="p-3 bg-emerald/[0.04]">
+              <div className="text-emerald font-medium mb-2 flex items-center justify-between text-xs font-sans">
                 <span className="flex items-center gap-1">
                   <Check size={13} /> Remediated
                 </span>
-                <span className="text-muted text-[10px]">WCAG 2.2 AA</span>
+                <span className="text-muted text-[10px] font-mono">WCAG 2.2 AA</span>
               </div>
-              <pre className="text-foreground/80 overflow-x-auto whitespace-pre-wrap leading-relaxed text-xs">
+              <pre className="text-ink/80 overflow-x-auto whitespace-pre-wrap leading-relaxed text-xs font-mono">
                 {fixed}
               </pre>
             </div>

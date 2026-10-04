@@ -29,9 +29,9 @@ export const LiveFixDemo: React.FC = () => {
   return (
     <div
       data-testid="live-fix-demo"
-      className="border border-border rounded-[6px] bg-[#F4F2EC] p-5 sm:p-6 text-left flex flex-col justify-center min-h-[140px]"
+      className="border border-line rounded-[6px] bg-[#F5F3EC] p-5 sm:p-6 text-left flex flex-col justify-center min-h-[140px]"
     >
-      <div className="font-mono text-[14px] leading-relaxed text-foreground select-none">
+      <div className="font-mono text-[14px] leading-relaxed text-ink select-none">
         {/* Line 1: Comment */}
         <div className="text-muted/80 mb-2.5">
           // Header.tsx
@@ -46,7 +46,7 @@ export const LiveFixDemo: React.FC = () => {
                 initial={shouldReduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="bg-[#2F5DA8]/15 px-1 py-0.5 rounded-[2px] text-foreground mx-1"
+                className="bg-emerald/15 px-1 py-0.5 rounded-[2px] text-ink mx-1"
               >
                 alt=&quot;Company logo&quot;
               </motion.span>
@@ -60,7 +60,7 @@ export const LiveFixDemo: React.FC = () => {
               initial={shouldReduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
-              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans bg-[#2F5DA8]/10 text-primary"
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans bg-emerald/10 text-emerald border border-emerald/20"
             >
               <Check size={12} strokeWidth={2.5} />
               <span>Verified in sandbox</span>
@@ -71,7 +71,7 @@ export const LiveFixDemo: React.FC = () => {
               initial={shouldReduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
-              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-[#B5472A]/10 text-destructive"
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-coral/10 text-coral border border-coral/20"
             >
               Missing alt text
             </motion.span>

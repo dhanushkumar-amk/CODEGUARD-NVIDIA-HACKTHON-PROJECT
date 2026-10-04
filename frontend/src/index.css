@@ -3,29 +3,41 @@
 @tailwind utilities;
 
 :root {
-  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Public Sans', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
-  --background: #FAFAF8;
-  --foreground: #1C1D21;
-  --border: #E4E2DD;
-  --primary: #2F5DA8;
-  --destructive: #B5472A;
-  --muted: #71726E;
+  /* Purposeful color tokens */
+  --paper: #FBFAF7;
+  --ink: #14171F;
+  --line: #E3DFD6;
+  --azure: #2457C5;
+  --violet: #6D4AFF;
+  --amber: #F2A93C;
+  --emerald: #1F9D55;
+  --coral: #E0562F;
 
-  --surface-0: #FAFAF8;
-  --surface-1: #F5F4F1;
-  --surface-2: #EEEDEA;
+  /* Semantic aliases */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --border: var(--line);
+  --primary: var(--azure);
+  --destructive: var(--coral);
+  --muted: #6C707A;
 
-  --severity-critical: #B5472A;
-  --severity-high: #C77D3F;
-  --severity-medium: #A68B3D;
-  --severity-low: #6B7280;
+  --surface-0: #FBFAF7;
+  --surface-1: #F5F3EC;
+  --surface-2: #EAE6DC;
 
-  --status-verified: #2F7A4D;
-  --status-unverified: #A68B3D;
-  --status-failed: #B5472A;
-  --status-detected: #6B7280;
+  --severity-critical: #E0562F;
+  --severity-high: #F2A93C;
+  --severity-medium: #D48B22;
+  --severity-low: #6C707A;
+
+  --status-verified: #1F9D55;
+  --status-unverified: #F2A93C;
+  --status-failed: #E0562F;
+  --status-detected: #6C707A;
 }
 
 * {
@@ -36,8 +48,8 @@
 
 body {
   font-family: var(--font-sans);
-  background-color: var(--background);
-  color: var(--foreground);
+  background-color: var(--paper);
+  color: var(--ink);
   min-height: 100vh;
   line-height: 1.6;
   overflow-x: hidden;
@@ -47,8 +59,8 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(47, 93, 168, 0.15);
-  color: var(--foreground);
+  background: rgba(36, 87, 197, 0.15);
+  color: var(--ink);
 }
 
 /* Scrollbar styling */
@@ -62,35 +74,10 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--line);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
-}
-
-/* Score count-up animation keyframe */
-@keyframes score-countup {
-  from { opacity: 0.4; }
-  to { opacity: 1; }
-}
-
-/* Pulse for live indicator */
-@keyframes live-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.animate-live-pulse {
-  animation: live-pulse 2s ease-in-out infinite;
-}
-
-/* Spinner */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
 }

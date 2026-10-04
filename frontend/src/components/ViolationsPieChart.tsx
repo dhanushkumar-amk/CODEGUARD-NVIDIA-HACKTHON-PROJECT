@@ -18,34 +18,34 @@ export interface ViolationsPieChartProps {
   totalViolations: number;
 }
 
-// Recolored using ONLY the severity/status palette
+// Segments colored exactly emerald/amber/coral/grey matching final_status
 export const STATUS_CONFIG: Record<
   string,
   { label: string; color: string; description: string }
 > = {
   fixed_and_verified: {
     label: 'Fixed & verified',
-    color: '#2F7A4D',
+    color: '#1F9D55', // emerald
     description: 'Synthesized, applied, and verified in sandbox with 0 regressions',
   },
   fixed_not_verified: {
     label: 'Fixed (unverified)',
-    color: '#A68B3D',
+    color: '#F2A93C', // amber
     description: 'Fix generated but regression checks failed or timed out',
   },
   detected_only: {
     label: 'Detected only',
-    color: '#6B7280',
+    color: '#6C707A', // grey
     description: 'Flagged by static scanner / AST heuristics; pending fix generation',
   },
   fix_failed: {
     label: 'Fix failed',
-    color: '#B5472A',
+    color: '#E0562F', // coral
     description: 'Model was unable to synthesize a clean, syntax-valid patch',
   },
   verification_skipped: {
     label: 'Verification skipped',
-    color: '#9CA3AF',
+    color: '#6C707A', // grey
     description: 'Sandbox verification was omitted or deferred',
   },
 };
@@ -59,7 +59,7 @@ export const ViolationsPieChart: React.FC<ViolationsPieChartProps> = ({
     .map(([statusKey, count]) => {
       const config = STATUS_CONFIG[statusKey] || {
         label: statusKey.replace(/_/g, ' '),
-        color: '#9CA3AF',
+        color: '#6C707A',
       };
       return {
         name: config.label,
@@ -73,9 +73,9 @@ export const ViolationsPieChart: React.FC<ViolationsPieChartProps> = ({
     return (
       <div
         data-testid="violations-pie-chart-empty"
-        className="w-full py-8 text-center border border-border bg-surface-1"
+        className="w-full py-8 text-center border border-line bg-surface-1"
       >
-        <span className="text-sm font-medium text-foreground">No defects to chart</span>
+        <span className="text-sm font-medium text-ink">No defects to chart</span>
         <br />
         <span className="text-xs text-muted">
           All WCAG rules passed without actionable violations.
@@ -87,7 +87,7 @@ export const ViolationsPieChart: React.FC<ViolationsPieChartProps> = ({
   return (
     <div
       data-testid="violations-pie-chart"
-      className="w-full border border-border bg-background p-5 flex flex-col sm:flex-row items-center justify-between gap-6"
+      className="w-full border border-line bg-paper p-5 flex flex-col sm:flex-row items-center justify-between gap-6"
     >
       {/* Donut */}
       <div className="relative w-44 h-44 sm:w-48 sm:h-48 shrink-0 flex items-center justify-center">
@@ -99,11 +99,11 @@ export const ViolationsPieChart: React.FC<ViolationsPieChartProps> = ({
                   const data = payload[0].payload;
                   const pct = Math.round((data.value / totalViolations) * 100);
                   return (
-                    <div className="bg-background border border-border px-3 py-1.5 rounded-control text-xs font-mono">
+                    <div className="bg-paper border border-line px-3 py-1.5 rounded-control text-xs font-mono">
                       <div className="font-semibold" style={{ color: data.color }}>
                         {data.name}
                       </div>
-                      <div className="text-foreground">
+                      <div className="text-ink">
                         {data.value} violations ({pct}%)
                       </div>
                     </div>
@@ -131,17 +131,17 @@ export const ViolationsPieChart: React.FC<ViolationsPieChartProps> = ({
 
         {/* Center label */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span className="text-2xl font-bold font-mono text-foreground">
+          <span className="text-2xl font-bold font-mono text-ink">
             {totalViolations}
           </span>
-          <span className="text-[10px] text-muted">
+          <span className="text-[10px] text-muted font-sans">
             total
           </span>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex-1 w-full flex flex-col gap-1.5">
+      {/* Legend: small colored squares + Public Sans labels */}
+      <div className="flex-1 w-full flex flex-col gap-1.5 font-sans">
         <div className="text-xs text-muted font-medium mb-1">
           Remediation outcomes
         </div>
@@ -156,18 +156,19 @@ export const ViolationsPieChart: React.FC<ViolationsPieChartProps> = ({
           return (
             <div
               key={key}
-              className="flex items-center justify-between py-1.5 px-2 text-xs border-b border-border last:border-b-0"
+              className="flex items-center justify-between py-1.5 px-2 text-xs border-b border-line last:border-b-0"
             >
               <div className="flex items-center gap-2">
+                {/* Small colored square */}
                 <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  className="w-2.5 h-2.5 rounded-[2px] shrink-0"
                   style={{ backgroundColor: config.color }}
                 />
-                <span className="text-foreground">{config.label}</span>
+                <span className="text-ink font-sans">{config.label}</span>
               </div>
 
               <div className="flex items-center gap-2 font-mono">
-                <span className="font-semibold text-foreground">{count}</span>
+                <span className="font-semibold text-ink">{count}</span>
                 <span className="text-muted text-[11px]">({pct}%)</span>
               </div>
             </div>

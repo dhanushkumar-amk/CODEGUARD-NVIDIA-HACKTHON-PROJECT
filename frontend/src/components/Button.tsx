@@ -21,19 +21,21 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-control transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+    'inline-flex items-center justify-center font-medium rounded-control transition-colors focus:outline-none focus:ring-2 focus:ring-azure/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
 
   const variants = {
+    // Primary: solid --azure background, white text, 4px radius, flat (no shadow)
     primary:
-      'bg-primary hover:bg-primary/90 text-white active:bg-primary/80',
+      'bg-azure hover:bg-azure/90 text-white active:bg-azure/80',
+    // Secondary: --azure text, transparent bg, 1px --azure border
     secondary:
-      'bg-surface-1 hover:bg-surface-2 text-foreground border border-border active:bg-surface-2',
+      'text-azure bg-transparent border border-azure hover:bg-azure/5 active:bg-azure/10',
     outline:
-      'bg-transparent hover:bg-surface-1 text-foreground border border-border active:bg-surface-2',
+      'bg-transparent hover:bg-surface-1 text-ink border border-line active:bg-surface-2',
     danger:
-      'bg-destructive hover:bg-destructive/90 text-white active:bg-destructive/80',
+      'bg-coral hover:bg-coral/90 text-white active:bg-coral/80',
     success:
-      'bg-[#2F7A4D] hover:bg-[#266B42] text-white active:bg-[#1E5A36]',
+      'bg-emerald hover:bg-emerald/90 text-white active:bg-emerald/80',
   };
 
   const sizes = {
