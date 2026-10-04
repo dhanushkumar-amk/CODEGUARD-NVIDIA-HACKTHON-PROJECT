@@ -29,24 +29,24 @@ export const LiveFixDemo: React.FC = () => {
   return (
     <div
       data-testid="live-fix-demo"
-      className="border border-line rounded-[6px] bg-[#F5F3EC] p-5 sm:p-6 text-left flex flex-col justify-center min-h-[140px]"
+      className="w-full text-left flex flex-col justify-center select-none"
     >
-      <div className="font-mono text-[14px] leading-relaxed text-ink select-none">
+      <div className="font-mono text-[13px] sm:text-[14px] leading-relaxed text-white">
         {/* Line 1: Comment */}
-        <div className="text-muted/80 mb-2.5">
+        <div className="text-white/60 mb-2.5 font-mono">
           // Header.tsx
         </div>
 
         {/* Line 2: Code with inline badge */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 min-h-[28px]">
-          <span>
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2 min-h-[30px]">
+          <span className="text-white/95">
             &lt;img src=&quot;logo.png&quot;
             {activeFixed && (
               <motion.span
                 initial={shouldReduceMotion ? false : { opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, ease: 'easeInOut' }}
-                className="bg-emerald/15 px-1 py-0.5 rounded-[2px] text-ink mx-1"
+                className="bg-emerald/30 border border-emerald/40 px-1.5 py-0.5 rounded-[3px] text-white mx-1 font-mono font-medium"
               >
                 alt=&quot;Company logo&quot;
               </motion.span>
@@ -60,7 +60,7 @@ export const LiveFixDemo: React.FC = () => {
               initial={shouldReduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
-              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans bg-emerald/10 text-emerald border border-emerald/20"
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-sans bg-emerald/25 text-white border border-emerald/40"
             >
               <Check size={12} strokeWidth={2.5} />
               <span>Verified in sandbox</span>
@@ -71,7 +71,7 @@ export const LiveFixDemo: React.FC = () => {
               initial={shouldReduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
-              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-coral/10 text-coral border border-coral/20"
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans bg-coral/30 text-white border border-coral/50"
             >
               Missing alt text
             </motion.span>

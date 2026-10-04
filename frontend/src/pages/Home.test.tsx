@@ -24,7 +24,7 @@ describe('Home Page', () => {
     vi.clearAllMocks();
   });
 
-  it('renders hero title, description, and 4 pipeline steps', () => {
+  it('renders hero title, description, and use-cases pipeline stages', () => {
     render(
       <MemoryRouter>
         <Home />
@@ -34,8 +34,7 @@ describe('Home Page', () => {
     expect(screen.getByText(/Every fix, tested before you trust it/i)).toBeInTheDocument();
     expect(screen.getByText(/CodeGuard scans your repo for accessibility violations/i)).toBeInTheDocument();
     expect(screen.getByTestId('live-fix-demo')).toBeInTheDocument();
-    expect(screen.getByText('Scan')).toBeInTheDocument();
-    expect(screen.getByText('Diagnose')).toBeInTheDocument();
+    expect(screen.getByText('Detect')).toBeInTheDocument();
     expect(screen.getByText('Fix')).toBeInTheDocument();
     expect(screen.getByText('Verify')).toBeInTheDocument();
   });

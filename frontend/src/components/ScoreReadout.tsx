@@ -11,14 +11,6 @@ export interface ScoreReadoutProps {
   branch?: string;
 }
 
-/**
- * ScoreReadout:
- * score_before in coral Source Serif 4 numerals,
- * score_after in emerald Source Serif 4 numerals,
- * connected by a thin azure line/arrow between them,
- * improvement_points shown as a small emerald pill.
- * Source Serif 4 used ONLY for score numerals here.
- */
 export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
   scoreBefore,
   scoreAfter,
@@ -57,43 +49,47 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
   return (
     <div data-testid="hero-score-section" className="border border-line bg-paper p-6 text-left">
       {/* Section label */}
-      <div className="text-xs text-muted font-medium mb-4">
-        Compliance score improvement &middot; WCAG 2.2 AA
+      <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-5">
+        Compliance score improvement &bull; WCAG 2.2 AA
         {repoUrl && (
-          <span className="font-mono ml-2 text-muted">
+          <span className="font-mono ml-2 text-muted normal-case">
             {repoUrl} {branch && `(${branch})`}
           </span>
         )}
       </div>
 
-      {/* Score numerals in Source Serif 4 connected by thin azure line/arrow */}
+      {/* Score numerals in bold Public Sans connected by primary hairline arrow */}
       <div className="flex items-center gap-6 sm:gap-8 flex-wrap">
-        {/* Before score: coral Source Serif 4 */}
+        {/* Before score */}
         <div data-testid="score-before-display">
-          <div className="text-xs text-muted mb-1 font-sans">Before</div>
-          <div className="text-5xl sm:text-6xl font-serif font-bold text-coral tracking-tight leading-none">
+          <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1">
+            Before
+          </div>
+          <div className="text-5xl sm:text-6xl font-sans font-bold text-coral tracking-tight leading-none">
             {animatedBefore}<span className="text-3xl sm:text-4xl font-sans text-coral/80">%</span>
           </div>
         </div>
 
-        {/* Thin azure connecting line with arrow */}
+        {/* Thin primary connecting line with arrow */}
         <div className="flex items-center gap-2 flex-1 min-w-[80px] max-w-[200px] self-center">
-          <div className="h-0.5 flex-1 bg-azure" />
-          <ArrowRight size={18} className="text-azure shrink-0" strokeWidth={2} />
+          <div className="h-0.5 flex-1 bg-primary" />
+          <ArrowRight size={18} className="text-primary shrink-0" strokeWidth={2} />
         </div>
 
-        {/* After score: emerald Source Serif 4 */}
+        {/* After score */}
         <div data-testid="score-after-display">
-          <div className="text-xs text-muted mb-1 font-sans">After</div>
-          <div className="text-5xl sm:text-6xl font-serif font-bold text-emerald tracking-tight leading-none">
+          <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1">
+            After
+          </div>
+          <div className="text-5xl sm:text-6xl font-sans font-bold text-emerald tracking-tight leading-none">
             {animatedAfter}<span className="text-3xl sm:text-4xl font-sans text-emerald/80">%</span>
           </div>
         </div>
 
-        {/* Improvement points: small emerald pill */}
+        {/* Improvement points: pill */}
         <div
           data-testid="score-improvement-delta"
-          className="px-3 py-1.5 rounded-control bg-emerald/10 border border-emerald/20 text-emerald font-mono font-bold text-sm sm:text-base self-center"
+          className="px-3 py-1.5 rounded-[6px] bg-emerald/10 border border-emerald/20 text-emerald font-mono font-bold text-sm sm:text-base self-center"
         >
           {calculatedDelta >= 0 ? `+${calculatedDelta}` : calculatedDelta} points
         </div>
@@ -105,7 +101,7 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
           data-testid="executive-summary-story"
           className="mt-6 pt-4 border-t border-line"
         >
-          <div className="text-xs text-muted font-medium mb-1 font-sans">
+          <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1.5">
             Executive summary
           </div>
           <p className="text-sm font-sans text-ink leading-relaxed">

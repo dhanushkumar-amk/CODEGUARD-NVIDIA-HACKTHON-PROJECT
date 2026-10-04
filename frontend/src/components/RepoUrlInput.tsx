@@ -86,10 +86,10 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
   const activeError = validationError || serverError;
 
   return (
-    <div className="w-full flex flex-col gap-3 font-sans">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
-        {/* Main Input Bar */}
-        <div className="flex flex-col sm:flex-row gap-2 p-1.5 rounded-control bg-paper border border-line focus-within:border-azure transition-colors">
+    <div className="w-full flex flex-col gap-4 font-sans text-left">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        {/* Main Input Row */}
+        <div className="flex flex-col sm:flex-row gap-2 p-1.5 rounded-[6px] bg-paper border border-line focus-within:border-primary transition-colors">
           <div className="relative flex-1 flex items-center">
             <input
               id="repo-url-input"
@@ -97,7 +97,7 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               type="text"
               value={repoUrl}
               onChange={handleUrlChange}
-              placeholder="https://github.com/your-username/your-repo"
+              placeholder="https://github.com/owner/repository"
               aria-label="Repository URL"
               disabled={isLoading}
               className="w-full px-3 py-2 bg-transparent text-ink placeholder:text-muted text-sm font-mono focus:outline-none disabled:opacity-60"
@@ -105,7 +105,7 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
           </div>
 
           {/* Branch selector */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-control bg-surface-1 border border-line sm:w-36">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-[6px] bg-surface-1 border border-line sm:w-32">
             <GitBranch size={13} className="text-muted shrink-0" />
             <input
               id="repo-branch-input"
@@ -119,8 +119,10 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               className="w-full bg-transparent text-ink text-xs font-mono placeholder:text-muted focus:outline-none disabled:opacity-60"
             />
           </div>
+        </div>
 
-          {/* Submit Button */}
+        {/* Primary button + Secondary button side by side */}
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             type="submit"
             variant="primary"
@@ -128,11 +130,26 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
             isLoading={isLoading}
             disabled={isLoading}
             data-testid="start-scan-button"
-            className="sm:w-auto px-5 font-medium"
-            rightIcon={<ArrowRight size={15} />}
+            rightIcon={<ArrowRight size={14} />}
           >
             {isLoading ? 'Scanning...' : 'Start scan'}
           </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="md"
+            onClick={handlePrefillDemo}
+            disabled={isLoading}
+            data-testid="prefill-demo-btn"
+          >
+            Try our demo repo
+          </Button>
+
+          {isDemoActive && (
+            <span className="inline-flex items-center gap-1 text-xs text-ink/70 font-mono">
+              <CheckCircle2 size={13} className="text-primary" /> Seeded demo repo loaded
+            </span>
+          )}
         </div>
 
         {/* Error message presentation */}
@@ -144,7 +161,7 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.15 }}
               data-testid="repo-error-banner"
-              className="flex items-center gap-2 px-3 py-2 rounded-control bg-coral/10 border border-coral/20 text-coral text-xs font-medium"
+              className="flex items-center gap-2 px-3 py-2 rounded-[6px] bg-coral/10 border border-coral/20 text-coral text-xs font-medium"
             >
               <AlertCircle size={14} className="shrink-0 text-coral" />
               <span>{activeError}</span>
@@ -152,27 +169,9 @@ export const RepoUrlInput: React.FC<RepoUrlInputProps> = ({
           )}
         </AnimatePresence>
 
-        {/* Demo Quick Start & Hints */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-0.5 text-xs text-muted">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handlePrefillDemo}
-              disabled={isLoading}
-              data-testid="prefill-demo-btn"
-              className="text-azure hover:underline text-xs cursor-pointer disabled:opacity-50 bg-transparent border-0 p-0 font-sans"
-            >
-              Try our demo repo
-            </button>
-            <span className="text-line">&bull;</span>
-            <span className="text-muted">Pre-seeded with 12 WCAG issues</span>
-          </div>
-
-          {isDemoActive && (
-            <span className="inline-flex items-center gap-1 text-xs text-emerald font-mono">
-              <CheckCircle2 size={12} /> Seeded demo repo loaded
-            </span>
-          )}
+        {/* Hairline divider with small "Powered by NVIDIA..." label below */}
+        <div className="pt-3 border-t border-line flex items-center justify-between text-[11px] font-mono uppercase tracking-[0.08em] text-muted">
+          <span>Powered by NVIDIA Nemotron on Nebius Token Factory</span>
         </div>
       </form>
     </div>

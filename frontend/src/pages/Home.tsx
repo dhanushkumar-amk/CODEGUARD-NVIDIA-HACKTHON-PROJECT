@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { CheckCircle2 } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { startScan } from '../api/client';
-import { HowItWorksStep } from '../components/HowItWorksStep';
 import { RepoUrlInput, DEFAULT_DEMO_REPO } from '../components/RepoUrlInput';
 import { LiveFixDemo } from '../components/LiveFixDemo';
+import { StatsRow } from '../components/StatsRow';
+import { FrameworkStrip } from '../components/FrameworkStrip';
+import { HowItWorksSection } from '../components/HowItWorksSection';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -38,17 +40,16 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl flex flex-col gap-12 py-4 text-left">
-      {/* Hero Section: Two-column grid, left-aligned, flat, no gradients or shadows */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 items-start">
-        {/* Left Column */}
-        <div className="flex flex-col gap-6">
-          <div className="space-y-3">
-            {/* Headline in Source Serif 4 (Rule: used ONLY for hero headline on Home and score numerals on Report) */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold font-serif text-ink leading-[1.15] tracking-tight">
+    <div className="w-full flex flex-col gap-12 sm:gap-16 py-6 text-left">
+      {/* HERO SECTION — two column, left-aligned, NOT centered */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        {/* Left Column (7 cols): Bold Public Sans headline, grey subheadline, buttons, powered-by */}
+        <div className="lg:col-span-7 flex flex-col gap-6 text-left">
+          <div className="space-y-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-bold font-sans text-ink leading-[1.12] tracking-tight">
               Every fix, tested before you trust it.
             </h1>
-            <p className="font-sans text-[17px] leading-relaxed text-ink/70">
+            <p className="font-sans text-base sm:text-lg leading-relaxed text-muted max-w-xl">
               CodeGuard scans your repo for accessibility violations, writes fixes with NVIDIA Nemotron, and confirms each one in an isolated sandbox before you merge anything.
             </p>
           </div>
@@ -60,82 +61,56 @@ export const Home: React.FC = () => {
             onClearError={() => setError(null)}
             demoRepoUrl={DEFAULT_DEMO_REPO}
           />
-
-          <div className="pt-4 border-t border-line text-[13px] text-muted">
-            Powered by NVIDIA Nemotron on Nebius Token Factory
-          </div>
         </div>
 
-        {/* Right Column: LiveFixDemo editor panel */}
-        <div className="w-full pt-1">
-          <LiveFixDemo />
+        {/* Right Column (5 cols): Floating card with dark purple gradient (160deg, #8069FF -> #2A1F6B) */}
+        <div className="lg:col-span-5 w-full">
+          <div
+            className="w-full rounded-[16px] p-6 sm:p-7 text-left flex flex-col justify-between"
+            style={{
+              background: 'linear-gradient(160deg, #8069FF 0%, #2A1F6B 100%)',
+            }}
+          >
+            {/* Top row: Pill "LIVE DEMO" + arrow button */}
+            <div className="flex items-center justify-between mb-6">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-mono uppercase tracking-[0.08em] font-medium bg-white/15 text-white border border-white/10 select-none">
+                LIVE DEMO
+              </span>
+              <button
+                type="button"
+                className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors cursor-pointer border border-white/10"
+                aria-label="Demo external link"
+              >
+                <ArrowUpRight size={14} />
+              </button>
+            </div>
+
+            {/* LiveFixDemo animation with light/white mono text on dark card */}
+            <div className="my-2 py-2">
+              <LiveFixDemo />
+            </div>
+
+            {/* Bottom caption text & mono repo label */}
+            <div className="pt-6 mt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <span className="text-xs text-white/80 font-sans">
+                Real-time accessibility verification
+              </span>
+              <span className="text-[11px] font-mono tracking-[0.08em] text-white/60 uppercase">
+                DEMO REPO / REACT
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* How It Works Section - 4-step strip with azure / violet / azure / emerald accent dots */}
-      <section className="w-full border border-line bg-paper p-6">
-        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-4 border-b border-line mb-6">
-          <div>
-            <h2 className="text-sm font-semibold text-ink">
-              Remediation pipeline
-            </h2>
-            <p className="text-xs text-muted mt-0.5">
-              From source code to verified accessibility fixes in four stages
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted font-mono">
-            <CheckCircle2 size={13} className="text-emerald" />
-            <span>Deterministic verification</span>
-          </div>
-        </div>
+      {/* STATS ROW — directly below hero */}
+      <StatsRow />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-          <HowItWorksStep
-            stepNumber={1}
-            title="Scan"
-            description="AST parser and axe-core inspect UI components to extract scannable markup chunks and locate violations."
-            accentColor="azure"
-            badge="AST + axe-core"
-          />
+      {/* LOGO STRIP — below StatsRow */}
+      <FrameworkStrip />
 
-          <HowItWorksStep
-            stepNumber={2}
-            title="Diagnose"
-            description="Nemotron Nano filters benign false alarms, analyzes WCAG rules, and isolates root causes."
-            accentColor="violet"
-            badge="Nemotron Nano"
-          />
-
-          <HowItWorksStep
-            stepNumber={3}
-            title="Fix"
-            description="Nemotron Ultra synthesizes exact, minimal unified diffs preserving design tokens and project styling."
-            accentColor="azure"
-            badge="Nemotron Ultra"
-          />
-
-          <HowItWorksStep
-            stepNumber={4}
-            title="Verify"
-            description="Ephemeral sandboxes run browser heuristics to objectively confirm accessibility compliance."
-            accentColor="emerald"
-            badge="Nebius Sandbox"
-            isLast={true}
-          />
-        </div>
-      </section>
-
-      {/* System Status / Engine line */}
-      <footer className="w-full pt-4 border-t border-line flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-muted font-mono">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald" />
-          <span>System ready for repository scans</span>
-        </div>
-
-        <div>
-          <span>Powered by NVIDIA Nemotron on Nebius Token Factory</span>
-        </div>
-      </footer>
+      {/* USE-CASES SECTION — Detect / Fix / Verify with shared hairlines */}
+      <HowItWorksSection />
     </div>
   );
 };

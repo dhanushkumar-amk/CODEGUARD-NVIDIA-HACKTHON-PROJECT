@@ -21,27 +21,27 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-control transition-colors focus:outline-none focus:ring-2 focus:ring-azure/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+    'inline-flex items-center justify-center font-mono uppercase tracking-[0.08em] font-medium rounded-[6px] transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer select-none';
 
   const variants = {
-    // Primary: solid --azure background, white text, 4px radius, flat (no shadow)
+    // Primary: solid --primary (#8069FF) background, white text, mono uppercase tracked label, 6px radius, no shadow
     primary:
-      'bg-azure hover:bg-azure/90 text-white active:bg-azure/80',
-    // Secondary: --azure text, transparent bg, 1px --azure border
+      'bg-primary hover:bg-[#7057F5] active:bg-[#6045E6] text-white',
+    // Secondary: white/paper background, 1px --line border, --ink text, same mono label style, 6px radius
     secondary:
-      'text-azure bg-transparent border border-azure hover:bg-azure/5 active:bg-azure/10',
+      'bg-paper hover:bg-surface-1 active:bg-surface-2 text-ink border border-line',
     outline:
-      'bg-transparent hover:bg-surface-1 text-ink border border-line active:bg-surface-2',
+      'bg-transparent hover:bg-surface-1 active:bg-surface-2 text-ink border border-line',
     danger:
-      'bg-coral hover:bg-coral/90 text-white active:bg-coral/80',
+      'bg-coral hover:bg-coral/90 active:bg-coral/80 text-white',
     success:
-      'bg-emerald hover:bg-emerald/90 text-white active:bg-emerald/80',
+      'bg-emerald hover:bg-emerald/90 active:bg-emerald/80 text-white',
   };
 
   const sizes = {
-    sm: 'text-xs px-3 py-1.5 gap-1.5',
-    md: 'text-sm px-4 py-2 gap-2',
-    lg: 'text-base px-5 py-2.5 gap-2',
+    sm: 'text-[11px] px-3 py-1.5 gap-1.5',
+    md: 'text-xs px-4 py-2 gap-2',
+    lg: 'text-xs px-5 py-2.5 gap-2.5',
   };
 
   return (
@@ -51,7 +51,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {isLoading ? (
-        <Loader2 className="animate-spin" size={size === 'sm' ? 14 : size === 'lg' ? 20 : 16} />
+        <Loader2 className="animate-spin" size={size === 'sm' ? 13 : size === 'lg' ? 18 : 15} />
       ) : (
         leftIcon
       )}

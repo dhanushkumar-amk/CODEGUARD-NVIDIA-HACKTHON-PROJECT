@@ -8,42 +8,50 @@ export default {
     extend: {
       fontFamily: {
         sans: ['"Public Sans"', 'system-ui', '-apple-system', 'sans-serif'],
-        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
       colors: {
-        paper: '#FBFAF7',
-        ink: '#14171F',
-        line: '#E3DFD6',
-        azure: '#2457C5',
-        violet: '#6D4AFF',
-        amber: '#F2A93C',
-        emerald: '#1F9D55',
+        paper: '#FDFCF9',
+        ink: '#15171C',
+        muted: '#6B7280',
+        line: '#E7E3DC',
+        primary: {
+          DEFAULT: '#8069FF',
+          hover: '#7057F5',
+        },
+
+        // Legacy semantic mappings mapped to primary
+        azure: '#8069FF',
+        violet: '#8069FF',
+
+        // Functional severity & status colors for Report page only
         coral: '#E0562F',
+        emerald: '#1F9D55',
+        amber: '#F2A93C',
 
         // Semantic bindings
-        background: '#FBFAF7',
-        foreground: '#14171F',
-        border: '#E3DFD6',
-        primary: '#2457C5',
-        destructive: '#E0562F',
-        muted: '#6C707A',
+        background: '#FDFCF9',
+        foreground: '#15171C',
+        border: '#E7E3DC',
 
         surface: {
-          0: '#FBFAF7',
-          1: '#F5F3EC',
-          2: '#EAE6DC',
+          0: '#FDFCF9',
+          1: '#F7F6F1',
+          2: '#EEEAE1',
         },
 
         severity: {
           critical: '#E0562F',
           high: '#F2A93C',
           medium: '#D48B22',
-          low: '#6C707A',
+          low: '#6B7280',
         },
       },
       borderRadius: {
-        control: '4px',
+        control: '6px',
+      },
+      letterSpacing: {
+        tracked: '0.08em',
       },
     },
   },

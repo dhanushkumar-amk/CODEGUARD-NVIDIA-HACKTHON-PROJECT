@@ -4,40 +4,34 @@
 
 :root {
   --font-sans: 'Public Sans', system-ui, -apple-system, sans-serif;
-  --font-serif: 'Source Serif 4', Georgia, serif;
   --font-mono: 'IBM Plex Mono', monospace;
 
-  /* Purposeful color tokens */
-  --paper: #FBFAF7;
-  --ink: #14171F;
-  --line: #E3DFD6;
-  --azure: #2457C5;
-  --violet: #6D4AFF;
-  --amber: #F2A93C;
-  --emerald: #1F9D55;
-  --coral: #E0562F;
+  /* Monad reference color tokens */
+  --paper: #FDFCF9;
+  --ink: #15171C;
+  --muted: #6B7280;
+  --line: #E7E3DC;
+  --primary: #8069FF;
 
-  /* Semantic aliases */
+  /* Semantic bindings */
   --background: var(--paper);
   --foreground: var(--ink);
   --border: var(--line);
-  --primary: var(--azure);
-  --destructive: var(--coral);
-  --muted: #6C707A;
 
-  --surface-0: #FBFAF7;
-  --surface-1: #F5F3EC;
-  --surface-2: #EAE6DC;
+  --surface-0: #FDFCF9;
+  --surface-1: #F7F6F1;
+  --surface-2: #EEEAE1;
 
+  /* Functional severity colors (strictly for Report page badges) */
   --severity-critical: #E0562F;
   --severity-high: #F2A93C;
   --severity-medium: #D48B22;
-  --severity-low: #6C707A;
+  --severity-low: #6B7280;
 
   --status-verified: #1F9D55;
   --status-unverified: #F2A93C;
   --status-failed: #E0562F;
-  --status-detected: #6C707A;
+  --status-detected: #6B7280;
 }
 
 * {
@@ -49,6 +43,9 @@
 body {
   font-family: var(--font-sans);
   background-color: var(--paper);
+  background-image: radial-gradient(rgba(21, 23, 28, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: fixed;
   color: var(--ink);
   min-height: 100vh;
   line-height: 1.6;
@@ -57,9 +54,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Tracked uppercase mono micro-label helper */
+.mono-label {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
 /* Selection */
 ::selection {
-  background: rgba(36, 87, 197, 0.15);
+  background: rgba(128, 105, 255, 0.18);
   color: var(--ink);
 }
 
