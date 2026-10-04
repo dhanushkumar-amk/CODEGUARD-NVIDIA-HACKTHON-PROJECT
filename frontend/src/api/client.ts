@@ -1,5 +1,6 @@
 import axios from 'axios';
 import {
+  CreatePRResponse,
   ProposedFix,
   ScanReport,
   ScanStartResponse,
@@ -53,5 +54,17 @@ export async function getVerification(scanId: string): Promise<VerificationResul
 /** Fetch the full consolidated audit report */
 export async function getReport(scanId: string): Promise<ScanReport> {
   const response = await apiClient.get<ScanReport>(`/api/report/${scanId}`);
+  return response.data;
+}
+
+/** Create a GitHub remediation branch and open a pull request */
+export async function createRemediationPR(
+  scanId: string,
+  repoUrl?: string
+): Promise<CreatePRResponse> {
+  const response = await apiClient.post<CreatePRResponse>(
+    `/api/report/${scanId}/create-pr`,
+    repoUrl ? { repo_url: repoUrl } : {}
+  );
   return response.data;
 }

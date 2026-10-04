@@ -15,9 +15,11 @@ import {
   Sparkles,
   GitPullRequest,
   AlertTriangle,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
-import { getReport } from '../api/client';
-import { ScanReport } from '../types';
+import { getReport, createRemediationPR } from '../api/client';
+import { ScanReport, CreatePRResponse } from '../types';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { ScoreReadout } from '../components/ScoreReadout';
@@ -30,6 +32,28 @@ export const Report: React.FC = () => {
   const [report, setReport] = useState<ScanReport | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCreatingPr, setIsCreatingPr] = useState<boolean>(false);
+  const [prResult, setPrResult] = useState<CreatePRResponse | null>(null);
+
+  const handleCreatePR = async () => {
+    if (!report || !report.scan_id || isCreatingPr) return;
+    setIsCreatingPr(true);
+    setPrResult(null);
+
+    try {
+      const result = await createRemediationPR(report.scan_id, report.repo_url);
+      setPrResult(result);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Failed to request remediation PR from backend';
+      setPrResult({
+        status: 'failed',
+        error: msg,
+      });
+    } finally {
+      setIsCreatingPr(false);
+    }
+  };
 
   useEffect(() => {
     if (!scanId) return;
@@ -406,24 +430,115 @@ export const Report: React.FC = () => {
       </section>
 
       {/* E. FOOTER ACTIONS */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 border border-line bg-paper rounded-[6px]">
-        <div className="text-xs text-muted">
-          Ready to open a GitHub pull request with verified remediations?
-        </div>
-        <div className="flex items-center gap-2">
-          <Link to="/">
-            <Button variant="secondary" size="md" leftIcon={<RotateCcw size={14} />}>
-              Scan another repo
-            </Button>
-          </Link>
-          <Button
-            variant="primary"
-            size="md"
-            leftIcon={<GitPullRequest size={14} />}
-            onClick={() => alert(`Pull Request branch ready with verified fixes for: ${report.repo_url}`)}
+      <div className="flex flex-col gap-3 p-4 border border-line bg-paper rounded-[6px]">
+        {/* Success Alert Banner */}
+        {prResult?.status === 'success' && prResult.pr_url && (
+          <div
+            data-testid="pr-success-banner"
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 bg-leaf/10 border border-leaf/30 rounded-[4px] text-ink"
           >
-            Create remediation PR
-          </Button>
+            <div className="flex items-start gap-2.5">
+              <CheckCircle2 size={18} className="text-leaf mt-0.5 shrink-0" />
+              <div>
+                <div className="text-sm font-semibold text-leaf">
+                  Pull Request Created Successfully!
+                </div>
+                <div className="text-xs text-muted mt-0.5">
+                  Committed verified remediations across{' '}
+                  <span className="font-semibold text-ink">
+                    {prResult.files_changed || 1} file{prResult.files_changed === 1 ? '' : 's'}
+                  </span>
+                  .
+                </div>
+              </div>
+            </div>
+            <a
+              href={prResult.pr_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="pr-success-link"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-leaf text-paper font-medium text-xs rounded-[4px] hover:bg-leaf/90 transition-colors shrink-0"
+            >
+              <span>View Pull Request</span>
+              <ExternalLink size={12} />
+            </a>
+          </div>
+        )}
+
+        {/* Failure Alert Banner */}
+        {prResult?.status === 'failed' && (
+          <div
+            data-testid="pr-error-banner"
+            className="flex items-start gap-2.5 p-3.5 bg-coral/10 border border-coral/30 rounded-[4px] text-ink"
+          >
+            <AlertTriangle size={18} className="text-coral mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <div className="text-sm font-semibold text-coral">
+                Could not create remediation PR
+              </div>
+              <div className="text-xs text-muted mt-0.5 break-words">
+                {prResult.error || 'An unexpected error occurred while communicating with GitHub.'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="text-xs text-muted">
+            {prResult?.status === 'success' ? (
+              <span className="text-leaf flex items-center gap-1.5">
+                <CheckCircle2 size={13} /> Remediation branch and PR are live on GitHub.
+              </span>
+            ) : (
+              'Ready to open a GitHub pull request with verified remediations?'
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/">
+              <Button
+                variant="secondary"
+                size="md"
+                leftIcon={<RotateCcw size={14} />}
+                data-testid="scan-another-repo-btn"
+              >
+                Scan another repo
+              </Button>
+            </Link>
+            {prResult?.status === 'success' && prResult.pr_url ? (
+              <a
+                href={prResult.pr_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex"
+              >
+                <Button
+                  variant="primary"
+                  size="md"
+                  leftIcon={<ExternalLink size={14} />}
+                  data-testid="view-pr-btn"
+                >
+                  View Pull Request
+                </Button>
+              </a>
+            ) : (
+              <Button
+                variant="primary"
+                size="md"
+                leftIcon={
+                  isCreatingPr ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <GitPullRequest size={14} />
+                  )
+                }
+                disabled={isCreatingPr}
+                onClick={handleCreatePR}
+                data-testid="create-remediation-pr-btn"
+              >
+                {isCreatingPr ? 'Creating PR...' : 'Create remediation PR'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>

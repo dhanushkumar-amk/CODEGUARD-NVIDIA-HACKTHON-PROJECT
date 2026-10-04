@@ -1,12 +1,22 @@
 """
 Report Router: Endpoints to retrieve full accessibility audit and verification reports.
 """
+import logging
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel
+
 from app.models.schemas import ScanReport
 from app.services.aggregator_service import build_scan_report
 from app.state import get_scan
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(tags=["Reports"])
+
+
+class CreatePRRequest(BaseModel):
+    repo_url: Optional[str] = None
 
 
 @router.get(
@@ -108,3 +118,34 @@ async def download_scan_report(scan_id: str):
         media_type="text/html; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post(
+    "/{scan_id}/create-pr",
+    summary="Create a remediation branch and open a real GitHub pull request with verified fixes",
+)
+async def create_pr_endpoint(scan_id: str, payload: Optional[CreatePRRequest] = None) -> Dict[str, Any]:
+    """
+    Creates a dedicated GitHub remediation branch off the default/base branch,
+    commits all verified accessibility fixes, and opens a real pull request.
+    Returns:
+        {"pr_url": str, "files_changed": int, "status": "success"} or
+        {"status": "failed", "error": <clear message>}
+    """
+    scan = get_scan(scan_id)
+    repo_url = None
+    if payload and payload.repo_url:
+        repo_url = payload.repo_url
+    elif scan and scan.get("repo_url"):
+        repo_url = scan.get("repo_url")
+
+    if not repo_url:
+        return {
+            "status": "failed",
+            "error": f"No repository URL found for scan '{scan_id}'.",
+        }
+
+    from app.services.github_service import create_remediation_pr
+
+    result = create_remediation_pr(repo_url=repo_url, scan_id=scan_id)
+    return result

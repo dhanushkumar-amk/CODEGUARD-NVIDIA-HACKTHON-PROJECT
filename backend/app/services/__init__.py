@@ -116,6 +116,14 @@ from app.services.report_formatter_service import (
     format_report_as_html,
     save_report_files,
 )
+from app.services.github_service import (
+    parse_github_repo,
+    get_github_client,
+    create_remediation_branch,
+    commit_verified_fixes,
+    open_pull_request,
+    create_remediation_pr,
+)
 
 __all__ = [
     "call_nemotron",
@@ -200,4 +208,10 @@ __all__ = [
     "format_report_as_markdown",
     "format_report_as_html",
     "save_report_files",
+    "parse_github_repo",
+    "get_github_client",
+    "create_remediation_branch",
+    "commit_verified_fixes",
+    "open_pull_request",
+    "create_remediation_pr",
 ]

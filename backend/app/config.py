@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     SANDBOX_MAX_CONCURRENT: int = 3
     NPM_INSTALL_TIMEOUT_SECONDS: int = 180
 
+    # GitHub Integration
+    GITHUB_TOKEN: str = ""
+
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:5173",

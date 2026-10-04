@@ -166,3 +166,14 @@ export interface WebSocketMessage {
   data?: Record<string, any> | null;
   timestamp?: string;
 }
+
+export interface CreatePRRequest {
+  repo_url?: string;
+}
+
+export interface CreatePRResponse {
+  pr_url?: string;
+  files_changed?: number;
+  status: 'success' | 'failed';
+  error?: string;
+}
