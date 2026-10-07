@@ -104,9 +104,12 @@ def _get_headers() -> Dict[str, str]:
     """Retrieve auth and content headers for Nebius Sandbox API calls."""
     api_key = settings.NEBIUS_SANDBOX_API_KEY
     if not api_key or not api_key.strip() or api_key == "your_nebius_sandbox_api_key_here":
+        api_key = settings.NEBIUS_TOKEN_FACTORY_API_KEY
+
+    if not api_key or not api_key.strip() or api_key == "your_nebius_sandbox_api_key_here":
         raise SandboxAuthenticationError(
-            "NEBIUS_SANDBOX_API_KEY is not configured. "
-            "Please provide a valid API key in backend/.env"
+            "NEBIUS_SANDBOX_API_KEY (or NEBIUS_TOKEN_FACTORY_API_KEY) is not configured. "
+            "Please provide a valid API key in environment variables."
         )
     return {
         "Authorization": f"Bearer {api_key.strip()}",
