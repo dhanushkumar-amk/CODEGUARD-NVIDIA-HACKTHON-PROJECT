@@ -27,9 +27,14 @@ app = FastAPI(
 # -------------------------------------------------------------------------
 # CORS Configuration
 # -------------------------------------------------------------------------
+# Permissive origin regex for Vercel / Netlify preview & production deployments (*.vercel.app, *.netlify.app)
+# alongside explicitly configured allowed_origins (production domain + localhost ports)
+ALLOWED_ORIGIN_REGEX = r"^https:\/\/.*(\.vercel\.app|\.netlify\.app)$"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

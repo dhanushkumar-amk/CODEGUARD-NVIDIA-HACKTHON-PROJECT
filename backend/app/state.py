@@ -1,6 +1,30 @@
 """
 In-memory state store for CodeGuard.
 Tracks active scans, progress states, mock remediation data, and final audit reports.
+
+=============================================================================
+PRODUCTION / ARCHITECTURAL SAFETY NOTE & KNOWN LIMITATIONS:
+=============================================================================
+- Design Choice:
+  This module utilizes a process-local in-memory Python dictionary (`scans`)
+  to store scan jobs, progress, violation states, and sandbox references.
+  This architecture provides zero-dependency, ultra-fast, ephemeral execution
+  tailored specifically for hackathon evaluation and single-instance serverless
+  demo deployments.
+
+- Known Limitations (Hackathon Demo vs Production):
+  1. Single Instance Only: Does not support horizontal multi-instance scaling.
+     All requests (REST and WebSocket) must route to the same container instance.
+  2. Ephemeral Persistence: Container restarts, deployments, or cold-start
+     recycles will reset active in-memory scan history.
+  3. Memory Growth: In long-running processes without TTL eviction, scan
+     dictionaries remain resident in memory.
+
+- Production Roadmap:
+  For enterprise multi-tenant production, replace this module with:
+  - Redis / Valkey for distributed job locking, pub/sub WebSocket channels, and TTL caching.
+  - PostgreSQL / Managed SQL for persistent audit history, reports, and tenant isolation.
+=============================================================================
 """
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -15,6 +39,9 @@ from app.models.schemas import (
 )
 
 # Global in-memory dictionary storing all scan jobs
+# NOTE: In-memory dictionary storage is a known design trade-off suitable for this hackathon
+# single-instance demo (ephemeral persistence, no horizontal scaling, resets on container restart).
+# For multi-tenant production deployments, this should be backed by Redis and PostgreSQL.
 # Structure: scan_id -> dict with 'repo_url', 'branch', 'status', 'violations', 'fixes', etc.
 scans: Dict[str, Dict[str, Any]] = {}
 

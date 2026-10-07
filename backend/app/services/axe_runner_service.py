@@ -23,10 +23,18 @@ logger = logging.getLogger(__name__)
 # Cache of sandbox IDs where Playwright & Chromium installation has succeeded
 _playwright_installed_sandboxes: Set[str] = set()
 
-# Path to the bundled run-axe-check.js script
-AXE_SCRIPT_PATH = (
-    Path(__file__).resolve().parent.parent.parent.parent / "sandbox-scripts" / "run-axe-check.js"
-)
+def _resolve_axe_script_path() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent.parent / "resources" / "run-axe-check.js",
+        Path(__file__).resolve().parent.parent.parent / "sandbox-scripts" / "run-axe-check.js",
+        Path(__file__).resolve().parent.parent.parent.parent / "sandbox-scripts" / "run-axe-check.js",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+AXE_SCRIPT_PATH = _resolve_axe_script_path()
 
 
 async def _notify_axe_progress(scan_id: Optional[str], progress: int = 50) -> None:

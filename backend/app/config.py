@@ -66,6 +66,10 @@ class Settings(BaseSettings):
         origins = list(self.CORS_ORIGINS) if isinstance(self.CORS_ORIGINS, list) else [self.CORS_ORIGINS]
         if self.FRONTEND_ORIGIN and self.FRONTEND_ORIGIN not in origins:
             origins.append(self.FRONTEND_ORIGIN)
+        # Guarantee local development origins remain accessible for hybrid local/cloud testing
+        for dev_origin in ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"]:
+            if dev_origin not in origins:
+                origins.append(dev_origin)
         return origins
 
     model_config = SettingsConfigDict(
