@@ -1,135 +1,244 @@
 # CodeGuard 🛡️
 
-CodeGuard is an autonomous AI agent that proactively scans codebases for digital accessibility (a11y) violations, generates WCAG-compliant fixes using NVIDIA Nemotron models via Nebius Token Factory, and validates each remediation inside isolated Nebius sandboxes using axe-core and the project's existing test suite before proposing pull requests.
+> **Autonomous AI Accessibility Remediation Agent powered by NVIDIA Nemotron & Nebius AI Cloud.**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18.0+-61DAFB.svg)](https://reactjs.org)
+[![NVIDIA Nemotron](https://img.shields.io/badge/NVIDIA-Nemotron--3.5--Lightning%20%7C%20Nemotron--3--Ultra-76B900.svg)](https://developer.nvidia.com)
+[![Nebius Token Factory](https://img.shields.io/badge/Nebius-Token%20Factory-6C5CE7.svg)](https://nebius.com)
 
 ---
 
-## 🏗️ Repository Architecture
+## 🎬 Demo Walkthrough
+
+![CodeGuard Demo](./docs/demo.gif)
+*Watch CodeGuard autonomously scan a frontend repository, stream real-time violation diagnosis, verify patches inside an isolated Nebius sandbox, and open an automated GitHub Pull Request.*
+
+---
+
+## 💡 What It Does
+
+**CodeGuard** is an autonomous accessibility agent designed to eliminate digital accessibility barriers directly within software development workflows. When provided with a public Git repository URL, CodeGuard executes an end-to-end audit, remediation, and verification pipeline:
+
+1. **Intelligent Ingestion & Scanning**: CodeGuard performs a lightweight shallow clone of the target repository, discovers all user interface files (`.tsx`, `.jsx`, `.html`, `.vue`, `.svelte`), and constructs token-efficient abstract syntax batches. Using **NVIDIA Nemotron 3.5 Lightning**, it rapidly audits hundreds of code blocks in parallel against the **WCAG 2.2 AA** specification, flagging unlabeled form elements, missing alternative text, broken focus traps, keyboard accessibility failures, and color contrast defects.
+2. **Contextual Diagnosis & Patch Synthesis**: For critical accessibility violations, CodeGuard routes the problematic code to **NVIDIA Nemotron 3 Ultra (550B)**. The model analyzes component hierarchy, state management, and user interaction patterns to synthesize clean, idiomatic code remediations, generating exact unified git diffs rather than generic advice.
+3. **Isolated Sandbox Verification & PR Automation**: Rather than blindly proposing code modifications, CodeGuard spins up an isolated **Nebius AI Cloud Sandbox**. Inside this microVM, it applies the synthesized patch, executes `@axe-core/playwright`, and runs the project's native test suite to verify that the accessibility defect was eliminated without causing functional regressions. Once verified, CodeGuard generates comprehensive HTML/Markdown audit reports and can automatically create a verified remediation branch and GitHub Pull Request.
+
+---
+
+## 🌍 Why It Matters
+
+Over **1.3 billion people** worldwide—approximately 16% of the global population—live with significant disabilities. Despite clear international legal standards (such as Section 508 and the European Accessibility Act), **96% of the world's top one million websites fail basic accessibility checks** ([WebAIM Million](https://webaim.org/projects/million/)).
+
+Most development teams want to build inclusive software, but traditional accessibility tooling creates severe bottlenecks:
+- **Linting tools** (e.g., `eslint-plugin-jsx-a11y`) only identify static syntax errors and cannot fix them or understand dynamic component interactions.
+- **Manual accessibility audits** cost tens of thousands of dollars, take weeks to complete, and produce lengthy PDF reports that quickly become outdated.
+- **Generic AI code assistants** frequently produce hallucinated patches that break unit tests or introduce subtle regressions.
+
+CodeGuard transforms digital accessibility from a painful, manual compliance chore into an autonomous, continuous engineering workflow—ensuring the web becomes accessible to everyone, by default.
+
+---
+
+## ⚡ How It Uses Nebius Token Factory
+
+CodeGuard implements a tiered, cost-optimized LLM orchestration architecture powered by **Nebius Token Factory**:
+
+- **High-Throughput AST Triage via Nemotron 3.5 Lightning**:
+  - Priced at just **$0.06 / 1M input tokens** and **$0.24 / 1M output tokens**, Lightning performs rapid AST batch evaluation, rule classification, and violation scoring across dozens of files simultaneously with sub-second Time-to-First-Token (TTFT).
+- **Deep Contextual Remediation via Nemotron 3 Ultra (550B)**:
+  - Complex accessibility challenges (such as accessible focus trapping, keyboard navigation for custom tablists, and dynamic ARIA live regions) require deep multi-step reasoning. CodeGuard routes these high-severity items to Nemotron 3 Ultra to synthesize production-ready unified diffs.
+- **Strict In-Memory Budget Guardrails**:
+  - Each scan session is protected by strict budget limits (`ULTRA_MAX_CALLS_PER_SCAN=10` and `ULTRA_BUDGET_USD_PER_SCAN=$0.05`). If the threshold is reached, CodeGuard gracefully falls back to the fast tier, guaranteeing zero unexpected credit drain.
+- **Real-World Cost Efficiency**:
+  - In our Phase 28 rehearsal scanning **65 frontend files** across **90 batch chunks**, CodeGuard completed the entire end-to-end scan and remediation generation for a total LLM cost of just **$0.0412 (~4.1¢)**.
+
+---
+
+## 🔒 How It Uses Nebius AI Cloud Sandboxes
+
+The **isolated verification loop** is CodeGuard's core differentiator:
+
+```
+[Synthesize Patch] ──► [Spin Up Nebius Sandbox] ──► [Apply Git Patch]
+                                                            │
+[Pass Verification] ◄── [Run Repository Test Suite] ◄── [Run axe-core]
+        │
+[Open GitHub PR / Export Report]
+```
+
+Executing untrusted, newly patched frontend code directly on host infrastructure is dangerous and unreliable. CodeGuard provisions ephemeral **Nebius AI Cloud Sandboxes** (containerized microVM environments) managed via Python asynchronous context managers:
+1. **Isolated Execution**: Clones the remediation target in a sandboxed container, ensuring untrusted repository code never touches host processes.
+2. **Automated axe-core Validation**: Executes headless browser audits inside the sandbox to empirically prove the WCAG violation has been resolved.
+3. **Regression Prevention**: Automatically triggers the repository's native test suite (e.g. `npm test`, `jest`, `vitest`) to verify that the accessibility patch did not break existing application behavior.
+4. **Guaranteed Teardown**: Sandbox destruction is enforced inside `finally` blocks upon test completion or error, preventing idle compute leakage.
+
+---
+
+## 🧠 NVIDIA Nemotron Models Used
+
+CodeGuard relies on the following official model endpoints hosted on Nebius Token Factory (configured in [`backend/app/config.py`](backend/app/config.py)):
+
+| Purpose | Model ID | Capabilities |
+| :--- | :--- | :--- |
+| **Fast Scanning & Triage** | `nvidia/Nemotron-3_5-Lightning` | High-throughput parsing, WCAG rule categorization, rapid token streaming |
+| **Deep Reasoning & Fixes** | `nvidia/Nemotron-3-Ultra-550b-a55b` | 550B parameter deep reasoning, stateful ARIA logic, unified diff generation |
+
+---
+
+## 🏛️ Architecture
+
+For complete system design, data flow diagrams, and schema specifications, refer to [**docs/architecture.md**](docs/architecture.md).
 
 ```text
-codeguard/
-├── backend/                 # Python FastAPI service (agent logic & orchestration)
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py           # FastAPI entrypoint & CORS configuration
-│   │   ├── config.py         # Settings & environment configuration
-│   │   ├── routers/          # API route handlers
-│   │   ├── services/         # Agent workflows, scanner, & LLM clients
-│   │   └── models/           # Pydantic data schemas
-│   ├── tests/                # Pytest suite
-│   ├── requirements.txt      # Python dependencies
-│   ├── .env.example          # Environment variables template
-│   └── Dockerfile            # Container definition
-├── frontend/                 # React 18 + TypeScript + Vite web dashboard
-│   ├── src/
-│   │   ├── components/       # Reusable UI components
-│   │   ├── pages/            # View pages
-│   │   ├── api/              # Backend API client integration
-│   │   ├── App.tsx           # Application shell & health checker
-│   │   └── main.tsx          # React application root
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
-├── sandbox-scripts/          # Execution scripts for Nebius sandboxes (axe-core test runners)
-├── docs/
-│   ├── architecture.md       # Detailed technical design & agent flow
-│   └── README.md             # Documentation overview
-├── .gitignore
-├── LICENSE                   # MIT License
-└── README.md
+┌────────────────────────────────────────────────────────┐
+│               React 18 + Vite Dashboard                │
+│    (Live WebSocket progress, Diff viewer, PR trigger)  │
+└───────────────────────────▲────────────────────────────┘
+                            │ WebSocket / REST
+┌───────────────────────────▼────────────────────────────┐
+│                  FastAPI Backend Server                │
+│  ┌───────────────────────┐   ┌───────────────────────┐ │
+│  │ Git Ingestion Service │   │ Aggregator & Scanner  │ │
+│  └───────────────────────┘   └───────────────────────┘ │
+│  ┌───────────────────────┐   ┌───────────────────────┐ │
+│  │ Fixer & Diff Engine   │   │ Report & PR Generator │ │
+│  └───────────────────────┘   └───────────────────────┘ │
+└─────────────▲─────────────────────────────▲────────────┘
+              │                             │
+┌─────────────▼─────────────┐ ┌─────────────▼────────────┐
+│   Nebius Token Factory    │ │ Nebius AI Cloud Sandbox  │
+│  - Nemotron 3.5 Lightning │ │  - Ephemeral Container   │
+│  - Nemotron 3 Ultra 550B  │ │  - axe-core + Playwright │
+│  - Budget Guardrails      │ │  - Native Test Runner    │
+└───────────────────────────┘ └──────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quickstart & Local Setup
+## 🌐 Live Demo & Deployments
+
+- **Deployed Web Dashboard**: [https://codeguard.dhanushkumar.in/](https://codeguard.dhanushkumar.in/)
+- **Live Backend API**: [https://codeguard-backend-6pg4.onrender.com](https://codeguard-backend-6pg4.onrender.com)
+- **API Health Check**: [https://codeguard-backend-6pg4.onrender.com/health](https://codeguard-backend-6pg4.onrender.com/health)
+- **Interactive Swagger Docs**: [https://codeguard-backend-6pg4.onrender.com/docs](https://codeguard-backend-6pg4.onrender.com/docs)
+- **Live WebSocket Endpoint**: `wss://codeguard-backend-6pg4.onrender.com/ws/{scan_id}`
+- **Automated Pull Request Generated by CodeGuard**: [GitHub PR #2](https://github.com/dhanushkumar-amk/CODEGUARD-NVIDIA-HACKTHON-PROJECT/pull/2)
+
+---
+
+## 💻 Setup Instructions
+
+Follow these steps to run CodeGuard locally.
 
 ### Prerequisites
 - **Python 3.11+**
-- **Node.js 18+** & **npm** / **pnpm**
-- (Optional) Docker & Git
+- **Node.js 18+** & **npm**
+- **Git**
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/dhanushkumar-amk/CODEGUARD---NVIDIA-HACKTHON-PROJECT.git
+cd CODEGUARD---NVIDIA-HACKTHON-PROJECT
+```
+
+### 2. Backend Setup (FastAPI)
+```bash
+cd backend
+
+# Create and activate virtual environment
+# Windows (PowerShell):
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# Linux / macOS:
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment variables
+cp .env.example .env
+```
+
+Edit `backend/.env` with your API credentials (refer to `backend/.env.example` and `backend/.env.production.example` for reference):
+```env
+NEBIUS_TOKEN_FACTORY_API_KEY=your_nebius_api_key_here
+NEBIUS_SANDBOX_API_KEY=your_sandbox_api_key_here  # optional, mock fallback active by default
+GITHUB_TOKEN=your_personal_access_token_here      # required for automated PR creation
+```
+
+Start the backend server:
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+Verify the backend is live at [http://localhost:8000/health](http://localhost:8000/health).
+
+### 3. Frontend Setup (React + Vite)
+In a new terminal window:
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Configure environment variables
+cp .env.example .env
+
+# Start Vite development server
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### 4. Running the Test Suites
+```bash
+# Run backend pytest suite
+cd backend
+pytest -v
+
+# Run frontend test suite
+cd frontend
+npm test
+```
 
 ---
 
-### 1. Backend Setup (FastAPI)
+## 🛠️ Tech Stack
 
-1. Navigate to the `backend/` directory:
-   ```bash
-   cd backend
-   ```
+Extracted from [**docs/tech-stack.md**](docs/tech-stack.md):
 
-2. Create and activate a Python virtual environment:
-   ```bash
-   # Windows (PowerShell)
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1
-
-   # Linux / macOS
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Create your local `.env` configuration:
-   ```bash
-   # Windows (PowerShell)
-   Copy-Item .env.example .env
-
-   # Linux / macOS
-   cp .env.example .env
-   ```
-
-5. Start the backend development server:
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-6. Verify backend health:
-   - Visit [http://localhost:8000/health](http://localhost:8000/health) or [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI).
-   - Expected output: `{"status": "ok"}`
+- **Backend**: Python 3.11, FastAPI, Pydantic v2, Uvicorn, GitPython, Tenacity (retry handling), HTTPX
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Recharts, Lucide React
+- **AI & Inference**: Nebius Token Factory, NVIDIA Nemotron 3.5 Lightning, NVIDIA Nemotron 3 Ultra (550B)
+- **Verification & Sandboxing**: Nebius AI Cloud Sandboxes, Playwright, `@axe-core/playwright`, Headless Chromium
+- **Real-time Protocol**: Native WebSockets for low-latency pipeline streaming
 
 ---
 
-### 2. Frontend Setup (React + Vite + TypeScript)
+## 🔍 Known Limitations
 
-1. In a new terminal, navigate to the `frontend/` directory:
-   ```bash
-   cd frontend
-   ```
+We believe in complete engineering honesty. The following real-world limitations were documented during our Phase 28 rehearsal:
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the Vite development server:
-   ```bash
-   npm run dev
-   ```
-
-4. Open your browser:
-   - Visit [http://localhost:5173](http://localhost:5173)
-   - CodeGuard will automatically ping the backend `/health` endpoint to verify live connectivity.
+1. **In-Memory Scan State**:
+   - Scan jobs, token counters, and progress states are maintained in-memory on the backend process. If the server restarts, historical scan state is cleared. *(Production roadmap: Redis + PostgreSQL persistence).*
+2. **Heading-Order Violations Require Holistic Review**:
+   - While CodeGuard flags heading skips (`<h1>` directly followed by `<h3>`), remediating global heading hierarchy across multiple decoupled components often requires site-wide layout refactoring rather than local single-file patches.
+3. **GitHub Pull Request Creation Requires Repository Write Permissions**:
+   - Automated PR creation relies on a GitHub Personal Access Token (`GITHUB_TOKEN`). CodeGuard can only push remediation branches and open PRs on repositories where the token has write/collaborator permissions. Scans on foreign or read-only repos still provide full reports and downloadable diffs.
+4. **Sandbox Dependency Installation Overhead**:
+   - In environments without pre-warmed container snapshots, running `npm install` inside fresh sandboxes introduces latency before test verification commences.
 
 ---
 
-## ⚡ Built with Nebius Token Factory & NVIDIA Nemotron
+## 🚀 What We'd Build Next
 
-CodeGuard leverages cutting-edge enterprise AI inference and secure execution infrastructure:
-
-- **NVIDIA Nemotron Models**:
-  - `nvidia/nemotron-4-340b-instruct` / Ultra models for multi-step reasoning, WCAG guideline analysis, and code synthesis.
-  - `nvidia/nemotron-mini-4b-instruct` / Nano models for fast token-efficient pre-filtering and diff validation.
-- **Nebius Token Factory**:
-  - High-throughput, low-latency OpenAI-compatible API endpoints powering the Nemotron family of models.
-- **Nebius Isolated Sandboxes**:
-  - Ephemeral, secure microVM environments executing axe-core accessibility scanners, headless browser runs, and localized regression test suites to guarantee zero regression before submitting patches.
+1. **Persistent Multi-Tenant Storage & Dashboard**: Integrate PostgreSQL and Redis to persist audit logs, track team compliance scores over time, and support multi-tenant organizations.
+2. **CI/CD GitHub Action & Pre-Commit Hook**: Package CodeGuard as a native GitHub Action to automatically fail pull requests that introduce new WCAG 2.2 AA violations before code merges.
+3. **Dynamic Multimodal Accessibility**: Expand beyond static markup to evaluate live audio/video closed captions, dynamic internationalization (i18n) screen-reader announcements, and animated motion reduction (`prefers-reduced-motion`).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT — see [LICENSE](LICENSE).

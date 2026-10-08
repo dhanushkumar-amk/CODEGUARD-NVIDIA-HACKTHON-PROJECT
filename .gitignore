@@ -92,6 +92,11 @@ Thumbs.db
 logs/
 *.log
 
-# Temp / Sandboxes
+# Temp / Sandboxes / Reports
 tmp/
 scratch/
+temp_clones/
+backend/temp_clones/
+generated_reports/
+backend/generated_reports/
+*.tmp
