@@ -137,6 +137,16 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             except Exception as bg_err:
                 logger.error(f"Error during background violation pipeline for {scan_id}: {bg_err}", exc_info=True)
                 await cleanup_scan_sandboxes(scan_id)
+                try:
+                    from app.routers.websocket import broadcast_progress
+                    await broadcast_progress(
+                        scan_id=scan_id,
+                        stage="error",
+                        progress=0,
+                        message=f"Pipeline error: {str(bg_err)}",
+                    )
+                except Exception:
+                    pass
 
         asyncio.create_task(run_detection_pipeline())
 

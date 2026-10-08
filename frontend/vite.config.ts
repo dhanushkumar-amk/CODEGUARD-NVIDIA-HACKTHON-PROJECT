@@ -8,12 +8,15 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: process.env.VITE_API_BASE_URL || 'https://codeguard-backend-6pg4.onrender.com',
         changeOrigin: true,
+        secure: false,
       },
       '/ws': {
-        target: 'ws://localhost:8000',
+        target: process.env.VITE_WS_BASE_URL || 'wss://codeguard-backend-6pg4.onrender.com',
         ws: true,
+        changeOrigin: true,
+        secure: false,
       },
     },
   },

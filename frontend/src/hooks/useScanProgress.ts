@@ -96,7 +96,7 @@ export function useScanProgress(scanId?: string): UseScanProgressState {
               }
             }
 
-            if (payload.stage === 'complete' || payload.stage === 'completed' || payload.progress >= 100) {
+            if (payload.stage === 'complete' || payload.stage === 'completed') {
               isCompletedRef.current = true;
               setIsCompleted(true);
             }

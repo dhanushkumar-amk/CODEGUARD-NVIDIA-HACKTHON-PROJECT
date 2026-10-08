@@ -237,32 +237,37 @@ export const Report: React.FC = () => {
         </div>
 
         {/* Global Action Buttons */}
-        <div className="flex items-center flex-wrap gap-2">
-          <a
-            href={`/api/report/${report.scan_id}/download`}
-            download={`codeguard-report-${report.scan_id}.html`}
-            data-testid="download-report-btn"
-          >
-            <Button variant="secondary" size="sm" leftIcon={<Download size={13} />}>
-              Download report
-            </Button>
-          </a>
-          <a
-            href={`/api/report/${report.scan_id}/markdown`}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="view-markdown-btn"
-          >
-            <Button variant="secondary" size="sm" leftIcon={<FileText size={13} />}>
-              View as Markdown
-            </Button>
-          </a>
-          <Link to="/" data-testid="scan-another-repo-btn">
-            <Button variant="outline" size="sm" leftIcon={<RotateCcw size={13} />}>
-              Scan another repo
-            </Button>
-          </Link>
-        </div>
+        {(() => {
+          const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+          return (
+            <div className="flex items-center flex-wrap gap-2">
+              <a
+                href={`${apiBase}/api/report/${report.scan_id}/download`}
+                download={`codeguard-report-${report.scan_id}.html`}
+                data-testid="download-report-btn"
+              >
+                <Button variant="secondary" size="sm" leftIcon={<Download size={13} />}>
+                  Download report
+                </Button>
+              </a>
+              <a
+                href={`${apiBase}/api/report/${report.scan_id}/markdown`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="view-markdown-btn"
+              >
+                <Button variant="secondary" size="sm" leftIcon={<FileText size={13} />}>
+                  View as Markdown
+                </Button>
+              </a>
+              <Link to="/" data-testid="scan-another-repo-btn">
+                <Button variant="outline" size="sm" leftIcon={<RotateCcw size={13} />}>
+                  Scan another repo
+                </Button>
+              </Link>
+            </div>
+          );
+        })()}
       </div>
 
       {/* A. HERO SCORE SECTION */}

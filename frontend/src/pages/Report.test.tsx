@@ -296,10 +296,10 @@ describe('Report Page', () => {
     });
 
     const downloadLink = screen.getByTestId('download-report-btn');
-    expect(downloadLink).toHaveAttribute('href', '/api/report/scan_report_123/download');
+    expect(downloadLink.getAttribute('href')).toContain('/api/report/scan_report_123/download');
 
     const markdownLink = screen.getByTestId('view-markdown-btn');
-    expect(markdownLink).toHaveAttribute('href', '/api/report/scan_report_123/markdown');
+    expect(markdownLink.getAttribute('href')).toContain('/api/report/scan_report_123/markdown');
 
     const scanAnotherLink = screen.getByTestId('scan-another-repo-btn');
     expect(scanAnotherLink).toHaveAttribute('href', '/');
