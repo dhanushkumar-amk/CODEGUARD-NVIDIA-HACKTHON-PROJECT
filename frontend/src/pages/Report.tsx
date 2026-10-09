@@ -281,6 +281,22 @@ export const Report: React.FC = () => {
         branch={report.branch}
       />
 
+      {/* Notice: Sandbox verification unavailable */}
+      {report.overall_score_before == null && (
+        <div
+          data-testid="sandbox-unverified-banner"
+          className="p-3.5 rounded-[6px] bg-amber/10 border border-amber/20 flex items-start gap-2.5 text-amber text-left"
+        >
+          <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber" />
+          <div className="text-xs leading-relaxed">
+            <strong className="block font-semibold text-ink mb-0.5">
+              Fixes Proposed — Sandbox Verification Unavailable
+            </strong>
+            The isolated Nebius sandbox container was unavailable during this scan run. All {totalViolations} fixes were synthesized with NVIDIA Nemotron Ultra and grounded with WCAG 2.2 references, but are marked unverified until dynamic axe-core verification in an active sandbox container is executed.
+          </div>
+        </div>
+      )}
+
       {/* Edge Case Alert: All fixes failed notice */}
       {allFixesFailed && (
         <div

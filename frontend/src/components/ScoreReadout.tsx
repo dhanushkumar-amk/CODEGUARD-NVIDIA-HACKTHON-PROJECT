@@ -3,9 +3,9 @@ import { animate } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 
 export interface ScoreReadoutProps {
-  scoreBefore: number;
-  scoreAfter: number;
-  improvementPoints?: number;
+  scoreBefore?: number | null;
+  scoreAfter?: number | null;
+  improvementPoints?: number | null;
   executiveSummary?: string | null;
   repoUrl?: string;
   branch?: string;
@@ -22,19 +22,25 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
   const [animatedBefore, setAnimatedBefore] = useState<number>(0);
   const [animatedAfter, setAnimatedAfter] = useState<number>(0);
 
+  const isScoreAvailable = scoreBefore != null && scoreAfter != null;
+
   const calculatedDelta =
-    improvementPoints !== undefined
+    improvementPoints !== undefined && improvementPoints !== null
       ? improvementPoints
-      : Math.round((scoreAfter - scoreBefore) * 10) / 10;
+      : isScoreAvailable
+      ? Math.round(((scoreAfter ?? 0) - (scoreBefore ?? 0)) * 10) / 10
+      : null;
 
   useEffect(() => {
-    const controlsBefore = animate(0, scoreBefore, {
+    if (!isScoreAvailable) return;
+
+    const controlsBefore = animate(0, scoreBefore ?? 0, {
       duration: 1.0,
       ease: 'easeOut',
       onUpdate: (latest) => setAnimatedBefore(Math.round(latest)),
     });
 
-    const controlsAfter = animate(0, scoreAfter, {
+    const controlsAfter = animate(0, scoreAfter ?? 0, {
       duration: 1.3,
       ease: 'easeOut',
       onUpdate: (latest) => setAnimatedAfter(Math.round(latest)),
@@ -44,7 +50,7 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
       controlsBefore.stop();
       controlsAfter.stop();
     };
-  }, [scoreBefore, scoreAfter]);
+  }, [scoreBefore, scoreAfter, isScoreAvailable]);
 
   return (
     <div data-testid="hero-score-section" className="border border-line bg-paper p-6 text-left">
@@ -58,16 +64,22 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
         )}
       </div>
 
-      {/* Score numerals in bold Public Sans connected by primary hairline arrow */}
+      {/* Score numerals */}
       <div className="flex items-center gap-6 sm:gap-8 flex-wrap">
         {/* Before score */}
         <div data-testid="score-before-display">
           <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1">
             Before
           </div>
-          <div className="text-5xl sm:text-6xl font-sans font-bold text-coral tracking-tight leading-none">
-            {animatedBefore}<span className="text-3xl sm:text-4xl font-sans text-coral/80">%</span>
-          </div>
+          {isScoreAvailable ? (
+            <div className="text-5xl sm:text-6xl font-sans font-bold text-coral tracking-tight leading-none">
+              {animatedBefore}<span className="text-3xl sm:text-4xl font-sans text-coral/80">%</span>
+            </div>
+          ) : (
+            <div className="text-2xl sm:text-3xl font-sans font-bold text-muted tracking-tight leading-none">
+              Unavailable
+            </div>
+          )}
         </div>
 
         {/* Thin primary connecting line with arrow */}
@@ -81,17 +93,29 @@ export const ScoreReadout: React.FC<ScoreReadoutProps> = ({
           <div className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted mb-1">
             After
           </div>
-          <div className="text-5xl sm:text-6xl font-sans font-bold text-emerald tracking-tight leading-none">
-            {animatedAfter}<span className="text-3xl sm:text-4xl font-sans text-emerald/80">%</span>
-          </div>
+          {isScoreAvailable ? (
+            <div className="text-5xl sm:text-6xl font-sans font-bold text-emerald tracking-tight leading-none">
+              {animatedAfter}<span className="text-3xl sm:text-4xl font-sans text-emerald/80">%</span>
+            </div>
+          ) : (
+            <div className="text-2xl sm:text-3xl font-sans font-bold text-amber tracking-tight leading-none">
+              Unverified
+            </div>
+          )}
         </div>
 
-        {/* Improvement points: pill */}
+        {/* Improvement points / Unverified pill */}
         <div
           data-testid="score-improvement-delta"
-          className="px-3 py-1.5 rounded-[6px] bg-emerald/10 border border-emerald/20 text-emerald font-mono font-bold text-sm sm:text-base self-center"
+          className={`px-3 py-1.5 rounded-[6px] font-mono font-bold text-sm sm:text-base self-center ${
+            isScoreAvailable
+              ? 'bg-emerald/10 border border-emerald/20 text-emerald'
+              : 'bg-amber/10 border border-amber/20 text-amber'
+          }`}
         >
-          {calculatedDelta >= 0 ? `+${calculatedDelta}` : calculatedDelta} points
+          {isScoreAvailable
+            ? (calculatedDelta! >= 0 ? `+${calculatedDelta}` : calculatedDelta) + ' points'
+            : 'Sandbox offline — Fixes unverified'}
         </div>
       </div>
 

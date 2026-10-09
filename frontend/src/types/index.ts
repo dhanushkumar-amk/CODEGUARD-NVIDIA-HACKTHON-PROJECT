@@ -143,8 +143,8 @@ export interface ScanReport {
   fixes: ProposedFix[];
   verification_results: VerificationResult[];
   unified_records?: UnifiedViolationRecord[];
-  overall_score_before: number;
-  overall_score_after: number;
+  overall_score_before?: number | null;
+  overall_score_after?: number | null;
   overall_improvement?: ScoreImprovement | null;
   summary?: any | null;
   executive_summary?: string | null;

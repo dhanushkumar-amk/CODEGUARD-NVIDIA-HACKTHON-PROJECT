@@ -219,6 +219,8 @@ def generate_mock_scan_data(scan_id: str, repo_url: str, branch: str = "main") -
         "violations": violations,
         "fixes": fixes,
         "verification_results": verification_results,
+        "overall_score_before": 62.5,
+        "overall_score_after": 100.0,
         "report": report,
         "base_sandbox_id": None,
         "verification_sandbox_ids": [],

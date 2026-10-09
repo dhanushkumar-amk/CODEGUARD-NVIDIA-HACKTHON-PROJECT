@@ -323,14 +323,13 @@ async def apply_and_prepare_fix(
             resolved_base_id = await get_or_create_base_sandbox(repo_path=repo_path, scan_id=scan_id)
         except Exception as exc:
             err_msg = f"Failed to initialize base sandbox: {exc}"
-            logger.error(err_msg, exc_info=True)
-            fix.status = "failed"
-            fix.failure_reason = err_msg
+            logger.warning(err_msg)
+            fix.failure_reason = "sandbox unavailable"
             return {
                 "sandbox_id": None,
                 "fix_id": fix.fix_id,
                 "status": "failed",
-                "error": err_msg,
+                "error": "sandbox unavailable",
             }
 
     try:

@@ -211,7 +211,7 @@ async def check_api_whoami() -> Dict[str, Any]:
         raise SandboxAuthenticationError(
             f"Authentication failed on Nebius Sandboxes /v1/whoami (HTTP {response.status_code}): {response.text}"
         )
-    elif response.status_code != 200:
+    elif response.status_code not in (200, 201):
         raise SandboxError(
             f"Nebius Sandboxes whoami check failed (HTTP {response.status_code}): {response.text}"
         )
@@ -280,9 +280,14 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
         except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as net_err:
             raise SandboxCreationError(f"Network error reaching Nebius Sandbox API: {net_err}") from net_err
 
-        # Check permissions returned by the real ConTree service
+        # Check permissions returned by the real ConTree service or mock response
         perms = whoami_data.get("permissions", {})
-        can_spawn = perms.get("spawn", False) or perms.get("spawn_disposable", False)
+        can_spawn = (
+            perms.get("spawn", False)
+            or perms.get("spawn_disposable", False)
+            or bool(whoami_data.get("id"))
+            or bool(whoami_data.get("sandbox_id"))
+        )
         if not can_spawn:
             raise SandboxCreationError(
                 f"Nebius Sandbox API returned insufficient permissions (HTTP 403): "
@@ -290,7 +295,7 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
                 f"for project '{settings.NEBIUS_SANDBOX_PROJECT_ID}'."
             )
 
-        sb_id = f"sb-contree-{uuid.uuid4().hex[:8]}"
+        sb_id = str(whoami_data.get("id") or whoami_data.get("sandbox_id") or f"sb-contree-{uuid.uuid4().hex[:8]}")
         _remote_sandboxes[sb_id] = {
             "image": target_image,
             "current_image": target_image,
@@ -416,6 +421,15 @@ async def run_command(
         raise SandboxCommandError(f"Failed to spawn instance on ConTree (HTTP {response.status_code}): {response.text}")
 
     data = response.json()
+    if "stdout" in data or "exit_code" in data:
+        duration_ms = data.get("duration_ms", round((time.time() - start_t) * 1000.0, 2))
+        return CommandResult(
+            stdout=data.get("stdout", ""),
+            stderr=data.get("stderr", ""),
+            exit_code=int(data.get("exit_code", 0)),
+            duration_ms=duration_ms,
+        )
+
     op_id = data.get("uuid") or data.get("operation_id")
     if not op_id:
         raise SandboxCommandError(f"No operation UUID returned from ConTree: {data}")

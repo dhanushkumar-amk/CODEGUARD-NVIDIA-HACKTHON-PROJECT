@@ -5,6 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.models.schemas import ProposedFix, TestRunResult
 from app.services.axe_runner_service import (
     ensure_playwright_installed,
@@ -22,6 +23,7 @@ from app.services.sandbox_client import (
     SandboxError,
     SandboxQuotaExceededError,
     SandboxTimeoutError,
+    create_sandbox,
     run_command,
     sandbox_session,
 )
