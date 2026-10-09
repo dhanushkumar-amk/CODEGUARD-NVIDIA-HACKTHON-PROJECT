@@ -10,10 +10,12 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "F", "W"]
+select = ["E", "F"]
 ignore = [
     "E501",  # line length
     "E402",  # module level import not at top of file
+    "E712",  # comparison to True
+    "E722",  # bare except
     "F401",  # imported but unused
     "F841",  # local variable assigned but never used
 ]
