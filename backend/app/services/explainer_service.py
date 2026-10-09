@@ -4,6 +4,7 @@ for accessibility violations using the fast Nemotron tier (Phase 15).
 Ensures every defect in the report has an accessible explanation for stakeholders.
 """
 import asyncio
+import json
 import logging
 import re
 from typing import Any, Dict, List, Optional

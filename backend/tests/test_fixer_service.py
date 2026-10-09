@@ -19,6 +19,14 @@ from app.services.fixer_service import (
 from app.state import create_scan, get_scan, update_scan
 
 
+@pytest.fixture(autouse=True)
+def mock_grounding():
+    """Ensure tests in test_fixer_service run isolated without external Tavily calls."""
+    with patch("app.services.fixer_service.get_guidance", new_callable=AsyncMock) as m_g:
+        m_g.return_value = None
+        yield
+
+
 @pytest.fixture
 def sample_diagnosed_violation() -> DiagnosedViolation:
     return DiagnosedViolation(

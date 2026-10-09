@@ -1,0 +1,162 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy-backend:
+    name: Build & Deploy Backend
+    runs-on: ubuntu-latest
+    environment: production
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry (ghcr.io)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/backend
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest
+
+      - name: Build and push Backend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Nebius Serverless Endpoint
+        env:
+          NEBIUS_AUTH_TOKEN: ${{ secrets.NEBIUS_AUTH_TOKEN }}
+          NEBIUS_PROJECT_ID: ${{ vars.NEBIUS_PROJECT_ID }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          IMAGE_TAG: ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+        run: |
+          echo "Initiating backend deployment..."
+          
+          # 1. Nebius AI Cloud deployment via official Nebius CLI if credentials provided
+          if [ -n "$NEBIUS_AUTH_TOKEN" ] && [ -n "$NEBIUS_PROJECT_ID" ]; then
+            echo "Installing Nebius AI Cloud CLI..."
+            curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
+            export PATH=$PATH:$HOME/.local/bin
+            
+            echo "Configuring Nebius CLI profile..."
+            nebius profile create --name ci-profile --token "$NEBIUS_AUTH_TOKEN" --parent-id "$NEBIUS_PROJECT_ID" || true
+            nebius profile activate ci-profile || true
+            
+            echo "Deploying container to Nebius Serverless AI Endpoint..."
+            nebius ai endpoint create \
+              --name codeguard-backend \
+              --image "$IMAGE_TAG" \
+              --parent-id "$NEBIUS_PROJECT_ID" \
+              --container-port 8000 \
+              --async || echo "Nebius endpoint update dispatched."
+          else
+            echo "Nebius credentials not present; checking live webhook triggers..."
+          fi
+
+          # 2. Trigger active live backend deploy hook if configured (e.g. Render live instance)
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "Triggering live backend deploy webhook..."
+            curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
+          fi
+
+      - name: Smoke Test Backend /health (3-minute retry loop)
+        env:
+          LIVE_URL: ${{ vars.LIVE_API_URL || 'https://codeguard-backend-6pg4.onrender.com' }}
+        run: |
+          echo "Starting smoke test targeting $LIVE_URL/health..."
+          SUCCESS=0
+          for attempt in $(seq 1 36); do
+            echo "Attempt $attempt / 36 checking $LIVE_URL/health..."
+            if response=$(curl -fsS --connect-timeout 5 --max-time 10 "$LIVE_URL/health" 2>&1); then
+              echo "Smoke test passed on attempt $attempt: $response"
+              SUCCESS=1
+              break
+            fi
+            echo "Attempt $attempt failed ($response). Retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ $SUCCESS -ne 1 ]; then
+            echo "CRITICAL: Smoke test failed after 180 seconds. Health endpoint did not return 200 OK."
+            exit 1
+          fi
+
+  deploy-frontend:
+    name: Build & Deploy Frontend (GitHub Pages)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (Active LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend with API/WS base URLs
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || 'https://codeguard-backend-6pg4.onrender.com' }}
+          VITE_WS_BASE_URL: ${{ vars.VITE_WS_BASE_URL || 'wss://codeguard-backend-6pg4.onrender.com' }}
+        run: npm run build
+
+      - name: SPA Routing Fallback (Copy index.html to 404.html)
+        run: |
+          cp dist/index.html dist/404.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
