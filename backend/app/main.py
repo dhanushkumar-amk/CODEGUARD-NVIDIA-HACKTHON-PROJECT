@@ -16,12 +16,25 @@ from app.routers.websocket import router as websocket_router
 from app.routers.test_llm import router as test_llm_router
 from app.routers.test_sandbox import router as test_sandbox_router
 
+from contextlib import asynccontextmanager
+from app.services.sandbox_client import validate_sandbox_credentials
+
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure required base URL, token, and project ID are present at startup
+    if settings.ENVIRONMENT != "test":
+        validate_sandbox_credentials()
+    yield
+
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="CodeGuard AI agent backend - a11y scanner and remediation pipeline with NVIDIA Nemotron & Nebius Sandboxes",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 # -------------------------------------------------------------------------

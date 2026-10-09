@@ -138,8 +138,8 @@ def link_violation_to_fix_and_verification(scan_id: str) -> List[Dict[str, Any]]
 def calculate_summary_stats(
     unified_records: List[Dict[str, Any]],
     scan_id: Optional[str] = None,
-    overall_score_before: float = 70.0,
-    overall_score_after: float = 70.0,
+    overall_score_before: Optional[float] = None,
+    overall_score_after: Optional[float] = None,
     start_time: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
@@ -148,7 +148,7 @@ def calculate_summary_stats(
     - Counts per severity label
     - Counts per taxonomy category
     - Overall fix success rate
-    - Score delta and improvement points
+    - Score delta and improvement points (None if sandbox unavailable)
     - Token spend and cost breakdown
     - Total duration in seconds
     """
@@ -193,7 +193,11 @@ def calculate_summary_stats(
         else 0.0
     )
 
-    improvement_points = round(overall_score_after - overall_score_before, 2)
+    improvement_points = (
+        round(overall_score_after - overall_score_before, 2)
+        if (overall_score_after is not None and overall_score_before is not None)
+        else None
+    )
 
     # Cost breakdown from LLM client tracker
     scan_stats = get_scan_usage_stats(scan_id) if scan_id else None
@@ -262,8 +266,10 @@ def build_scan_report(scan_id: str) -> ScanReport:
 
     repo_url = scan.get("repo_url", "https://github.com/example/demo-app")
     branch = scan.get("branch", "main")
-    overall_score_before = float(scan.get("overall_score_before", 70.0))
-    overall_score_after = float(scan.get("overall_score_after", overall_score_before))
+    raw_before = scan.get("overall_score_before")
+    raw_after = scan.get("overall_score_after")
+    overall_score_before = float(raw_before) if raw_before is not None else None
+    overall_score_after = float(raw_after) if raw_after is not None else None
 
     # 1. Link violations, fixes, and verification outcomes
     raw_unified = link_violation_to_fix_and_verification(scan_id)
@@ -280,10 +286,14 @@ def build_scan_report(scan_id: str) -> ScanReport:
     )
 
     cost_info = CostBreakdown(**summary["cost_breakdown"])
-    score_imp = ScoreImprovement(
-        score_before=overall_score_before,
-        score_after=overall_score_after,
-        improvement_points=summary["improvement_points"],
+    score_imp = (
+        ScoreImprovement(
+            score_before=overall_score_before,
+            score_after=overall_score_after,
+            improvement_points=summary["improvement_points"],
+        )
+        if (overall_score_before is not None and overall_score_after is not None)
+        else None
     )
 
     # Backward-compatible lists

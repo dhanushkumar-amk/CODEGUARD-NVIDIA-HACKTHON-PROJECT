@@ -31,9 +31,10 @@ class Settings(BaseSettings):
     FIX_GENERATION_MODEL: str = "ultra"
     FIX_MIN_SEVERITY: str = "medium"
 
-    # Nebius AI Cloud Sandbox Configuration
+    # Nebius AI Cloud Sandbox Configuration (ConTree)
     NEBIUS_SANDBOX_API_KEY: str = ""
-    NEBIUS_SANDBOX_BASE_URL: str = "https://api.tokenfactory.nebius.com/v1"
+    NEBIUS_SANDBOX_BASE_URL: str = "https://api.studio.nebius.com/sandboxes"
+    NEBIUS_SANDBOX_PROJECT_ID: str = ""
     NEBIUS_SANDBOX_DEFAULT_IMAGE: str = "node:20"
     SANDBOX_TIMEOUT_SECONDS: int = 120
     SANDBOX_MAX_CONCURRENT: int = 3

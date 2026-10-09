@@ -118,9 +118,15 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
 
                 stats = final_report.summary or {}
                 verified_count = stats.get("fixed_and_verified", 0)
+                unverified_count = stats.get("fixed_not_verified", 0)
                 total_violations = stats.get("total_violations", len(final_report.violations))
 
-                completion_msg = f"Scan complete — {verified_count} of {total_violations} violations fixed and verified"
+                if verified_count > 0:
+                    completion_msg = f"Scan complete — {verified_count} of {total_violations} violations fixed and verified"
+                elif unverified_count > 0:
+                    completion_msg = f"Scan complete — {unverified_count} of {total_violations} fixes proposed (unverified, sandbox unavailable)"
+                else:
+                    completion_msg = f"Scan complete — {total_violations} violations analyzed"
                 await broadcast_progress(
                     scan_id=scan_id,
                     stage="complete",

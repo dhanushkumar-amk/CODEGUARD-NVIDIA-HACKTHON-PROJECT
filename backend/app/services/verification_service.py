@@ -62,17 +62,18 @@ async def _notify_verification_progress(
         logger.debug(f"Failed to broadcast verification progress for {scan_id}: {exc}")
 
 
-async def get_baseline_score(scan_id: str, repo_path: str) -> float:
+async def get_baseline_score(scan_id: str, repo_path: str) -> Optional[float]:
     """
     Runs axe-core against the clean unmodified baseline sandbox ONCE per scan.
-    Caches the result in state.py under scan_id to avoid redundant expensive runs.
+    Caches the result in state.py under scan_id. If sandbox is unavailable, returns None
+    to permit graceful degradation without interrupting the pipeline.
 
     Args:
         scan_id: Unique scan job identifier.
         repo_path: Path to the local repository clone.
 
     Returns:
-        Baseline axe-core compliance score (0.0 - 100.0).
+        Baseline axe-core compliance score (0.0 - 100.0) or None if sandbox unavailable.
     """
     scan = get_scan(scan_id)
     cached_score = scan.get("overall_score_before") if scan else None
@@ -86,18 +87,30 @@ async def get_baseline_score(scan_id: str, repo_path: str) -> float:
         message="Computing baseline accessibility compliance score...",
     )
 
-    base_sandbox_id = await get_or_create_base_sandbox(repo_path=repo_path, scan_id=scan_id)
-    await ensure_playwright_installed(base_sandbox_id)
+    try:
+        base_sandbox_id = await get_or_create_base_sandbox(repo_path=repo_path, scan_id=scan_id)
+        await ensure_playwright_installed(base_sandbox_id)
 
-    axe_res = await run_axe_check(sandbox_id=base_sandbox_id, timeout=60, scan_id=scan_id)
-    baseline_score = float(axe_res.get("score") if axe_res.get("score") is not None else 70.0)
+        axe_res = await run_axe_check(sandbox_id=base_sandbox_id, timeout=60, scan_id=scan_id)
+        raw_score = axe_res.get("score")
+        baseline_score = float(raw_score) if raw_score is not None else 70.0
 
-    if scan:
-        scan["overall_score_before"] = baseline_score
-        scan["baseline_axe_violations"] = axe_res.get("violations", [])
+        if scan:
+            scan["overall_score_before"] = baseline_score
+            scan["baseline_axe_violations"] = axe_res.get("violations", [])
 
-    logger.info(f"Scan {scan_id} baseline score: {baseline_score}%")
-    return baseline_score
+        logger.info(f"Scan {scan_id} baseline score: {baseline_score}%")
+        return baseline_score
+    except Exception as exc:
+        logger.warning(
+            f"Unable to provision baseline sandbox or compute baseline score for {scan_id}: {exc}. "
+            "Sandbox verification is unavailable — degrading gracefully."
+        )
+        if scan:
+            scan["overall_score_before"] = None
+            scan["sandbox_available"] = False
+            scan["sandbox_unavailable_reason"] = str(exc)
+        return None
 
 
 def _match_violation_in_axe(
@@ -175,9 +188,38 @@ async def verify_single_fix(
         VerificationResult detailing outcome, score delta, and test status.
     """
     baseline = base_score if base_score is not None else await get_baseline_score(scan_id, repo_path)
+    if baseline is None:
+        return VerificationResult(
+            fix_id=fix.fix_id,
+            violation_id=fix.violation_id,
+            axe_score_before=None,
+            axe_score_after=None,
+            violation_still_present=None,
+            tests_passed=None,
+            test_status=None,
+            verified=False,
+            reason="sandbox unavailable",
+            violations_resolved=False,
+        )
 
     # 1. Apply fix in ephemeral verification sandbox
-    prep_res = await apply_and_prepare_fix(fix=fix, repo_path=repo_path, scan_id=scan_id)
+    try:
+        prep_res = await apply_and_prepare_fix(fix=fix, repo_path=repo_path, scan_id=scan_id)
+    except Exception as exc:
+        logger.warning(f"Verification skipped for fix {fix.fix_id} due to sandbox error: {exc}")
+        return VerificationResult(
+            fix_id=fix.fix_id,
+            violation_id=fix.violation_id,
+            axe_score_before=baseline,
+            axe_score_after=baseline,
+            violation_still_present=None,
+            tests_passed=None,
+            test_status=None,
+            verified=False,
+            reason="sandbox unavailable" if "sandbox" in str(exc).lower() else f"fix_application_failed: {exc}",
+            violations_resolved=False,
+        )
+
     if prep_res.get("status") == "failed":
         logger.warning(f"Verification skipped for fix {fix.fix_id}: {prep_res.get('error')}")
         return VerificationResult(
@@ -221,11 +263,9 @@ async def verify_single_fix(
         elif test_run_res.status == "failed":
             tests_passed = False
         else:
-            # timeout, no_tests_found, error -> None
             tests_passed = None
 
         # 5. Determine verification verdict
-        # Verified if: (score improved or violation removed without score drop) AND (tests pass or no tests)
         score_improved = after_score > baseline
         violation_cleared = (not still_present) and (after_score >= baseline)
         no_regressions = (tests_passed is None) or (tests_passed is True)
@@ -274,7 +314,8 @@ async def verify_single_fix(
 async def verify_all_fixes(scan_id: str) -> List[VerificationResult]:
     """
     Verifies all proposed fixes in parallel sandboxes bounded by SANDBOX_MAX_CONCURRENT.
-    Streams real-time WebSocket progress and updates state.py.
+    Streams real-time WebSocket progress and updates state.py. If sandboxes are unavailable,
+    gracefully marks all fixes as 'proposed, not verified' without failing the scan.
 
     Args:
         scan_id: Unique scan job identifier.
@@ -292,10 +333,6 @@ async def verify_all_fixes(scan_id: str) -> List[VerificationResult]:
         logger.warning(f"No repo_path for scan {scan_id}")
         return []
 
-    # 1. Obtain baseline score once
-    baseline_score = await get_baseline_score(scan_id, repo_path)
-
-    # 2. Select eligible proposed fixes
     all_fixes: List[ProposedFix] = scan.get("fixes", [])
     eligible_fixes = [f for f in all_fixes if getattr(f, "status", "proposed") != "failed"]
 
@@ -303,6 +340,37 @@ async def verify_all_fixes(scan_id: str) -> List[VerificationResult]:
         logger.info(f"No eligible fixes to verify for scan {scan_id}")
         scan["verification_results"] = []
         return []
+
+    # 1. Obtain baseline score once
+    baseline_score = await get_baseline_score(scan_id, repo_path)
+
+    # Graceful degradation if sandbox environment is unavailable
+    if baseline_score is None:
+        logger.info(f"Sandbox verification unavailable for scan {scan_id}. Marking all fixes as proposed, not verified.")
+        unverified_results = [
+            VerificationResult(
+                fix_id=fix.fix_id,
+                violation_id=fix.violation_id,
+                axe_score_before=None,
+                axe_score_after=None,
+                violation_still_present=None,
+                tests_passed=None,
+                test_status=None,
+                verified=False,
+                reason="sandbox unavailable",
+                violations_resolved=False,
+            )
+            for fix in eligible_fixes
+        ]
+        scan["verification_results"] = unverified_results
+        scan["overall_score_before"] = None
+        scan["overall_score_after"] = None
+        await _notify_verification_progress(
+            scan_id=scan_id,
+            progress=100,
+            message=f"Sandbox verification unavailable — {len(eligible_fixes)} fixes proposed (unverified).",
+        )
+        return unverified_results
 
     total_count = len(eligible_fixes)
     logger.info(f"Starting verification of {total_count} fixes for scan {scan_id}...")
@@ -351,30 +419,71 @@ async def verify_all_fixes(scan_id: str) -> List[VerificationResult]:
 
 async def calculate_overall_improvement(scan_id: str) -> Dict[str, Any]:
     """
-    Computes holistic repository improvement by applying ALL successfully verified
-    fixes together into a single sandbox and running a final combined axe-core audit.
-
-    Args:
-        scan_id: Unique scan job identifier.
-
-    Returns:
-        Dict: {"score_before": float, "score_after": float, "improvement_points": float, ...}
+    Computes holistic repository improvement. If sandboxes are unavailable, returns None scores
+    without making up numbers, and cleanly finishes the pipeline.
     """
     scan = get_scan(scan_id)
     if not scan:
         return {
-            "score_before": 0.0,
-            "score_after": 0.0,
-            "improvement_points": 0.0,
+            "score_before": None,
+            "score_after": None,
+            "improvement_points": None,
             "fixes_verified": 0,
             "fixes_failed": 0,
             "fixes_skipped": 0,
         }
 
     repo_path = scan.get("repo_path")
-    baseline_score = float(scan.get("overall_score_before", 70.0))
+    raw_before = scan.get("overall_score_before")
+    baseline_score = float(raw_before) if raw_before is not None else None
     v_results: List[VerificationResult] = scan.get("verification_results", [])
     all_fixes: List[ProposedFix] = scan.get("fixes", [])
+
+    # If sandbox was unavailable or baseline is None, gracefully complete without combined run
+    if baseline_score is None:
+        scan["overall_score_before"] = None
+        scan["overall_score_after"] = None
+        scan["status"] = "completed"
+        scan["progress"] = 100
+
+        report: Optional[ScanReport] = scan.get("report")
+        if report:
+            report.overall_score_before = None
+            report.overall_score_after = None
+            report.verification_results = v_results
+            report.status = "completed"
+
+        completion_msg = (
+            f"Audit completed: {len(all_fixes)} remediation fixes proposed. "
+            "Sandbox verification was unavailable; fixes marked proposed (unverified)."
+        )
+        try:
+            from app.routers.websocket import broadcast_progress
+            await broadcast_progress(
+                scan_id=scan_id,
+                stage=PipelineStage.COMPLETED.value,
+                progress=100,
+                message=completion_msg,
+                data={
+                    "score_before": None,
+                    "score_after": None,
+                    "improvement_points": None,
+                    "fixes_verified": 0,
+                    "sandbox_available": False,
+                },
+            )
+        except Exception:
+            pass
+
+        return {
+            "score_before": None,
+            "score_after": None,
+            "improvement_points": None,
+            "fixes_verified": 0,
+            "fixes_failed": 0,
+            "fixes_skipped": len(all_fixes),
+            "sandbox_available": False,
+        }
 
     # Identify successfully verified fixes
     verified_fix_ids = {vr.fix_id for vr in v_results if vr.verified}

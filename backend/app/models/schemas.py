@@ -175,9 +175,9 @@ class CostBreakdown(BaseModel):
 
 class ScoreImprovement(BaseModel):
     """Compliance score delta and points gained."""
-    score_before: float = Field(description="Baseline accessibility score (0-100)")
-    score_after: float = Field(description="Post-remediation accessibility score (0-100)")
-    improvement_points: float = Field(description="Absolute percentage points improved")
+    score_before: Optional[float] = Field(default=None, description="Baseline accessibility score (0-100)")
+    score_after: Optional[float] = Field(default=None, description="Post-remediation accessibility score (0-100)")
+    improvement_points: Optional[float] = Field(default=None, description="Absolute percentage points improved")
 
 
 class ScanReport(BaseModel):
@@ -193,8 +193,8 @@ class ScanReport(BaseModel):
     unified_records: List[UnifiedViolationRecord] = Field(
         default_factory=list, description="Unified violation-fix-verification records"
     )
-    overall_score_before: float = Field(description="Baseline repository accessibility score (0-100)")
-    overall_score_after: float = Field(description="Post-remediation accessibility score (0-100)")
+    overall_score_before: Optional[float] = Field(default=None, description="Baseline repository accessibility score (0-100, None if sandbox unavailable)")
+    overall_score_after: Optional[float] = Field(default=None, description="Post-remediation accessibility score (0-100, None if sandbox unavailable)")
     overall_improvement: Optional[ScoreImprovement] = Field(
         default=None, description="Score delta and points gained"
     )
