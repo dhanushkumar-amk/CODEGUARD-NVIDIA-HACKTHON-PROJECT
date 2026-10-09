@@ -27,15 +27,22 @@ def _build_fallback_executive_summary(report: ScanReport) -> str:
     stats = report.summary or {}
     total_violations = stats.get("total_violations", len(report.violations))
     verified_count = stats.get("fixed_and_verified", 0)
-    score_before = round(report.overall_score_before, 1)
-    score_after = round(report.overall_score_after, 1)
-    diff_points = round(score_after - score_before, 1)
+    unverified_count = stats.get("fixed_not_verified", 0)
 
     s1 = f"This accessibility audit analyzed repository '{report.repo_url}' and identified {total_violations} actionable accessibility violation{'s' if total_violations != 1 else ''}."
-    if verified_count > 0:
-        s2 = f"CodeGuard automatically synthesized and sandbox-verified remediation patches for {verified_count} of {total_violations} defect{'s' if verified_count != 1 else ''}, raising compliance from {score_before}% to {score_after}% (+{diff_points} pts)."
+
+    if report.overall_score_before is not None and report.overall_score_after is not None:
+        score_before = round(report.overall_score_before, 1)
+        score_after = round(report.overall_score_after, 1)
+        diff_points = round(score_after - score_before, 1)
+        if verified_count > 0:
+            s2 = f"CodeGuard automatically synthesized and sandbox-verified remediation patches for {verified_count} of {total_violations} defect{'s' if verified_count != 1 else ''}, raising compliance from {score_before}% to {score_after}% (+{diff_points} pts)."
+        else:
+            s2 = f"Remediation patches were generated for targeted issues with a baseline accessibility compliance score of {score_before}%."
+        s4 = "All applied fixes have been confirmed free of regression against the project's test suite and validated with axe-core."
     else:
-        s2 = f"Remediation patches were generated for targeted issues with a baseline accessibility compliance score of {score_before}%."
+        s2 = f"CodeGuard synthesized {len(report.fixes)} remediation patches with grounded WCAG 2.2 guidance; isolated sandbox verification was unavailable during this scan, so fixes are proposed and marked unverified."
+        s4 = "Fixes are provided as clean code patches with before/after line diffs for engineer review."
 
     remaining = total_violations - verified_count
     if remaining > 0:
@@ -43,7 +50,6 @@ def _build_fallback_executive_summary(report: ScanReport) -> str:
     else:
         s3 = "All identified accessibility defects have been successfully resolved with zero test regressions."
 
-    s4 = "All applied fixes have been confirmed free of regression against the project's test suite and validated with axe-core."
     return f"{s1} {s2} {s3} {s4}"
 
 
@@ -53,17 +59,18 @@ async def generate_executive_summary(report: ScanReport) -> str:
     Falls back gracefully to a deterministic template if the LLM call fails.
     """
     stats = report.summary or {}
+    score_before_desc = f"{report.overall_score_before}%" if report.overall_score_before is not None else "Unavailable (Sandbox offline)"
+    score_after_desc = f"{report.overall_score_after}%" if report.overall_score_after is not None else "Unavailable (Sandbox offline)"
     prompt = f"""You are an expert accessibility engineering lead at CodeGuard.
 Summarize the following automated accessibility audit in 3-4 clear, professional sentences for executive stakeholders and engineering leads:
 - Repository: {report.repo_url}
 - Total Violations Detected: {stats.get('total_violations', len(report.violations))}
 - Fixed and Verified in Sandbox: {stats.get('fixed_and_verified', 0)}
-- Fixed but Verification Regressed: {stats.get('fixed_not_verified', 0)}
+- Fixed but Verification Regressed / Unverified: {stats.get('fixed_not_verified', 0)}
 - Fix Synthesis Failed / Quota: {stats.get('fix_failed', 0)}
 - Detected Only (Below threshold): {stats.get('detected_only', 0)}
-- Initial Baseline WCAG Score: {report.overall_score_before}%
-- Remediated WCAG Score: {report.overall_score_after}%
-- Score Improvement: +{stats.get('improvement_points', round(report.overall_score_after - report.overall_score_before, 1))} pts
+- Initial Baseline WCAG Score: {score_before_desc}
+- Remediated WCAG Score: {score_after_desc}
 
 Write ONLY 3-4 natural, cohesive sentences. Do not use bullet points or headers. Highlight both the verified improvements and items requiring engineering attention."""
 
@@ -74,15 +81,12 @@ Write ONLY 3-4 natural, cohesive sentences. Do not use bullet points or headers.
             scan_id=report.scan_id,
         )
         cleaned = re.sub(r"(?is)<think>.*?</think>", "", summary_text).strip()
-        # If response contains markdown bullet points, numbered analysis, or "role:", it's internal reasoning
         has_reasoning = any(tok in cleaned.lower() for tok in ["thinking process", "role:", "analyze the request", "constraints:"])
         if has_reasoning:
-            # Look for double-quoted summary block or a trailing coherent paragraph
             match = re.search(r'"([^"]{60,})"', cleaned)
             if match and not any(tok in match.group(1).lower() for tok in ["thinking", "task:"]):
                 cleaned = match.group(1).strip()
             else:
-                # Try finding a paragraph after the analysis
                 paragraphs = [p.strip() for p in cleaned.split("\n\n") if p.strip()]
                 candidate = ""
                 for p in reversed(paragraphs):
@@ -107,8 +111,10 @@ Write ONLY 3-4 natural, cohesive sentences. Do not use bullet points or headers.
     return _build_fallback_executive_summary(report)
 
 
-def _render_ascii_bar(score: float, width: int = 10) -> str:
-    """Renders a text progress bar like '████████░░ 85%'."""
+def _render_ascii_bar(score: Optional[float], width: int = 10) -> str:
+    """Renders a text progress bar like '████████░░ 85%' or 'Unavailable'."""
+    if score is None:
+        return "Unavailable (Sandbox offline)"
     clamped = max(0.0, min(100.0, score))
     filled_count = int(round((clamped / 100.0) * width))
     empty_count = width - filled_count
@@ -129,7 +135,11 @@ def format_report_as_markdown(report: ScanReport, executive_summary: str) -> str
 
     score_before_bar = _render_ascii_bar(report.overall_score_before)
     score_after_bar = _render_ascii_bar(report.overall_score_after)
-    imp_pts = round(report.overall_score_after - report.overall_score_before, 1)
+    imp_pts = (
+        round(report.overall_score_after - report.overall_score_before, 1)
+        if (report.overall_score_after is not None and report.overall_score_before is not None)
+        else "N/A (unverified)"
+    )
 
     unified = report.unified_records or []
     # If unified_records not populated, link on the fly
@@ -288,9 +298,21 @@ def format_report_as_html(report: ScanReport, executive_summary: str) -> str:
     cost_ultra = getattr(cost_info, "ultra_cost", cost_info.get("ultra_cost", 0.0) if isinstance(cost_info, dict) else 0.0)
     cost_total = getattr(cost_info, "total_cost", cost_info.get("total_cost", 0.0) if isinstance(cost_info, dict) else 0.0)
 
-    score_before = round(report.overall_score_before, 1)
-    score_after = round(report.overall_score_after, 1)
-    imp_pts = round(score_after - score_before, 1)
+    score_before_display = (
+        f"{round(report.overall_score_before, 1)}%"
+        if report.overall_score_before is not None
+        else "Unavailable"
+    )
+    score_after_display = (
+        f"{round(report.overall_score_after, 1)}%"
+        if report.overall_score_after is not None
+        else "Unavailable"
+    )
+    imp_pts_display = (
+        f"+{round(report.overall_score_after - report.overall_score_before, 1)} pts improvement"
+        if (report.overall_score_before is not None and report.overall_score_after is not None)
+        else "Unverified (sandbox offline)"
+    )
 
     unified = report.unified_records or []
     if not unified and (report.violations or report.fixes):
@@ -488,13 +510,13 @@ def format_report_as_html(report: ScanReport, executive_summary: str) -> str:
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-label">Initial Score</div>
-        <div class="kpi-val text-danger">{score_before}%</div>
+        <div class="kpi-val text-danger">{score_before_display}</div>
         <div class="kpi-delta" style="color: var(--muted);">WCAG 2.2 Baseline</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Remediated Score</div>
-        <div class="kpi-val text-success">{score_after}%</div>
-        <div class="kpi-delta text-success">+{imp_pts} pts improvement</div>
+        <div class="kpi-val text-success">{score_after_display}</div>
+        <div class="kpi-delta text-success">{imp_pts_display}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Defects Detected</div>

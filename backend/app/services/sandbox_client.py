@@ -261,7 +261,7 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
         _active_sandboxes += 1
 
     # Local isolated sandbox environment if configured for offline development / unit tests
-    if api_key in ("local", "your_nebius_sandbox_api_key_here"):
+    if api_key in ("local", "your_nebius_sandbox_api_key_here") or target_image == "local":
         sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
         sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
         _local_sandboxes[sb_id] = sb_dir
