@@ -16,6 +16,8 @@ ignore = [
     "E402",  # module level import not at top of file
     "E712",  # comparison to True
     "E722",  # bare except
+    "E741",  # ambiguous variable name
     "F401",  # imported but unused
+    "F541",  # f-string without placeholder
     "F841",  # local variable assigned but never used
 ]
