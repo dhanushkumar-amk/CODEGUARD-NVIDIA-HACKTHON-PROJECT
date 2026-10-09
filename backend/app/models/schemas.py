@@ -39,6 +39,7 @@ class PipelineStage(str, Enum):
     CLONING = "cloning"
     PREPARING = "preparing"
     SCANNING = "scanning"
+    GROUNDING = "grounding"
     DIAGNOSING = "diagnosing"
     EXPLAINING = "explaining"
     FIXING = "fixing"
@@ -67,6 +68,20 @@ class Violation(BaseModel):
     priority_rank: Optional[int] = Field(default=None, description="Priority rank (1 = highest priority)")
 
 
+class GroundingSource(BaseModel):
+    """Source reference for live web-grounded WCAG guidance."""
+    title: str = Field(description="Title of the guidance article or official WCAG document")
+    url: str = Field(description="URL to the official WCAG/accessibility guideline")
+    snippet: Optional[str] = Field(default="", description="Relevant excerpt or code snippet from the source")
+
+
+class GuidanceBundle(BaseModel):
+    """Bundle of retrieved grounding sources for a violation category."""
+    category: ViolationCategory = Field(description="Violation category")
+    sources: List[GroundingSource] = Field(default_factory=list, description="Top retrieved guidance sources")
+    retrieved_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Timestamp retrieved")
+
+
 class DiagnosedViolation(Violation):
     """Represents an identified accessibility violation enriched with deep root-cause diagnosis."""
     root_cause: str = Field(description="Plain-English technical explanation of why the defect exists")
@@ -76,6 +91,8 @@ class DiagnosedViolation(Violation):
     confidence: str = Field(default="high", description="Diagnosis confidence level: 'high', 'medium', or 'low'")
     diagnosis_source: str = Field(default="llm", description="Source of diagnosis: 'llm' or 'template'")
     plain_explanation: str = Field(default="", description="Friendly, non-technical plain English explanation for stakeholders")
+    grounded: bool = Field(default=False, description="Whether diagnosis was grounded with live WCAG documentation")
+    grounding_sources: List[GroundingSource] = Field(default_factory=list, description="Grounding reference sources used")
 
 
 class ProposedFix(BaseModel):
@@ -92,6 +109,8 @@ class ProposedFix(BaseModel):
     confidence: str = Field(default="high", description="Fix confidence level: 'high', 'medium', or 'low'")
     status: str = Field(default="proposed", description="Fix status: 'proposed' or 'failed'")
     failure_reason: Optional[str] = Field(default=None, description="Detailed reason if fix generation or validation failed")
+    grounded: bool = Field(default=False, description="Whether fix was synthesized using live WCAG guidance")
+    grounding_sources: List[GroundingSource] = Field(default_factory=list, description="Grounding reference sources used")
     # Backward compatibility aliases
     explanation: Optional[str] = Field(default="", description="Legacy explanation field")
     original_code: Optional[str] = Field(default=None, description="Legacy original code alias")
@@ -146,10 +165,12 @@ class UnifiedViolationRecord(BaseModel):
 
 
 class CostBreakdown(BaseModel):
-    """Cost breakdown for LLM inference during scan and remediation."""
+    """Cost breakdown for LLM inference and web grounding during scan and remediation."""
     fast_cost: float = Field(default=0.0, description="Cost in USD for Nemotron Fast calls")
     ultra_cost: float = Field(default=0.0, description="Cost in USD for Nemotron Ultra calls")
     total_cost: float = Field(default=0.0, description="Total cost in USD")
+    tavily_searches: int = Field(default=0, description="Total Tavily grounding web searches performed")
+    tavily_sources_count: int = Field(default=0, description="Total grounding references utilized")
 
 
 class ScoreImprovement(BaseModel):

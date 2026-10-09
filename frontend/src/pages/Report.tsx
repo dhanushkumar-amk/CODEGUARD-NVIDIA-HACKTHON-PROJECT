@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   ExternalLink,
   Loader2,
+  Globe,
 } from 'lucide-react';
 import { getReport, createRemediationPR } from '../api/client';
 import { ScanReport, CreatePRResponse } from '../types';
@@ -457,6 +458,24 @@ export const Report: React.FC = () => {
                 }}
               />
             </div>
+          </div>
+        </div>
+
+        {/* Tavily Web Search Grounding Strip */}
+        <div className="p-3.5 border border-line bg-paper rounded-[6px] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2">
+            <Globe size={14} className="text-leaf shrink-0" />
+            <span className="font-semibold text-ink">Tavily Web Search Grounding:</span>
+            <span className="text-muted">Live WCAG techniques retrieved from official accessibility registries</span>
+          </div>
+          <div className="font-mono text-ink text-xs flex items-center gap-2.5">
+            <span data-testid="tavily-searches-count">
+              <strong>{costBreakdown.tavily_searches ?? report.summary?.tavily_searches_count ?? report.summary?.tavily_searches ?? report.tavily_searches ?? 0}</strong> searches made
+            </span>
+            <span className="text-muted">&middot;</span>
+            <span data-testid="tavily-sources-count">
+              <strong>{costBreakdown.tavily_sources_count ?? report.summary?.tavily_sources_used ?? (report.unified_records?.reduce((acc: number, r: any) => acc + (r.fix?.grounding_sources?.length || r.violation?.grounding_sources?.length || 0), 0) || 0)}</strong> sources used
+            </span>
           </div>
         </div>
       </section>

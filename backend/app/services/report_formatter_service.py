@@ -217,6 +217,16 @@ def format_report_as_markdown(report: ScanReport, executive_summary: str) -> str
             lines.append(f"### {v.id}: {cat_name} in `{v.file}`")
             lines.append(f"- **Criterion:** {v.wcag_criterion or 'WCAG 2.2 AA'}")
             lines.append(f"- **Explanation:** {v.plain_explanation or v.description}")
+
+            sources = (fix.grounding_sources if (fix and fix.grounded and fix.grounding_sources)
+                       else (v.grounding_sources if (v.grounded and v.grounding_sources) else []))
+            if sources:
+                lines.append(f"- **Grounded Guidance Sources:**")
+                for s in sources:
+                    title = getattr(s, "title", s.get("title", "Guideline") if isinstance(s, dict) else "Guideline")
+                    url = getattr(s, "url", s.get("url", "#") if isinstance(s, dict) else "#")
+                    lines.append(f"  * [{title}]({url})")
+
             if verif:
                 test_str = "Passed" if verif.tests_passed else ("Skipped/No tests" if verif.tests_passed is None else "Failed")
                 lines.append(f"- **Verification Metrics:** axe-core score {verif.axe_score_before}% → {verif.axe_score_after}% | Test Suite: {test_str}")
@@ -245,6 +255,9 @@ def format_report_as_markdown(report: ScanReport, executive_summary: str) -> str
             lines.append(f"- **{v.id}** (`{v.file}:{v.line or 1}`): **{st_label}**{reason}. {v.description}")
         lines.append("")
 
+    tavily_searches = getattr(cost_info, "tavily_searches", cost_info.get("tavily_searches", 0) if isinstance(cost_info, dict) else 0) or stats.get("tavily_searches_count", 0)
+    tavily_sources = getattr(cost_info, "tavily_sources_count", cost_info.get("tavily_sources_count", 0) if isinstance(cost_info, dict) else 0) or stats.get("tavily_sources_used", 0)
+
     lines.extend([
         f"---",
         f"",
@@ -254,6 +267,7 @@ def format_report_as_markdown(report: ScanReport, executive_summary: str) -> str
         f"|------------|---------|------------|",
         f"| **Nemotron-3_5-Lightning** (Fast) | High-speed detection, batch extraction, executive summary | `${cost_fast:.6f}` |",
         f"| **Nemotron-3-Ultra** (Ultra) | Root-cause diagnosis, code patch synthesis, self-healing | `${cost_ultra:.6f}` |",
+        f"| **Tavily Web Search Grounding** | Live WCAG 2.2 guidance retrieval ({tavily_searches} searches, {tavily_sources} sources used) | Included |",
         f"| **Total Pipeline Cost** | Complete automated audit & verification | **`${cost_total:.6f}`** |",
         f"",
         f"---",
@@ -349,6 +363,7 @@ def format_report_as_html(report: ScanReport, executive_summary: str) -> str:
           </div>
           <p class="diff-desc"><strong>Location:</strong> <code>{html.escape(v.file)}:{v.line or 1}</code> | <strong>Criterion:</strong> {html.escape(v.wcag_criterion or 'WCAG 2.2 AA')}</p>
           <p class="diff-desc">{html.escape(v.plain_explanation or v.description)}</p>
+          {f'<p class="diff-desc"><strong>Grounded in (WCAG References):</strong> ' + " ".join([f'<a href="{html.escape(getattr(s, "url", s.get("url", "#") if isinstance(s, dict) else "#"))}" target="_blank" rel="noopener noreferrer" style="color: #38bdf8; text-decoration: underline; margin-right: 10px;">{html.escape(getattr(s, "title", s.get("title", "Guideline") if isinstance(s, dict) else "Guideline"))}</a>' for s in (fix.grounding_sources if (fix and fix.grounded and fix.grounding_sources) else (v.grounding_sources if (v.grounded and v.grounding_sources) else []))]) + '</p>' if (fix and fix.grounded and fix.grounding_sources) or (v.grounded and v.grounding_sources) else ''}
           <div class="diff-metrics">
             <span><strong>Axe Score:</strong> {score_info}</span>
             <span><strong>Regression Suite:</strong> {test_info}</span>
@@ -551,6 +566,11 @@ def format_report_as_html(report: ScanReport, executive_summary: str) -> str:
             <td><strong>Nemotron-3-Ultra</strong></td>
             <td>Deep root-cause diagnosis, precision code remediation, escalation</td>
             <td>${cost_ultra:.6f}</td>
+          </tr>
+          <tr>
+            <td><strong>Tavily Grounding Search</strong></td>
+            <td>Live WCAG 2.2 official technique retrieval ({getattr(cost_info, "tavily_searches", cost_info.get("tavily_searches", 0) if isinstance(cost_info, dict) else 0) or stats.get("tavily_searches_count", 0)} searches, {getattr(cost_info, "tavily_sources_count", cost_info.get("tavily_sources_count", 0) if isinstance(cost_info, dict) else 0) or stats.get("tavily_sources_used", 0)} sources used)</td>
+            <td>Included</td>
           </tr>
           <tr>
             <td><strong>Total Pipeline Spend</strong></td>

@@ -16,9 +16,17 @@ from app.services.sandbox_client import (
     SandboxAuthenticationError,
     SandboxQuotaExceededError,
     SandboxTimeoutError,
+    reset_sandbox_concurrency_for_testing,
 )
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def reset_concurrency():
+    reset_sandbox_concurrency_for_testing()
+    yield
+    reset_sandbox_concurrency_for_testing()
 
 
 @pytest.mark.asyncio

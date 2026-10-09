@@ -28,6 +28,7 @@ export const StageTimeline: React.FC<StageTimelineProps> = ({
           const isActive = index === activeIndex && !isCompleted;
           const isUpcoming = index > activeIndex && !isCompleted;
           const isLlmStep = step.id === 'diagnose' || step.id === 'fix';
+          const isTavilyStep = step.id === 'grounding';
 
           return (
             <React.Fragment key={step.id}>
@@ -64,10 +65,15 @@ export const StageTimeline: React.FC<StageTimelineProps> = ({
                     {step.shortLabel}
                   </div>
 
-                  {/* AI LLM call indicator tag */}
+                  {/* AI LLM / Tavily call indicator tag */}
                   {isActive && isLlmStep && (
                     <span className="inline-block mt-0.5 px-1 py-0.2 text-[9px] font-mono uppercase tracking-[0.08em] rounded-[3px] bg-primary/10 text-primary border border-primary/20">
                       Nemotron
+                    </span>
+                  )}
+                  {isActive && isTavilyStep && (
+                    <span className="inline-block mt-0.5 px-1 py-0.2 text-[9px] font-mono uppercase tracking-[0.08em] rounded-[3px] bg-emerald/10 text-emerald border border-emerald/20">
+                      Tavily
                     </span>
                   )}
                 </div>

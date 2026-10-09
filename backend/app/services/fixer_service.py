@@ -12,7 +12,12 @@ import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from app.config import settings
-from app.models.schemas import DiagnosedViolation, ProposedFix, Violation
+from app.models.schemas import DiagnosedViolation, GuidanceBundle, ProposedFix, Violation
+from app.services.grounding_service import (
+    format_guidance_for_prompt,
+    get_guidance,
+    record_sources_used,
+)
 from app.services.llm_client import (
     UltraBudgetExceededError,
     call_nemotron_fast,
@@ -184,13 +189,19 @@ def get_fix_context(
     }
 
 
-def build_fix_prompt(diagnosed: DiagnosedViolation, context: Dict[str, Any]) -> Tuple[str, str]:
+def build_fix_prompt(
+    diagnosed: DiagnosedViolation,
+    context: Dict[str, Any],
+    guidance: Optional[Any] = None,
+) -> Tuple[str, str]:
     """
-    Constructs the system prompt and user prompt for Nemotron Ultra fix generation.
+    Constructs the system prompt and user prompt for Nemotron Ultra fix generation,
+    incorporating live web-grounded WCAG guidance from Tavily.
 
     Args:
         diagnosed: DiagnosedViolation with root cause, user impact, and fix strategy.
         context: Context dictionary containing file, line_start, line_end, original_lines, context.
+        guidance: Optional GuidanceBundle retrieved via Tavily.
 
     Returns:
         Tuple of (system_prompt, user_prompt).
@@ -214,6 +225,20 @@ def build_fix_prompt(diagnosed: DiagnosedViolation, context: Dict[str, Any]) -> 
     l_end = context.get("line_end", diagnosed.line or 1)
     orig_code = context.get("original_lines", "")
 
+    guidance_section = ""
+    if guidance:
+        guidance_text = format_guidance_for_prompt(guidance)
+        if guidance_text:
+            guidance_section = f"\n{guidance_text}\n"
+    elif getattr(diagnosed, "grounded", False) and getattr(diagnosed, "grounding_sources", None):
+        pseudo_bundle = GuidanceBundle(
+            category=diagnosed.category,
+            sources=diagnosed.grounding_sources,
+        )
+        guidance_text = format_guidance_for_prompt(pseudo_bundle)
+        if guidance_text:
+            guidance_section = f"\n{guidance_text}\n"
+
     user_prompt = f"""Generate an accessible remediation patch for this defect:
 
 VIOLATION METADATA:
@@ -227,7 +252,7 @@ ROOT CAUSE & REMEDIATION STRATEGY:
 - Root Cause: {diagnosed.root_cause}
 - Fix Strategy: {diagnosed.fix_strategy}
 - User Impact: {diagnosed.user_impact}
-
+{guidance_section}
 SURROUNDING FILE CONTEXT:
 ```tsx
 {context.get('context', '')}
@@ -425,6 +450,17 @@ async def generate_fix(
     l_end = context["line_end"]
     target_file = context["file"]
 
+    # Look up grounded WCAG guidance for this category
+    guidance = await get_guidance(
+        category=diagnosed.category,
+        wcag_criterion=diagnosed.wcag_criterion,
+        scan_id=scan_id,
+    )
+    is_grounded = bool(guidance and guidance.sources) or bool(getattr(diagnosed, "grounded", False) and getattr(diagnosed, "grounding_sources", None))
+    grounding_sources = list(guidance.sources) if (guidance and guidance.sources) else list(getattr(diagnosed, "grounding_sources", []))
+    if is_grounded:
+        record_sources_used(scan_id, len(grounding_sources))
+
     if not expected_original.strip():
         return ProposedFix(
             fix_id=f"fix_{diagnosed.id}",
@@ -439,9 +475,11 @@ async def generate_fix(
             confidence="low",
             status="failed",
             failure_reason=f"Could not locate target lines in '{target_file}'.",
+            grounded=is_grounded,
+            grounding_sources=grounding_sources,
         )
 
-    system_prompt, user_prompt = build_fix_prompt(diagnosed, context)
+    system_prompt, user_prompt = build_fix_prompt(diagnosed, context, guidance=guidance)
     model_choice = getattr(settings, "FIX_GENERATION_MODEL", "ultra").lower()
 
     raw_response = ""
@@ -539,6 +577,8 @@ async def generate_fix(
             confidence="low",
             status="failed",
             failure_reason=fail_msg,
+            grounded=is_grounded,
+            grounding_sources=grounding_sources,
         )
 
     # Success: build unified git diff and return ProposedFix
@@ -566,6 +606,8 @@ async def generate_fix(
         explanation_of_change=explanation,
         confidence=confidence,
         status="proposed",
+        grounded=is_grounded,
+        grounding_sources=grounding_sources,
     )
 
 

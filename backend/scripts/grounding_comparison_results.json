@@ -1,0 +1,84 @@
+{
+  "grounded_searches_count": 5,
+  "ungrounded_searches_count": 0,
+  "sample_fixes": [
+    {
+      "violation_id": "viol_01",
+      "file": "src/components/Header.tsx",
+      "grounded": true,
+      "sources": [
+        {
+          "title": "ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0",
+          "url": "http://www.w3.org/TR/2013/NOTE-WCAG20-TECHS-20130905/ARIA1.html",
+          "snippet": "Title: ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0\nTechniques for WCAG 2.0. * **Previous:** WAI-ARIA Technology Notes Technique wai-aria\\_notes. # ARIA1: Using the aria-describedby property to provide a descriptive label for "
+        },
+        {
+          "title": "ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0",
+          "url": "https://www.w3.org/TR/2013/NOTE-WCAG20-TECHS-20130905/ARIA1",
+          "snippet": "Title: ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0\nTechniques for WCAG 2.0. * **Previous:** WAI-ARIA Technology Notes Technique wai-aria\\_notes. # ARIA1: Using the aria-describedby property to provide a descriptive label for "
+        },
+        {
+          "title": "Understanding Success Criterion 3.3.2  | Understanding WCAG 2.0",
+          "url": "https://www.w3.org/TR/UNDERSTANDING-WCAG20/minimize-error-cues.html",
+          "snippet": "FLASH29: Setting the label property for form components (Flash)\n\nFLASH25: Labeling a form control by setting its accessible name (Flash)\n\nPDF10: Providing labels for interactive form controls in PDF documents (PDF)\n\nSL26: Using LabeledBy to Associate Labels and Targets in Silverlight (Silverlight)\n\n"
+        }
+      ],
+      "grounded_explanation": "Added aria-label=\"Search components\" to the input element to provide an accessible name for screen readers, addressing the missing label violation per WCAG 3.3.2.",
+      "grounded_diff": "--- a/src/components/Header.tsx\n+++ b/src/components/Header.tsx\n@@ -1 +1 @@\n-      <input id=\"search-box\" type=\"search\" placeholder=\"Search components...\" />\n\n+      <input id=\"search-box\" type=\"search\" placeholder=\"Search components...\" aria-label=\"Search components\" />\n",
+      "ungrounded_explanation": "Added aria-label=\"Search components\" to the input element to provide an accessible name for screen readers, satisfying WCAG 3.3.2. The placeholder attribute does not serve as a label.",
+      "ungrounded_diff": "--- a/src/components/Header.tsx\n+++ b/src/components/Header.tsx\n@@ -1 +1 @@\n-      <input id=\"search-box\" type=\"search\" placeholder=\"Search components...\" />\n\n+      <input id=\"search-box\" type=\"search\" placeholder=\"Search components...\" aria-label=\"Search components\" />\n"
+    },
+    {
+      "violation_id": "viol_02",
+      "file": "src/components/Header.tsx",
+      "grounded": true,
+      "sources": [
+        {
+          "title": "SCR35: Making actions keyboard accessible by using the onclick event of anchors and buttons | Techniques for WCAG 2.0",
+          "url": "http://www.w3.org/TR/2015/NOTE-WCAG20-TECHS-20150226/SCR35",
+          "snippet": "Title: SCR35: Making actions keyboard accessible by using the onclick event of anchors and buttons | Techniques for WCAG 2.0\nTechniques for WCAG 2.0. # SCR35: Making actions keyboard accessible by using the onclick event of anchors and buttons. See Understanding Techniques for WCAG Success Criteria "
+        },
+        {
+          "title": "SCR29: Adding keyboard-accessible actions to static HTML elements | Techniques for WCAG 2.0",
+          "url": "https://www.w3.org/TR/WCAG20-TECHS/SCR29.html",
+          "snippet": "## Description\n\nThe objective of this technique is to demonstrate how to provide keyboard access to a user interface control that is implemented by actions to static HTML elements such as `div` or `span`. This technique ensures that the element is focusable by setting the `tabindex` attribute, and i"
+        },
+        {
+          "title": "SCR29: Adding keyboard-accessible actions to static HTML elements | Techniques for WCAG 2.0",
+          "url": "https://www.w3.org/TR/2016/NOTE-WCAG20-TECHS-20161007/SCR29.html",
+          "snippet": "## Description\n\nThe objective of this technique is to demonstrate how to provide keyboard access to a user interface control that is implemented by actions to static HTML elements such as `div` or `span`. This technique ensures that the element is focusable by setting the `tabindex` attribute, and i"
+        }
+      ],
+      "grounded_explanation": "Replaced non-interactive <div> with native <button> element to provide inherent keyboard focusability (tabIndex), ARIA role='button', and Enter/Space key activation per WCAG 2.1.1. Preserves existing className, onClick handler, and child content.",
+      "grounded_diff": "--- a/src/components/Header.tsx\n+++ b/src/components/Header.tsx\n@@ -1,3 +1,3 @@\n-      <div className=\"menu-btn\" onClick={toggleMenu}>\n\n+      <button className=\"menu-btn\" onClick={toggleMenu}>\n\n         Menu\n\n-      </div>\n\n+      </button>\n",
+      "ungrounded_explanation": "Replaced non-interactive <div> with semantic <button> element to provide native keyboard focus, role=\"button\", and Enter/Space activation while preserving existing className, onClick handler, and visible text content.",
+      "ungrounded_diff": "--- a/src/components/Header.tsx\n+++ b/src/components/Header.tsx\n@@ -1,3 +1,3 @@\n-      <div className=\"menu-btn\" onClick={toggleMenu}>\n\n+      <button className=\"menu-btn\" onClick={toggleMenu}>\n\n         Menu\n\n-      </div>\n\n+      </button>\n"
+    },
+    {
+      "violation_id": "viol_03",
+      "file": "src/components/LoginForm.tsx",
+      "grounded": true,
+      "sources": [
+        {
+          "title": "ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0",
+          "url": "http://www.w3.org/TR/2013/NOTE-WCAG20-TECHS-20130905/ARIA1.html",
+          "snippet": "Title: ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0\nTechniques for WCAG 2.0. * **Previous:** WAI-ARIA Technology Notes Technique wai-aria\\_notes. # ARIA1: Using the aria-describedby property to provide a descriptive label for "
+        },
+        {
+          "title": "ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0",
+          "url": "https://www.w3.org/TR/2013/NOTE-WCAG20-TECHS-20130905/ARIA1",
+          "snippet": "Title: ARIA1: Using the aria-describedby property to provide a descriptive label for input controls | Techniques for WCAG 2.0\nTechniques for WCAG 2.0. * **Previous:** WAI-ARIA Technology Notes Technique wai-aria\\_notes. # ARIA1: Using the aria-describedby property to provide a descriptive label for "
+        },
+        {
+          "title": "Understanding Success Criterion 3.3.2  | Understanding WCAG 2.0",
+          "url": "https://www.w3.org/TR/UNDERSTANDING-WCAG20/minimize-error-cues.html",
+          "snippet": "FLASH29: Setting the label property for form components (Flash)\n\nFLASH25: Labeling a form control by setting its accessible name (Flash)\n\nPDF10: Providing labels for interactive form controls in PDF documents (PDF)\n\nSL26: Using LabeledBy to Associate Labels and Targets in Silverlight (Silverlight)\n\n"
+        }
+      ],
+      "grounded_explanation": "Added a <label> with htmlFor referencing the textarea's new id=\"feedback-id\" to provide an accessible name per WCAG 3.3.2. The label text 'User Feedback' describes the field's purpose. The placeholder remains but is no longer the sole accessible name source.",
+      "grounded_diff": "--- a/src/components/LoginForm.tsx\n+++ b/src/components/LoginForm.tsx\n@@ -1,4 +1,6 @@\n+        <label htmlFor=\"feedback-id\">User Feedback</label>\n\n         <textarea\n\n+          id=\"feedback-id\"\n\n           placeholder=\"Provide user feedback...\"\n\n           value={feedback}\n\n           onChange={(e) => setFeedback(e.target.value)}\n",
+      "ungrounded_explanation": null,
+      "ungrounded_diff": null
+    }
+  ]
+}

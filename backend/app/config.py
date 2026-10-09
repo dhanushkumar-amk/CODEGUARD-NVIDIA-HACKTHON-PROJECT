@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     SANDBOX_MAX_CONCURRENT: int = 3
     NPM_INSTALL_TIMEOUT_SECONDS: int = 180
 
+    # Tavily Web Search Grounding Configuration
+    TAVILY_API_KEY: str = ""
+    TAVILY_ENABLED: bool = True
+    TAVILY_MAX_SEARCHES_PER_SCAN: int = 12
+
     # GitHub Integration
     GITHUB_TOKEN: str = ""
 

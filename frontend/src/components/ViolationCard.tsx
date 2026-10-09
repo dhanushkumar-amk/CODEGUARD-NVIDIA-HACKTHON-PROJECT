@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Compass, ExternalLink } from 'lucide-react';
 import { DiagnosedViolation, Violation, ViolationCategory } from '../types';
 import { Badge } from './Badge';
 
@@ -164,6 +164,28 @@ export const ViolationCard: React.FC<ViolationCardProps> = ({
                 <div>
                   <span className="font-medium text-ink font-sans">Remediation strategy:</span>
                   <p className="text-azure mt-0.5 leading-relaxed font-sans">{diagnosed.fix_strategy}</p>
+                </div>
+              )}
+
+              {diagnosed.grounded && diagnosed.grounding_sources && diagnosed.grounding_sources.length > 0 && (
+                <div className="pt-1.5 border-t border-line">
+                  <span className="font-medium text-emerald font-sans flex items-center gap-1">
+                    <Compass size={12} className="shrink-0" /> Grounded in:
+                  </span>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                    {diagnosed.grounding_sources.map((src, idx) => (
+                      <a
+                        key={idx}
+                        href={src.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-azure hover:underline text-xs inline-flex items-center gap-0.5 font-medium"
+                      >
+                        <span>{src.title}</span>
+                        <ExternalLink size={10} className="opacity-70 ml-0.5" />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
 

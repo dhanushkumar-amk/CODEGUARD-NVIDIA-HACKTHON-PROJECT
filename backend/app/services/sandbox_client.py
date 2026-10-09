@@ -174,6 +174,14 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
 
     target_image = image or settings.NEBIUS_SANDBOX_DEFAULT_IMAGE
 
+    # Check auth configuration before incrementing concurrency
+    api_key = settings.NEBIUS_SANDBOX_API_KEY
+    if not api_key or not api_key.strip():
+        raise SandboxAuthenticationError(
+            "NEBIUS_SANDBOX_API_KEY is not configured. "
+            "Please provide a valid API key in backend/.env"
+        )
+
     # Local concurrency check
     async with _concurrency_lock:
         if _active_sandboxes >= settings.SANDBOX_MAX_CONCURRENT:
@@ -182,14 +190,6 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
                 "Please wait for active sandboxes to complete."
             )
         _active_sandboxes += 1
-
-    # Check auth configuration
-    api_key = settings.NEBIUS_SANDBOX_API_KEY
-    if not api_key or not api_key.strip():
-        raise SandboxAuthenticationError(
-            "NEBIUS_SANDBOX_API_KEY is not configured. "
-            "Please provide a valid API key in backend/.env"
-        )
 
     # Local isolated sandbox environment if running locally/dev
     if api_key in ("local", "your_nebius_sandbox_api_key_here"):
@@ -456,3 +456,10 @@ async def sandbox_session(image: Optional[str] = None):
             await destroy_sandbox(sandbox.sandbox_id)
         except Exception as exc:
             logger.warning(f"Failed to cleanly destroy sandbox {sandbox.sandbox_id}: {exc}")
+
+
+def reset_sandbox_concurrency_for_testing():
+    """Resets active sandbox counter for test isolation."""
+    global _active_sandboxes
+    _active_sandboxes = 0
+

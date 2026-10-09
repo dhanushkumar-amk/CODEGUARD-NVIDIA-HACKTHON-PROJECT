@@ -211,6 +211,13 @@ def calculate_summary_stats(
             "total_cost": global_cost.get("total", 0.0),
         }
 
+    # Tavily web search grounding counts
+    from app.services.grounding_service import get_scan_search_count, get_scan_sources_count
+    tavily_searches = get_scan_search_count(scan_id)
+    tavily_sources = get_scan_sources_count(scan_id)
+    cost_dict["tavily_searches"] = tavily_searches
+    cost_dict["tavily_sources_count"] = tavily_sources
+
     # Elapsed duration
     duration_seconds = 0.0
     if start_time is not None:
@@ -237,6 +244,8 @@ def calculate_summary_stats(
         "score_after": overall_score_after,
         "improvement_points": improvement_points,
         "cost_breakdown": cost_dict,
+        "tavily_searches_count": tavily_searches,
+        "tavily_sources_used": tavily_sources,
         "duration_seconds": duration_seconds,
     }
 

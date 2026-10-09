@@ -7,6 +7,7 @@
 [![React](https://img.shields.io/badge/React-18.0+-61DAFB.svg)](https://reactjs.org)
 [![NVIDIA Nemotron](https://img.shields.io/badge/NVIDIA-Nemotron--3.5--Lightning%20%7C%20Nemotron--3--Ultra-76B900.svg)](https://developer.nvidia.com)
 [![Nebius Token Factory](https://img.shields.io/badge/Nebius-Token%20Factory-6C5CE7.svg)](https://nebius.com)
+[![Tavily Search](https://img.shields.io/badge/Tavily-A11y%20Grounding-blueviolet.svg)](https://tavily.com)
 
 ---
 
@@ -22,8 +23,9 @@
 **CodeGuard** is an autonomous accessibility agent designed to eliminate digital accessibility barriers directly within software development workflows. When provided with a public Git repository URL, CodeGuard executes an end-to-end audit, remediation, and verification pipeline:
 
 1. **Intelligent Ingestion & Scanning**: CodeGuard performs a lightweight shallow clone of the target repository, discovers all user interface files (`.tsx`, `.jsx`, `.html`, `.vue`, `.svelte`), and constructs token-efficient abstract syntax batches. Using **NVIDIA Nemotron 3.5 Lightning**, it rapidly audits hundreds of code blocks in parallel against the **WCAG 2.2 AA** specification, flagging unlabeled form elements, missing alternative text, broken focus traps, keyboard accessibility failures, and color contrast defects.
-2. **Contextual Diagnosis & Patch Synthesis**: For critical accessibility violations, CodeGuard routes the problematic code to **NVIDIA Nemotron 3 Ultra (550B)**. The model analyzes component hierarchy, state management, and user interaction patterns to synthesize clean, idiomatic code remediations, generating exact unified git diffs rather than generic advice.
-3. **Isolated Sandbox Verification & PR Automation**: Rather than blindly proposing code modifications, CodeGuard spins up an isolated **Nebius AI Cloud Sandbox**. Inside this microVM, it applies the synthesized patch, executes `@axe-core/playwright`, and runs the project's native test suite to verify that the accessibility defect was eliminated without causing functional regressions. Once verified, CodeGuard generates comprehensive HTML/Markdown audit reports and can automatically create a verified remediation branch and GitHub Pull Request.
+2. **Authoritative Web Search Grounding via Tavily**: Before diagnosing root causes or generating patches, CodeGuard queries **Tavily AI Search** restricted strictly to authoritative a11y bodies (`w3.org`, `developer.mozilla.org`, `webaim.org`, `dequeuniversity.com`, `a11yproject.com`). It extracts live WCAG 2.2 techniques and verified accessible markup examples, injecting them directly into the Nemotron prompt context to ground generation in official standards rather than hallucinated patterns.
+3. **Contextual Diagnosis & Patch Synthesis**: For critical accessibility violations, CodeGuard routes the problematic code and authoritative guidance to **NVIDIA Nemotron 3 Ultra (550B)**. The model analyzes component hierarchy, state management, and user interaction patterns to synthesize clean, idiomatic code remediations, generating exact unified git diffs rather than generic advice.
+4. **Isolated Sandbox Verification & PR Automation**: Rather than blindly proposing code modifications, CodeGuard spins up an isolated **Nebius AI Cloud Sandbox**. Inside this microVM, it applies the synthesized patch, executes `@axe-core/playwright`, and runs the project's native test suite to verify that the accessibility defect was eliminated without causing functional regressions. Once verified, CodeGuard generates comprehensive HTML/Markdown audit reports with clickable grounding source citations and can automatically create a verified remediation branch and GitHub Pull Request.
 
 ---
 
@@ -72,6 +74,24 @@ Executing untrusted, newly patched frontend code directly on host infrastructure
 2. **Automated axe-core Validation**: Executes headless browser audits inside the sandbox to empirically prove the WCAG violation has been resolved.
 3. **Regression Prevention**: Automatically triggers the repository's native test suite (e.g. `npm test`, `jest`, `vitest`) to verify that the accessibility patch did not break existing application behavior.
 4. **Guaranteed Teardown**: Sandbox destruction is enforced inside `finally` blocks upon test completion or error, preventing idle compute leakage.
+
+---
+
+## 🌐 Web Search Grounding via Tavily
+
+To eliminate LLM hallucinations and anchor remediations directly to verified accessibility engineering practices, CodeGuard integrates **Tavily AI Search**:
+
+1. **Domain-Restricted Retrieval**:
+   - Web searches are strictly restricted to trusted accessibility authorities: `w3.org`, `developer.mozilla.org` (MDN), `webaim.org`, `dequeuniversity.com`, and `a11yproject.com`.
+   - Before diagnosis and patch synthesis, CodeGuard queries these domains for exact WCAG 2.2 techniques (e.g., `H37`, `ARIA1`, `G183`) and verified accessible markup examples matching each violation category.
+2. **Dynamic Prompt Injection**:
+   - Retrieved guidance and code snippets are formatted into Nemotron 3 Ultra prompts as high-priority reference blocks, explicitly directing the model to prioritize official web standards over parametric training memory.
+3. **Process-Lifetime Caching & Budget Controls**:
+   - Guidance is cached in-memory per violation category across the scan lifecycle, minimizing redundant API requests and search costs (`TAVILY_MAX_SEARCHES_PER_SCAN=12`).
+4. **Transparent Source Attribution**:
+   - Every diagnosed violation and proposed patch includes clickable source citations linking directly to the underlying W3C or MDN standard in both the web UI and exported audit reports.
+5. **Resilient Non-Blocking Fallback**:
+   - If Tavily searches encounter network timeouts or an absent API key, CodeGuard gracefully falls back to parametric model synthesis without blocking the remediation pipeline.
 
 ---
 
@@ -167,6 +187,7 @@ Edit `backend/.env` with your API credentials (refer to `backend/.env.example` a
 NEBIUS_TOKEN_FACTORY_API_KEY=your_nebius_api_key_here
 NEBIUS_SANDBOX_API_KEY=your_sandbox_api_key_here  # optional, mock fallback active by default
 GITHUB_TOKEN=your_personal_access_token_here      # required for automated PR creation
+TAVILY_API_KEY=your_tavily_api_key_here          # required for live WCAG web grounding
 ```
 
 Start the backend server:
@@ -211,6 +232,7 @@ Extracted from [**docs/tech-stack.md**](docs/tech-stack.md):
 - **Backend**: Python 3.11, FastAPI, Pydantic v2, Uvicorn, GitPython, Tenacity (retry handling), HTTPX
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Recharts, Lucide React
 - **AI & Inference**: Nebius Token Factory, NVIDIA Nemotron 3.5 Lightning, NVIDIA Nemotron 3 Ultra (550B)
+- **Web Search Grounding**: Tavily AI Search (`tavily-python`), domain-restricted WCAG retrieval
 - **Verification & Sandboxing**: Nebius AI Cloud Sandboxes, Playwright, `@axe-core/playwright`, Headless Chromium
 - **Real-time Protocol**: Native WebSockets for low-latency pipeline streaming
 

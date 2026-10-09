@@ -8,6 +8,8 @@ import {
   Check,
   Columns,
   Split,
+  Compass,
+  ExternalLink,
 } from 'lucide-react';
 import { Badge } from './Badge';
 
@@ -197,6 +199,27 @@ export const FixDiffViewer: React.FC<FixDiffViewerProps> = ({
         <div className="px-4 py-2 bg-surface-1 border-b border-line text-xs text-ink/80 font-sans">
           <span className="font-medium text-ink">Rationale: </span>
           {explanation}
+        </div>
+      )}
+
+      {/* Grounded in WCAG sources */}
+      {fix?.grounded && fix.grounding_sources && fix.grounding_sources.length > 0 && (
+        <div className="px-4 py-2 bg-emerald/[0.04] border-b border-line text-xs font-sans flex items-center flex-wrap gap-x-2 gap-y-1">
+          <span className="font-medium text-emerald flex items-center gap-1">
+            <Compass size={12} className="shrink-0" /> Grounded in:
+          </span>
+          {fix.grounding_sources.map((src, idx) => (
+            <a
+              key={idx}
+              href={src.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-azure hover:underline font-medium inline-flex items-center gap-0.5 text-xs"
+            >
+              <span>{src.title}</span>
+              <ExternalLink size={10} className="inline opacity-70 ml-0.5" />
+            </a>
+          ))}
         </div>
       )}
 

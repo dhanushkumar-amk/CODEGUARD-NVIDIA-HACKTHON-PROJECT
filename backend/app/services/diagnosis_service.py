@@ -13,6 +13,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.config import settings
 from app.models.schemas import DiagnosedViolation, Violation, ViolationCategory
+from app.services.grounding_service import (
+    format_guidance_for_prompt,
+    get_guidance,
+    record_sources_used,
+    warm_guidance_cache,
+)
 from app.services.llm_client import (
     UltraBudgetExceededError,
     call_nemotron_ultra,
@@ -185,13 +191,19 @@ def get_surrounding_context(repo_path: str, file: str, line: Optional[int], cont
     return "\n".join(output_lines)
 
 
-def build_diagnosis_prompt(violation: Violation, context: str) -> Tuple[str, str]:
+def build_diagnosis_prompt(
+    violation: Violation,
+    context: str,
+    guidance: Optional[Any] = None,
+) -> Tuple[str, str]:
     """
-    Constructs the system prompt and user prompt for Nemotron Ultra root-cause diagnosis.
+    Constructs the system prompt and user prompt for Nemotron Ultra root-cause diagnosis,
+    optionally incorporating live web-grounded WCAG guidance from Tavily.
 
     Args:
         violation: The Violation instance to diagnose.
         context: Extracted surrounding code context string.
+        guidance: Optional GuidanceBundle retrieved via Tavily.
 
     Returns:
         Tuple of (system_prompt, user_prompt).
@@ -204,6 +216,11 @@ def build_diagnosis_prompt(violation: Violation, context: str) -> Tuple[str, str
     )
 
     cat_name = violation.category.value if isinstance(violation.category, ViolationCategory) else str(violation.category)
+    guidance_section = ""
+    if guidance:
+        guidance_text = format_guidance_for_prompt(guidance)
+        if guidance_text:
+            guidance_section = f"\n{guidance_text}\n"
 
     user_prompt = f"""Analyze this accessibility defect and determine why the surrounding code structure caused it.
 
@@ -215,7 +232,7 @@ VIOLATION METADATA:
 - Severity: {violation.severity} (Score: {violation.severity_score or 'N/A'}/10, Priority Rank: #{violation.priority_rank or 'N/A'})
 - Offending Snippet: {violation.context_snippet or 'N/A'}
 - Initial Description: {violation.description}
-
+{guidance_section}
 SURROUNDING SOURCE CODE CONTEXT:
 ```tsx
 {context}
@@ -235,7 +252,10 @@ Respond with a single valid JSON object with the following fields:
     return system_prompt, user_prompt
 
 
-def get_templated_diagnosis(violation: Violation) -> DiagnosedViolation:
+def get_templated_diagnosis(
+    violation: Violation,
+    guidance: Optional[Any] = None,
+) -> DiagnosedViolation:
     """
     Generates a high-quality deterministic fallback diagnosis based on the violation's
     normalized category. Used when below top-N priority threshold, when Ultra budget is
@@ -247,6 +267,9 @@ def get_templated_diagnosis(violation: Violation) -> DiagnosedViolation:
     affected = violation.selector or template.get("affected_element", "element")
     if violation.context_snippet and len(violation.context_snippet) < 60:
         affected = violation.context_snippet.strip()
+
+    is_grounded = bool(guidance and getattr(guidance, "sources", None))
+    sources = list(guidance.sources) if is_grounded else []
 
     return DiagnosedViolation(
         id=violation.id,
@@ -268,6 +291,8 @@ def get_templated_diagnosis(violation: Violation) -> DiagnosedViolation:
         fix_strategy=template["fix_strategy"],
         confidence=template.get("confidence", "high"),
         diagnosis_source="template",
+        grounded=is_grounded,
+        grounding_sources=sources,
     )
 
 
@@ -279,6 +304,7 @@ async def diagnose_violation(
 ) -> DiagnosedViolation:
     """
     Diagnoses a single accessibility violation:
+    - Looks up grounded WCAG guidance via Tavily (cached per category).
     - If priority_rank is beyond top_n threshold, returns cheap templated diagnosis.
     - If within threshold, calls Nemotron Ultra for deep root-cause reasoning.
     - If budget limit (UltraBudgetExceededError) is hit or parsing fails, falls back gracefully.
@@ -294,16 +320,27 @@ async def diagnose_violation(
     """
     threshold = top_n if top_n is not None else getattr(settings, "DIAGNOSIS_TOP_N", 15)
 
-    # 1. Check priority threshold: only call Ultra for top N violations
+    # 1. Look up grounded WCAG guidance for this category
+    guidance = await get_guidance(
+        category=violation.category,
+        wcag_criterion=violation.wcag_criterion,
+        scan_id=scan_id,
+    )
+    is_grounded = bool(guidance and guidance.sources)
+    grounding_sources = list(guidance.sources) if is_grounded else []
+    if is_grounded:
+        record_sources_used(scan_id, len(grounding_sources))
+
+    # 2. Check priority threshold: only call Ultra for top N violations
     rank = violation.priority_rank
     if rank is not None and rank > threshold:
         logger.info(
             f"Violation {violation.id} (priority rank #{rank}) is below top {threshold}; "
             "using deterministic templated diagnosis."
         )
-        return get_templated_diagnosis(violation)
+        return get_templated_diagnosis(violation, guidance=guidance)
 
-    # 2. Extract surrounding code context from the original file
+    # 3. Extract surrounding code context from the original file
     context = get_surrounding_context(
         repo_path=repo_path,
         file=violation.file,
@@ -311,9 +348,9 @@ async def diagnose_violation(
         context_lines=24,
     )
 
-    system_prompt, user_prompt = build_diagnosis_prompt(violation, context)
+    system_prompt, user_prompt = build_diagnosis_prompt(violation, context, guidance=guidance)
 
-    # 3. Call Nemotron Ultra with cost guardrails
+    # 4. Call Nemotron Ultra with cost guardrails
     try:
         raw_response = await call_nemotron_ultra(
             prompt=user_prompt,
@@ -326,15 +363,15 @@ async def diagnose_violation(
             f"Ultra budget/call limit reached while diagnosing {violation.id}: {budget_err}. "
             "Falling back to templated diagnosis."
         )
-        return get_templated_diagnosis(violation)
+        return get_templated_diagnosis(violation, guidance=guidance)
     except Exception as llm_err:
         logger.warning(
             f"Nemotron Ultra diagnosis failed for {violation.id}: {llm_err}. "
             "Falling back to templated diagnosis."
         )
-        return get_templated_diagnosis(violation)
+        return get_templated_diagnosis(violation, guidance=guidance)
 
-    # 4. Parse JSON payload
+    # 5. Parse JSON payload
     cleaned_json = extract_json_payload(raw_response)
     try:
         data = json.loads(cleaned_json)
@@ -359,6 +396,8 @@ async def diagnose_violation(
                 fix_strategy=str(data.get("fix_strategy", "")).strip() or "Remediate according to WCAG guidelines.",
                 confidence=str(data.get("confidence", "high")).strip().lower(),
                 diagnosis_source="llm",
+                grounded=is_grounded,
+                grounding_sources=grounding_sources,
             )
     except Exception as parse_err:
         logger.warning(
@@ -366,12 +405,14 @@ async def diagnose_violation(
             f"Raw text: {raw_response[:120]}... Falling back to template."
         )
 
-    return get_templated_diagnosis(violation)
+    return get_templated_diagnosis(violation, guidance=guidance)
 
 
 async def diagnose_all(scan_id: str, top_n: Optional[int] = None) -> List[DiagnosedViolation]:
     """
     Coordinates root-cause diagnosis across all classified violations in a scan:
+    - Warms Tavily WCAG guidance cache for all unique categories found concurrently
+    - Emits WebSocket message for the grounding stage
     - Retrieves classified violations from state.py
     - Sorts by priority_rank ascending (1 = highest priority)
     - Processes with an asyncio.Semaphore(2) to prevent excessive Ultra concurrent load
@@ -398,6 +439,30 @@ async def diagnose_all(scan_id: str, top_n: Optional[int] = None) -> List[Diagno
 
     repo_path = scan_data.get("repo_path", "")
     threshold = top_n if top_n is not None else getattr(settings, "DIAGNOSIS_TOP_N", 15)
+
+    # 0. Warm Tavily guidance cache across all distinct categories found, and emit WebSocket progress
+    categories = [v.category for v in raw_violations if v.category]
+    wcag_map = {
+        (v.category.value if hasattr(v.category, "value") else str(v.category)): (v.wcag_criterion or "")
+        for v in raw_violations
+    }
+
+    try:
+        from app.routers.websocket import broadcast_progress
+        await broadcast_progress(
+            scan_id=scan_id,
+            stage="grounding",
+            progress=5,
+            message="Looking up current WCAG guidance with Tavily...",
+            data={"category_count": len(set(str(c) for c in categories))},
+        )
+    except Exception as ws_err:
+        logger.debug(f"Grounding WebSocket message skipped: {ws_err}")
+
+    try:
+        await warm_guidance_cache(categories=categories, wcag_map=wcag_map, scan_id=scan_id)
+    except Exception as warm_err:
+        logger.warning(f"Tavily cache warming failed: {warm_err}. Continuing with scan.")
 
     # Sort strictly by priority_rank (None ranks go to the end)
     sorted_violations = sorted(

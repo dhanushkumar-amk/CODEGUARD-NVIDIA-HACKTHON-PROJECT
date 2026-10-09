@@ -41,6 +41,12 @@ export interface Violation {
   priority_rank?: number | null;
 }
 
+export interface GroundingSource {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+
 export interface DiagnosedViolation extends Violation {
   root_cause: string;
   affected_element: string;
@@ -49,6 +55,8 @@ export interface DiagnosedViolation extends Violation {
   confidence: 'high' | 'medium' | 'low' | string;
   diagnosis_source: 'llm' | 'template' | string;
   plain_explanation?: string;
+  grounded?: boolean;
+  grounding_sources?: GroundingSource[];
 }
 
 export interface ViolationSummary {
@@ -78,6 +86,8 @@ export interface ProposedFix {
   failure_reason?: string | null;
   original_code?: string | null;
   remediated_code?: string | null;
+  grounded?: boolean;
+  grounding_sources?: GroundingSource[];
 }
 
 export interface VerificationResult {
@@ -115,6 +125,8 @@ export interface CostBreakdown {
   fast_cost: number;
   ultra_cost: number;
   total_cost: number;
+  tavily_searches?: number;
+  tavily_sources_count?: number;
 }
 
 export interface ScoreImprovement {
@@ -137,6 +149,7 @@ export interface ScanReport {
   summary?: any | null;
   executive_summary?: string | null;
   cost_breakdown?: CostBreakdown | null;
+  tavily_searches?: number;
   total_duration_seconds?: number;
   timestamp: string;
   status: string;
@@ -160,7 +173,7 @@ export interface ScanStartResponse {
 }
 
 export interface WebSocketMessage {
-  stage: 'init' | 'cloning' | 'scanning' | 'diagnosing' | 'explaining' | 'fixing' | 'verifying' | 'completed' | 'error' | string;
+  stage: 'init' | 'cloning' | 'preparing' | 'scanning' | 'grounding' | 'diagnosing' | 'explaining' | 'fixing' | 'verifying' | 'completed' | 'error' | string;
   progress: number;
   message: string;
   data?: Record<string, any> | null;
