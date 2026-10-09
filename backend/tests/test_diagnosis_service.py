@@ -23,6 +23,16 @@ from app.services.llm_client import UltraBudgetExceededError
 from app.state import create_scan, get_scan, update_scan, remove_scan
 
 
+@pytest.fixture(autouse=True)
+def mock_grounding():
+    """Ensure tests in test_diagnosis_service run isolated without external Tavily calls."""
+    with patch("app.services.diagnosis_service.get_guidance", new_callable=AsyncMock) as m_g, \
+         patch("app.services.diagnosis_service.warm_guidance_cache", new_callable=AsyncMock) as m_w:
+        m_g.return_value = None
+        m_w.return_value = {}
+        yield
+
+
 @pytest.mark.asyncio
 async def test_top_priority_violations_get_real_llm_diagnosis():
     """Verify top-priority violations (within top_n) invoke Nemotron Ultra and parse JSON diagnosis."""

@@ -8,6 +8,8 @@
 [![NVIDIA Nemotron](https://img.shields.io/badge/NVIDIA-Nemotron--3.5--Lightning%20%7C%20Nemotron--3--Ultra-76B900.svg)](https://developer.nvidia.com)
 [![Nebius Token Factory](https://img.shields.io/badge/Nebius-Token%20Factory-6C5CE7.svg)](https://nebius.com)
 [![Tavily Search](https://img.shields.io/badge/Tavily-A11y%20Grounding-blueviolet.svg)](https://tavily.com)
+[![CI](https://github.com/dhanushkumar-amk/CODEGUARD---NVIDIA-HACKTHON-PROJECT/actions/workflows/ci.yml/badge.svg)](https://github.com/dhanushkumar-amk/CODEGUARD---NVIDIA-HACKTHON-PROJECT/actions/workflows/ci.yml)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-codeguard.dhanushkumar.in-success.svg)](https://codeguard.dhanushkumar.in/)
 
 ---
 
@@ -235,6 +237,44 @@ Extracted from [**docs/tech-stack.md**](docs/tech-stack.md):
 - **Web Search Grounding**: Tavily AI Search (`tavily-python`), domain-restricted WCAG retrieval
 - **Verification & Sandboxing**: Nebius AI Cloud Sandboxes, Playwright, `@axe-core/playwright`, Headless Chromium
 - **Real-time Protocol**: Native WebSockets for low-latency pipeline streaming
+
+---
+
+## 🔁 CI/CD Pipeline
+
+CodeGuard maintains a simple, robust continuous integration and deployment pipeline powered by GitHub Actions:
+
+### 1. Continuous Integration (`.github/workflows/ci.yml`)
+Triggered automatically on every pull request and push to `main` / `master`. Runs four parallel jobs with cancellation of obsolete runs (`cancel-in-progress: true`):
+- **Backend Quality**: Sets up Python 3.11, validates syntax and style with Ruff, and executes the 144-test Pytest suite with 100% mocked external APIs (zero live keys required).
+- **Frontend Quality**: Sets up Node 20, runs clean install (`npm ci`), verifies type safety (`tsc --noEmit`), runs 24 Vitest unit tests, and builds the production bundle (`npm run build`).
+- **Container Build Test**: Validates that `backend/Dockerfile` builds cleanly using `docker/build-push-action` and GitHub Actions caching without pushing.
+- **Secret Detection**: Runs **Gitleaks** across the complete git commit history to guarantee no API keys, private tokens, or credentials are committed.
+
+### 2. Continuous Delivery (`.github/workflows/deploy.yml`)
+Triggered automatically when the CI workflow succeeds on `master` (via `workflow_run`) or manually on-demand (`workflow_dispatch`):
+- **Container Packaging**: Logs into GitHub Container Registry (`ghcr.io`), builds, and publishes multi-stage backend images tagged with the commit SHA and `latest`.
+- **Nebius Endpoint Deployment**: Deploys the published container to Nebius Serverless AI Endpoints using the official Nebius CLI.
+- **Automated Health Smoke Test**: Executes a 3-minute retry loop against `GET /health` on the live API URL. If the health endpoint fails to return 200 OK within 180 seconds, the workflow fails, preserving previous revisions.
+- **Frontend GitHub Pages**: Deploys the compiled frontend with repository-configured API and WebSocket base URLs (`VITE_API_BASE_URL` and `VITE_WS_BASE_URL`), creating a `404.html` SPA routing fallback.
+
+### 3. Manual Deployment (`workflow_dispatch`)
+To trigger a manual production deployment without a new git commit:
+1. Navigate to repository **Actions** tab on GitHub.
+2. Select the **CD** workflow in the left sidebar.
+3. Click **Run workflow**, choose the branch (e.g., `master`), and click **Run workflow**.
+
+### 4. Rolling Back to a Previous Version
+Every deployment pushes an immutable image tagged with the commit SHA: `ghcr.io/<owner>/codeguard-backend:<git-sha>`.
+To roll back to a known stable image:
+```bash
+# Using Nebius CLI:
+nebius ai endpoint create \
+  --name codeguard-backend \
+  --image ghcr.io/<owner>/codeguard-backend:<previous-sha> \
+  --parent-id $NEBIUS_PROJECT_ID \
+  --container-port 8000
+```
 
 ---
 
