@@ -108,32 +108,65 @@ CodeGuard relies on the following official model endpoints hosted on Nebius Toke
 
 ---
 
-## 🏛️ Architecture
+## 🏛️ Architecture & High-Level Design (HLD)
 
-For complete system design, data flow diagrams, and schema specifications, refer to [**docs/architecture.md**](docs/architecture.md).
+For the full architectural specification, state machine flowcharts, sandbox snapshot caching, and resilience matrices, read [**docs/HLD.md**](docs/HLD.md).
+
+### 🎨 Hand-Drawn Architectural Blueprint
+
+![CodeGuard Hand-Drawn Architecture Blueprint](./docs/codeguard_hld_scratch_sketch.jpg)
+
+### 📐 Whiteboard Scratch-Style Component Topology
 
 ```text
-┌────────────────────────────────────────────────────────┐
-│               React 18 + Vite Dashboard                │
-│    (Live WebSocket progress, Diff viewer, PR trigger)  │
-└───────────────────────────▲────────────────────────────┘
-                            │ WebSocket / REST
-┌───────────────────────────▼────────────────────────────┐
-│                  FastAPI Backend Server                │
-│  ┌───────────────────────┐   ┌───────────────────────┐ │
-│  │ Git Ingestion Service │   │ Aggregator & Scanner  │ │
-│  └───────────────────────┘   └───────────────────────┘ │
-│  ┌───────────────────────┐   ┌───────────────────────┐ │
-│  │ Fixer & Diff Engine   │   │ Report & PR Generator │ │
-│  └───────────────────────┘   └───────────────────────┘ │
-└─────────────▲─────────────────────────────▲────────────┘
-              │                             │
-┌─────────────▼─────────────┐ ┌─────────────▼────────────┐
-│   Nebius Token Factory    │ │ Nebius AI Cloud Sandbox  │
-│  - Nemotron 3.5 Lightning │ │  - Ephemeral Container   │
-│  - Nemotron 3 Ultra 550B  │ │  - axe-core + Playwright │
-│  - Budget Guardrails      │ │  - Native Test Runner    │
-└───────────────────────────┘ └──────────────────────────┘
+========================================================================================================
+                                     CODEGUARD HIGH-LEVEL ARCHITECTURE
+========================================================================================================
+
+  +-----------------------+                         +-----------------------------------+
+  |   DEVELOPER CLIENT    |  POST /scans            |    FASTAPI ORCHESTRATION GATEWAY  |
+  |  - React 18 + Vite    | ----------------------> |  - Lifespan Credential Validator  |
+  |  - Dark Mode Dashboard| <~~~~~~~~~~~~~~~~~~~~~~ |  - SSE Event Bus & Channel Hub    |
+  |  - Realtime SSE Feed  |    SSE Live Stream      |  - In-Memory Scan State Registry  |
+  +-----------------------+                         +-----------------+-----------------+
+             ^                                                        |
+             |                                                        v
+             |                                     +------------------------------------+
+             |                                     |    PIPELINE EXECUTION ENGINE       |
+             |                                     |  Stage 1: Clone & Discovery        |
+             |                                     |  Stage 2: Markup & AST Extraction  |
+             |                                     |  Stage 3: Rule Classification      |
+             |                                     |  Stage 4: Grounding Search         |
+             |                                     |  Stage 5: Remediation Synthesis    |
+             |                                     |  Stage 6: Sandbox Verification     |
+             |                                     |  Stage 7: Score & Diff Calculation |
+             |                                     |  Stage 8: Report & PR Generation   |
+             |                                     +--+-------------+----------------+--+
+             |                                        |             |                |
+             +--------------------+                   |             |                |
+                                  |                   v             |                v
+           +----------------------+-----------+   +---+---+         |   +------------+------------+
+           |    TAVILY GROUNDING SERVICE      |   |       |         |   | NEBIUS CONTREE SANDBOX  |
+           |  - Include: w3.org, mdn, webaim  | <-+       |         |   | - Isolated MicroVMs     |
+           |  - WCAG 2.2 Technique Retrieval  |           |         |   | - Filesystem Snapshots  |
+           |  - In-Memory Domain Cache        |           |         |   | - Axe-core / Playwright |
+           +----------------------------------+           |         |   | - Native npm test Suite |
+                                                          v         |   +-------------------------+
+                                          +---------------+----+    |                |
+                                          | DUAL-TIER LLM ROUTER|   |                v
+                                          +--------------------+    |   +-------------------------+
+                                          | Fast Tier:         |    |   |  AUTOMATED GITHUB BOT   |
+                                          |  Nemotron 3.5      |    +-> |  - Branch Creation      |
+                                          |  Lightning (Batch) |        |  - Verified PR Commit   |
+                                          |                    |        |  - Audit Report Link    |
+                                          | Ultra Tier:        |        +-------------------------+
+                                          |  Nemotron 3 Ultra  |
+                                          |  550B (Synthesis)  |
+                                          |                    |
+                                          | Budget Enforcer:   |
+                                          |  $0.05 cap / scan  |
+                                          +--------------------+
+========================================================================================================
 ```
 
 ---
