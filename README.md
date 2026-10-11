@@ -116,57 +116,34 @@ For the full architectural specification, state machine flowcharts, sandbox snap
 
 ![CodeGuard Hand-Drawn Architecture Blueprint](./docs/codeguard_hld_scratch_sketch.jpg)
 
-### 📐 Whiteboard Scratch-Style Component Topology
+### 📐 Hand-Drawn Component Topology Blueprint
+
+![CodeGuard Hand-Drawn Component Topology Blueprint](./docs/codeguard_component_topology_sketch.jpg)
+
+- **Client Layer**: React 18 + Vite dashboard with live SSE stream subscription, diff previewer, and budget spending monitor.
+- **API Gateway Layer**: FastAPI orchestration gateway with startup credential validation and asynchronous pub/sub event bus.
+- **Ingestion & AST Engine**: Shallow git clone worker and markup parser extracting component AST chunks.
+- **Tavily Grounding Service**: Domain-restricted retriever querying W3C, MDN, and Deque for official WCAG 2.2 techniques.
+- **Dual-Tier LLM Engine**: Cost-optimized routing pairing **Nemotron 3.5 Lightning** (fast triage) with **Nemotron 3 Ultra 550B** (patch synthesis) protected by strict budget limits.
+- **Nebius ConTree Sandbox microVMs**: Ephemeral containerized verification running `@axe-core/playwright` and test suites with snapshot branching.
+- **Delivery Layer**: Automated GitHub Pull Request bot and comprehensive compliance report exporter (HTML/JSON/Markdown).
+
+---
+
+## 🗺️ End-to-End User Flow
+
+For the complete interactive user journey, sequence diagrams, and step-by-step breakdown, read [**docs/USER_FLOW.md**](docs/USER_FLOW.md).
+
+### 🎨 Hand-Drawn User Flow Blueprint
+
+![CodeGuard User Flow End-to-End Blueprint](./docs/codeguard_user_flow_sketch.jpg)
+
+### 🚀 Developer Journey at a Glance
 
 ```text
-========================================================================================================
-                                     CODEGUARD HIGH-LEVEL ARCHITECTURE
-========================================================================================================
-
-  +-----------------------+                         +-----------------------------------+
-  |   DEVELOPER CLIENT    |  POST /scans            |    FASTAPI ORCHESTRATION GATEWAY  |
-  |  - React 18 + Vite    | ----------------------> |  - Lifespan Credential Validator  |
-  |  - Dark Mode Dashboard| <~~~~~~~~~~~~~~~~~~~~~~ |  - SSE Event Bus & Channel Hub    |
-  |  - Realtime SSE Feed  |    SSE Live Stream      |  - In-Memory Scan State Registry  |
-  +-----------------------+                         +-----------------+-----------------+
-             ^                                                        |
-             |                                                        v
-             |                                     +------------------------------------+
-             |                                     |    PIPELINE EXECUTION ENGINE       |
-             |                                     |  Stage 1: Clone & Discovery        |
-             |                                     |  Stage 2: Markup & AST Extraction  |
-             |                                     |  Stage 3: Rule Classification      |
-             |                                     |  Stage 4: Grounding Search         |
-             |                                     |  Stage 5: Remediation Synthesis    |
-             |                                     |  Stage 6: Sandbox Verification     |
-             |                                     |  Stage 7: Score & Diff Calculation |
-             |                                     |  Stage 8: Report & PR Generation   |
-             |                                     +--+-------------+----------------+--+
-             |                                        |             |                |
-             +--------------------+                   |             |                |
-                                  |                   v             |                v
-           +----------------------+-----------+   +---+---+         |   +------------+------------+
-           |    TAVILY GROUNDING SERVICE      |   |       |         |   | NEBIUS CONTREE SANDBOX  |
-           |  - Include: w3.org, mdn, webaim  | <-+       |         |   | - Isolated MicroVMs     |
-           |  - WCAG 2.2 Technique Retrieval  |           |         |   | - Filesystem Snapshots  |
-           |  - In-Memory Domain Cache        |           |         |   | - Axe-core / Playwright |
-           +----------------------------------+           |         |   | - Native npm test Suite |
-                                                          v         |   +-------------------------+
-                                          +---------------+----+    |                |
-                                          | DUAL-TIER LLM ROUTER|   |                v
-                                          +--------------------+    |   +-------------------------+
-                                          | Fast Tier:         |    |   |  AUTOMATED GITHUB BOT   |
-                                          |  Nemotron 3.5      |    +-> |  - Branch Creation      |
-                                          |  Lightning (Batch) |        |  - Verified PR Commit   |
-                                          |                    |        |  - Audit Report Link    |
-                                          | Ultra Tier:        |        +-------------------------+
-                                          |  Nemotron 3 Ultra  |
-                                          |  550B (Synthesis)  |
-                                          |                    |
-                                          | Budget Enforcer:   |
-                                          |  $0.05 cap / scan  |
-                                          +--------------------+
-========================================================================================================
+  [1. Input Repo URL] ──► [2. Live Real-Time Audit & SSE Feed] ──► [3. Explore Violations & MDN Grounding]
+                                                                                │
+  [6. Automated GitHub PR] ◄── [5. Nebius MicroVM Sandbox] ◄── [4. Inspect Nemotron Git Diffs]
 ```
 
 ---
