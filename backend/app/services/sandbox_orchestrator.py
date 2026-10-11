@@ -174,12 +174,24 @@ async def install_dependencies(
         if repo_path
         else (Path(get_scan(scan_id).get("repo_path")) if scan_id and get_scan(scan_id) else None)
     )
+    has_pkg = False
     if r_path and r_path.exists():
-        if (r_path / "yarn.lock").exists():
-            is_yarn = True
-        elif not (r_path / "package.json").exists() and (r_path / "frontend" / "package.json").exists():
+        if (r_path / "package.json").exists():
+            has_pkg = True
+            is_yarn = (r_path / "yarn.lock").exists()
+        elif (r_path / "frontend" / "package.json").exists():
+            has_pkg = True
             pkg_subpath = "frontend"
             is_yarn = (r_path / "frontend" / "yarn.lock").exists()
+
+    if not has_pkg and r_path is not None:
+        logger.info(f"No package.json detected in repo {r_path}; skipping dependency installation.")
+        return CommandResult(
+            stdout="No package.json found; skipping dependency install.",
+            stderr="",
+            exit_code=0,
+            duration_ms=0.0,
+        )
 
     if pkg_subpath:
         install_cmd = f"yarn --cwd {pkg_subpath} install" if is_yarn else f"npm --prefix {pkg_subpath} install"

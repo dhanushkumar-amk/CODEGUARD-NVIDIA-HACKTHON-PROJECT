@@ -31,9 +31,25 @@ def reset_concurrency():
 
 @pytest.mark.asyncio
 async def test_create_sandbox_missing_key():
-    with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", ""):
-        with pytest.raises(SandboxAuthenticationError):
-            await create_sandbox()
+    with patch.object(settings, "SANDBOX_PROVIDER", "nebius"):
+        with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", ""):
+            with pytest.raises(SandboxAuthenticationError):
+                await create_sandbox()
+
+
+@pytest.mark.asyncio
+async def test_create_and_destroy_local_sandbox():
+    """Ensure local isolated process sandbox provisions and cleans up without remote API calls."""
+    handle = await create_sandbox()
+    assert handle.sandbox_id.startswith("sb-local-")
+    assert handle.status == "ready"
+
+    # Test local execution in sandbox
+    res = await run_command(handle.sandbox_id, "echo hello_sandbox")
+    assert "hello_sandbox" in res.stdout
+    assert res.exit_code == 0
+
+    await destroy_sandbox(handle.sandbox_id)
 
 
 @pytest.mark.asyncio
@@ -48,14 +64,15 @@ async def test_create_and_destroy_sandbox():
         request=httpx.Request("DELETE", "https://api.tokenfactory.nebius.com/v1/sandboxes/sb-test-123"),
     )
 
-    with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", "real-sandbox-key"):
-        with patch("app.services.sandbox_client._send_request", side_effect=[mock_resp, mock_del_resp]):
-            handle = await create_sandbox()
-            assert handle.sandbox_id == "sb-test-123"
-            assert handle.id == "sb-test-123"
-            assert handle.image == "node:20"
+    with patch.object(settings, "SANDBOX_PROVIDER", "nebius"):
+        with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", "real-sandbox-key"):
+            with patch("app.services.sandbox_client._send_request", side_effect=[mock_resp, mock_del_resp]):
+                handle = await create_sandbox()
+                assert handle.sandbox_id == "sb-test-123"
+                assert handle.id == "sb-test-123"
+                assert handle.image == "node:20"
 
-            await destroy_sandbox(handle.sandbox_id)
+                await destroy_sandbox(handle.sandbox_id)
 
 
 @pytest.mark.asyncio

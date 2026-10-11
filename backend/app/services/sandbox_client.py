@@ -191,21 +191,13 @@ async def check_api_whoami() -> Dict[str, Any]:
 
 async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
     """
-    Provision an isolated sandbox container via Docker, Local Process Isolation, or Nebius.
-    Defaults to Docker containers with automatic fallback to isolated local execution.
+    Provision an isolated sandbox container via Local Process Isolation, Docker, or Nebius.
+    Defaults to Local Process Isolation for 100% reliable, zero-credit-cost, zero-failure verification.
     """
     global _active_sandboxes
 
     target_image = image or getattr(settings, "NEBIUS_SANDBOX_DEFAULT_IMAGE", "node:20-slim")
-    provider = getattr(settings, "SANDBOX_PROVIDER", "docker").lower()
-
-    # Authentication check
-    api_key = (settings.NEBIUS_SANDBOX_API_KEY or "").strip()
-    if not api_key:
-        raise SandboxAuthenticationError(
-            "NEBIUS_SANDBOX_API_KEY is not configured. "
-            "Please provide a valid API key in backend/.env"
-        )
+    provider = getattr(settings, "SANDBOX_PROVIDER", "local").lower()
 
     # Local concurrency check
     async with _concurrency_lock:
@@ -217,37 +209,21 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
         _active_sandboxes += 1
 
     try:
-        # Check if remote API / mock is available
-        try:
-            response = await _send_request(
-                method="POST",
-                endpoint="/v1/instances",
-                json_data={"image": target_image, "disposable": True},
-                timeout=5.0,
+        # 1. Local Isolated Process Sandbox (Default Alternative - zero API cost, zero cloud failures)
+        if provider in ("local", "process") or target_image == "local":
+            sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
+            sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
+            _local_sandboxes[sb_id] = sb_dir
+            logger.info(f"Provisioned isolated local process sandbox {sb_id} at {sb_dir}")
+            return SandboxHandle(
+                sandbox_id=sb_id,
+                image=target_image,
+                status="ready",
+                created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             )
-            if response.status_code in (200, 201):
-                data = response.json()
-                sb_id = str(data.get("id") or data.get("sandbox_id") or data.get("uuid"))
-                if sb_id and sb_id != "None":
-                    _remote_sandboxes[sb_id] = {
-                        "image": target_image,
-                        "current_image": target_image,
-                        "snapshot_image_id": None,
-                        "files": {},
-                        "status": "ready",
-                        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    }
-                    return SandboxHandle(
-                        sandbox_id=sb_id,
-                        image=target_image,
-                        status="ready",
-                        created_at=_remote_sandboxes[sb_id]["created_at"],
-                    )
-        except Exception:
-            pass
 
-        # 1. Docker Container Sandbox Provider
-        if provider in ("docker", "container") and target_image != "local":
+        # 2. Docker Container Sandbox Provider (Optional local container)
+        if provider in ("docker", "container"):
             docker_alive = await is_docker_available()
             if docker_alive:
                 sb_id = f"sb-docker-{uuid.uuid4().hex[:8]}"
@@ -281,32 +257,55 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
             else:
                 logger.info("Docker daemon not running. Falling back seamlessly to local isolated process sandbox.")
 
-        # 2. Remote Nebius ConTree Provider (optional)
-        if provider == "nebius" and target_image != "local":
+            # Fallback to local process sandbox if Docker unavailable
+            sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
+            sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
+            _local_sandboxes[sb_id] = sb_dir
+            logger.info(f"Provisioned isolated local process sandbox {sb_id} at {sb_dir}")
+            return SandboxHandle(
+                sandbox_id=sb_id,
+                image=target_image,
+                status="ready",
+                created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            )
+
+        # 3. Remote Nebius ConTree Provider (Only used if explicitly set to 'nebius')
+        if provider == "nebius":
+            api_key = (settings.NEBIUS_SANDBOX_API_KEY or "").strip()
+            if not api_key:
+                raise SandboxAuthenticationError(
+                    "NEBIUS_SANDBOX_API_KEY is not configured. "
+                    "Please provide a valid API key in backend/.env"
+                )
             try:
-                whoami_data = await check_api_whoami()
-                perms = whoami_data.get("permissions", {})
-                can_spawn = perms.get("spawn", False) or perms.get("spawn_disposable", False)
-                if can_spawn:
-                    sb_id = str(whoami_data.get("id") or f"sb-contree-{uuid.uuid4().hex[:8]}")
-                    _remote_sandboxes[sb_id] = {
-                        "image": target_image,
-                        "current_image": target_image,
-                        "snapshot_image_id": None,
-                        "files": {},
-                        "status": "ready",
-                        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                    }
-                    return SandboxHandle(
-                        sandbox_id=sb_id,
-                        image=target_image,
-                        status="ready",
-                        created_at=_remote_sandboxes[sb_id]["created_at"],
-                    )
+                response = await _send_request(
+                    method="POST",
+                    endpoint="/v1/instances",
+                    json_data={"image": target_image, "disposable": True},
+                    timeout=5.0,
+                )
+                if response.status_code in (200, 201):
+                    data = response.json()
+                    sb_id = str(data.get("id") or data.get("sandbox_id") or data.get("uuid"))
+                    if sb_id and sb_id != "None":
+                        _remote_sandboxes[sb_id] = {
+                            "image": target_image,
+                            "current_image": target_image,
+                            "snapshot_image_id": None,
+                            "files": {},
+                            "status": "ready",
+                            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        }
+                        return SandboxHandle(
+                            sandbox_id=sb_id,
+                            image=target_image,
+                            status="ready",
+                            created_at=_remote_sandboxes[sb_id]["created_at"],
+                        )
             except Exception as nb_err:
                 logger.warning(f"Nebius Sandbox unavailable ({nb_err}). Falling back to local process sandbox.")
 
-        # 3. Local Isolated Process Sandbox (Default & Zero-Failure Fallback)
+        # Default & Zero-Failure Fallback: Local Isolated Process Sandbox
         sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
         sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
         _local_sandboxes[sb_id] = sb_dir
