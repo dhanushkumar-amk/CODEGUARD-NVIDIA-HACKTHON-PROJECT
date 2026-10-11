@@ -28,6 +28,7 @@ import { StatCard } from '../components/StatCard';
 import { ViolationsPieChart } from '../components/ViolationsPieChart';
 import { FilterableViolationsList } from '../components/FilterableViolationsList';
 import { Toast, ToastData } from '../components/Toast';
+import { exportReportToPdf } from '../utils/pdfGenerator';
 
 export const Report: React.FC = () => {
   const { scanId } = useParams<{ scanId: string }>();
@@ -35,6 +36,7 @@ export const Report: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingPr, setIsCreatingPr] = useState<boolean>(false);
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [prResult, setPrResult] = useState<CreatePRResponse | null>(null);
   const [toast, setToast] = useState<ToastData | null>(null);
 
@@ -80,6 +82,34 @@ export const Report: React.FC = () => {
       });
     } finally {
       setIsCreatingPr(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!report || isExportingPdf) return;
+    setIsExportingPdf(true);
+    setToast({
+      type: 'loading',
+      message: 'Generating PDF Report...',
+      detail: 'Capturing charts, metrics, and verified diffs',
+    });
+
+    try {
+      await exportReportToPdf({ report });
+      setToast({
+        type: 'success',
+        message: 'PDF Downloaded Successfully!',
+        detail: `Saved as codeguard-accessibility-report-${report.scan_id}.pdf`,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to export PDF';
+      setToast({
+        type: 'error',
+        message: 'PDF Export Failed',
+        detail: msg,
+      });
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -242,13 +272,29 @@ export const Report: React.FC = () => {
           const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
           return (
             <div className="flex items-center flex-wrap gap-2">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleExportPdf}
+                disabled={isExportingPdf}
+                leftIcon={
+                  isExportingPdf ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <Download size={13} />
+                  )
+                }
+                data-testid="export-pdf-btn"
+              >
+                {isExportingPdf ? 'Exporting PDF...' : 'Export as PDF'}
+              </Button>
               <a
                 href={`${apiBase}/api/report/${report.scan_id}/download`}
                 download={`codeguard-report-${report.scan_id}.html`}
                 data-testid="download-report-btn"
               >
                 <Button variant="secondary" size="sm" leftIcon={<Download size={13} />}>
-                  Download report
+                  Download HTML
                 </Button>
               </a>
               <a
@@ -258,7 +304,7 @@ export const Report: React.FC = () => {
                 data-testid="view-markdown-btn"
               >
                 <Button variant="secondary" size="sm" leftIcon={<FileText size={13} />}>
-                  View as Markdown
+                  View Markdown
                 </Button>
               </a>
               <Link to="/" data-testid="scan-another-repo-btn">
@@ -271,7 +317,31 @@ export const Report: React.FC = () => {
         })()}
       </div>
 
-      {/* A. HERO SCORE SECTION */}
+      {/* Printable Report Document Container */}
+      <div id="report-printable-content" className="flex flex-col gap-8 bg-paper">
+        {/* PDF Certification Header Banner */}
+        <div className="p-4 rounded-[6px] border border-line bg-surface-1 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-[6px] bg-primary flex items-center justify-center text-white font-bold text-xs">
+              CG
+            </div>
+            <div>
+              <div className="text-sm font-bold text-ink font-sans">CodeGuard™ Accessibility Audit Report</div>
+              <div className="text-[11px] font-mono text-muted flex items-center gap-1.5">
+                <Globe size={11} className="text-primary" />
+                <a href="https://codeguard.dhanushkumar.in" target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                  https://codeguard.dhanushkumar.in
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="text-left sm:text-right text-[11px] font-mono text-muted">
+            <div>Target: <span className="text-ink font-semibold">{report.repo_url}</span></div>
+            <div>Branch: <span className="text-ink">{report.branch || 'main'}</span> &bull; {new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+
+        {/* A. HERO SCORE SECTION */}
       <ScoreReadout
         scoreBefore={report.overall_score_before}
         scoreAfter={report.overall_score_after}
@@ -495,6 +565,7 @@ export const Report: React.FC = () => {
           </div>
         </div>
       </section>
+    </div>
 
       {/* E. FOOTER ACTIONS */}
       <div className="flex flex-col gap-3 p-4 border border-line bg-paper rounded-[6px]">
@@ -560,10 +631,26 @@ export const Report: React.FC = () => {
               'Ready to open a GitHub pull request with verified remediations?'
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              leftIcon={
+                isExportingPdf ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <Download size={14} />
+                )
+              }
+              data-testid="export-pdf-footer-btn"
+            >
+              {isExportingPdf ? 'Exporting PDF...' : 'Export as PDF'}
+            </Button>
             <Link to="/">
               <Button
-                variant="secondary"
+                variant="outline"
                 size="md"
                 leftIcon={<RotateCcw size={14} />}
                 data-testid="scan-another-repo-footer-btn"

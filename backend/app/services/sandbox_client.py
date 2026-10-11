@@ -59,7 +59,7 @@ async def is_docker_available() -> bool:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )
-        await asyncio.wait_for(proc.communicate(), timeout=3.0)
+        await asyncio.wait_for(proc.communicate(), timeout=6.0)
         return proc.returncode == 0
     except Exception:
         return False
@@ -143,12 +143,13 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
 
     # Local concurrency check
     async with _concurrency_lock:
-        if _active_sandboxes >= settings.SANDBOX_MAX_CONCURRENT:
+        current_active = len(_docker_sandboxes) + len(_local_sandboxes)
+        if current_active >= settings.SANDBOX_MAX_CONCURRENT:
             raise SandboxQuotaExceededError(
                 f"Maximum concurrent sandboxes ({settings.SANDBOX_MAX_CONCURRENT}) reached. "
                 "Please wait for active sandboxes to complete."
             )
-        _active_sandboxes += 1
+        _active_sandboxes = current_active + 1
 
     try:
         # Provider 1: Docker Sandbox
@@ -370,8 +371,7 @@ async def destroy_sandbox(sandbox_id: str) -> None:
             logger.info(f"Destroyed local execution sandbox {sandbox_id}")
 
     async with _concurrency_lock:
-        if _active_sandboxes > 0:
-            _active_sandboxes -= 1
+        _active_sandboxes = len(_docker_sandboxes) + len(_local_sandboxes)
 
 
 # -------------------------------------------------------------------------
