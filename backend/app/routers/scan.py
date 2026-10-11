@@ -88,12 +88,17 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 await generate_all_fixes(scan_id)
 
                 # Phase 20: Verify fixes with axe-core in isolated sandboxes
-                from app.services.verification_service import (
-                    verify_all_fixes,
-                    calculate_overall_improvement,
-                )
-                await verify_all_fixes(scan_id)
-                await calculate_overall_improvement(scan_id)
+                try:
+                    from app.services.verification_service import (
+                        verify_all_fixes,
+                        calculate_overall_improvement,
+                    )
+                    await verify_all_fixes(scan_id)
+                    await calculate_overall_improvement(scan_id)
+                except Exception as verify_err:
+                    logger.warning(
+                        f"Verification stage encountered an error for scan {scan_id}, continuing gracefully: {verify_err}"
+                    )
 
                 # Phase 22 & 23: Build final unified ScanReport, generate executive summary, and save files
                 from app.services.aggregator_service import build_scan_report

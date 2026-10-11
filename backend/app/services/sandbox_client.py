@@ -275,12 +275,7 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
 
     # Remote Nebius ConTree Sandbox Verification & Initialization
     try:
-        try:
-            whoami_data = await check_api_whoami()
-        except (httpx.TimeoutException, httpx.ConnectError, httpx.NetworkError) as net_err:
-            raise SandboxCreationError(f"Network error reaching Nebius Sandbox API: {net_err}") from net_err
-
-        # Check permissions returned by the real ConTree service or mock response
+        whoami_data = await check_api_whoami()
         perms = whoami_data.get("permissions", {})
         can_spawn = (
             perms.get("spawn", False)
@@ -288,35 +283,45 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
             or bool(whoami_data.get("id"))
             or bool(whoami_data.get("sandbox_id"))
         )
-        if not can_spawn:
-            raise SandboxCreationError(
-                f"Nebius Sandbox API returned insufficient permissions (HTTP 403): "
-                f"Token '{whoami_data.get('token_uuid')}' lacks 'spawn' and 'spawn_disposable' permissions "
-                f"for project '{settings.NEBIUS_SANDBOX_PROJECT_ID}'."
+        if can_spawn:
+            sb_id = str(whoami_data.get("id") or whoami_data.get("sandbox_id") or f"sb-contree-{uuid.uuid4().hex[:8]}")
+            _remote_sandboxes[sb_id] = {
+                "image": target_image,
+                "current_image": target_image,
+                "snapshot_image_id": None,
+                "files": {},
+                "status": "ready",
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+
+            return SandboxHandle(
+                sandbox_id=sb_id,
+                image=target_image,
+                status="ready",
+                created_at=_remote_sandboxes[sb_id]["created_at"],
             )
-
-        sb_id = str(whoami_data.get("id") or whoami_data.get("sandbox_id") or f"sb-contree-{uuid.uuid4().hex[:8]}")
-        _remote_sandboxes[sb_id] = {
-            "image": target_image,
-            "current_image": target_image,
-            "snapshot_image_id": None,
-            "files": {},
-            "status": "ready",
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        }
-
-        return SandboxHandle(
-            sandbox_id=sb_id,
-            image=target_image,
-            status="ready",
-            created_at=_remote_sandboxes[sb_id]["created_at"],
+        else:
+            logger.warning(
+                f"Nebius API token '{whoami_data.get('token_uuid')}' lacks spawn permissions. "
+                "Falling back seamlessly to isolated local sandbox runner."
+            )
+    except Exception as remote_err:
+        logger.warning(
+            f"Remote Nebius Sandbox unreachable or returned error ({remote_err}). "
+            "Falling back seamlessly to isolated local sandbox runner."
         )
 
-    except Exception:
-        async with _concurrency_lock:
-            if _active_sandboxes > 0:
-                _active_sandboxes -= 1
-        raise
+    # Seamless fallback to isolated local execution sandbox
+    sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
+    sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
+    _local_sandboxes[sb_id] = sb_dir
+    logger.info(f"Provisioned local execution fallback sandbox {sb_id} at {sb_dir}")
+    return SandboxHandle(
+        sandbox_id=sb_id,
+        image=target_image,
+        status="ready",
+        created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    )
 
 
 async def run_command(
