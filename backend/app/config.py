@@ -31,7 +31,8 @@ class Settings(BaseSettings):
     FIX_GENERATION_MODEL: str = "ultra"
     FIX_MIN_SEVERITY: str = "medium"
 
-    # Nebius AI Cloud Sandbox Configuration (ConTree)
+    # Sandbox Infrastructure Configuration (Docker / Local / Nebius)
+    SANDBOX_PROVIDER: str = "docker"  # Options: 'docker', 'local', 'nebius'
     NEBIUS_SANDBOX_API_KEY: str = ""
     NEBIUS_SANDBOX_BASE_URL: str = "https://api.studio.nebius.com/sandboxes"
     NEBIUS_SANDBOX_PROJECT_ID: str = ""
