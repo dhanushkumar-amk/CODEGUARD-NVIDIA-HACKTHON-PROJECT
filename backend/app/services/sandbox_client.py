@@ -366,24 +366,27 @@ async def run_command(
     if sandbox_id in _local_sandboxes:
         sb_dir = _local_sandboxes[sandbox_id]
         try:
-            proc = await asyncio.create_subprocess_shell(
-                command,
-                cwd=str(sb_dir),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=float(cmd_timeout),
-            )
+            import subprocess
+
+            def _exec_sync() -> subprocess.CompletedProcess:
+                return subprocess.run(
+                    command,
+                    shell=True,
+                    cwd=str(sb_dir),
+                    capture_output=True,
+                    text=True,
+                    timeout=float(cmd_timeout),
+                )
+
+            proc_res = await asyncio.to_thread(_exec_sync)
             duration_ms = round((time.time() - start_t) * 1000.0, 2)
             return CommandResult(
-                stdout=stdout_bytes.decode("utf-8", errors="replace"),
-                stderr=stderr_bytes.decode("utf-8", errors="replace"),
-                exit_code=proc.returncode if proc.returncode is not None else 0,
+                stdout=proc_res.stdout or "",
+                stderr=proc_res.stderr or "",
+                exit_code=proc_res.returncode,
                 duration_ms=duration_ms,
             )
-        except asyncio.TimeoutError:
+        except subprocess.TimeoutExpired:
             raise SandboxTimeoutError(f"Local command execution timed out after {cmd_timeout}s: {command}")
         except Exception as exc:
             raise SandboxCommandError(f"Local sandbox error running '{command}': {exc}") from exc

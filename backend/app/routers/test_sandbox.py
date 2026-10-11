@@ -58,12 +58,13 @@ async def test_sandbox_echo():
     """
     from app.services.sandbox_client import check_api_whoami, destroy_sandbox
 
-    # 1. Verify real Nebius Sandbox (ConTree) API connectivity
+    # 1. Verify remote API connectivity if nebius provider selected
     whoami_info = {}
-    try:
-        whoami_info = await check_api_whoami()
-    except Exception as whoami_err:
-        logger.warning(f"Nebius ConTree whoami check: {whoami_err}")
+    if getattr(settings, "SANDBOX_PROVIDER", "local").lower() == "nebius":
+        try:
+            whoami_info = await check_api_whoami()
+        except Exception as whoami_err:
+            logger.warning(f"Nebius ConTree whoami check: {whoami_err}")
 
     # 2. Execute command
     try:
