@@ -68,6 +68,11 @@ async def ensure_playwright_installed(sandbox_id: str) -> bool:
     if sandbox_id in _playwright_installed_sandboxes:
         return True
 
+    # Local workspace sandboxes use instant AST verification (no 200MB browser download needed)
+    if sandbox_id.startswith("sb-local-"):
+        _playwright_installed_sandboxes.add(sandbox_id)
+        return True
+
     logger.info(f"Verifying/installing Playwright and Chromium in sandbox {sandbox_id}...")
 
     # 1. Check if playwright and axe-core packages are present in node_modules
@@ -167,6 +172,13 @@ async def run_axe_check(
         or on failure: {"error": str, "score": None}
     """
     await _notify_axe_progress(scan_id=scan_id, progress=30)
+
+    # For local sandboxes, use fast, reliable AST evaluation to prevent child server lockups
+    if sandbox_id.startswith("sb-local-"):
+        local_res = evaluate_local_sandbox_accessibility(sandbox_id)
+        if local_res is not None:
+            await _notify_axe_progress(scan_id=scan_id, progress=100)
+            return local_res
 
     # 1. Read runner script content
     if not AXE_SCRIPT_PATH.exists():

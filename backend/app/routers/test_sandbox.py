@@ -53,31 +53,22 @@ class PrepareSandboxRequest(BaseModel):
 @router.post("/echo")
 async def test_sandbox_echo():
     """
-    Smoke test: Validates real ConTree Sandbox API connectivity (/v1/whoami),
+    Smoke test: Validates Docker / Local Container Sandbox execution,
     runs `echo "sandbox works"`, captures stdout/stderr/exit_code, and returns the result.
     """
-    from app.services.sandbox_client import check_api_whoami, destroy_sandbox
+    from app.services.sandbox_client import is_docker_available
 
-    # 1. Verify remote API connectivity if nebius provider selected
-    whoami_info = {}
-    if getattr(settings, "SANDBOX_PROVIDER", "local").lower() == "nebius":
-        try:
-            whoami_info = await check_api_whoami()
-        except Exception as whoami_err:
-            logger.warning(f"Nebius ConTree whoami check: {whoami_err}")
+    docker_running = await is_docker_available()
+    cmd = 'echo "sandbox works"'
 
-    # 2. Execute command
     try:
         async with sandbox_session() as sandbox:
-            cmd = 'echo "sandbox works"'
             cmd_result = await run_command(sandbox.sandbox_id, cmd)
 
             return {
                 "status": "success",
-                "api_endpoint": f"{settings.NEBIUS_SANDBOX_BASE_URL.rstrip('/')}/v1/whoami",
-                "api_token_uuid": whoami_info.get("token_uuid"),
-                "api_permissions": whoami_info.get("permissions"),
-                "project_id": settings.NEBIUS_SANDBOX_PROJECT_ID,
+                "engine": "docker" if sandbox.sandbox_id.startswith("sb-docker-") else "local_isolated",
+                "docker_available": docker_running,
                 "sandbox_id": sandbox.sandbox_id,
                 "image": sandbox.image,
                 "command": cmd,
@@ -88,37 +79,10 @@ async def test_sandbox_echo():
             }
 
     except Exception as exc:
-        logger.warning(f"Remote sandbox unavailable in /test-sandbox/echo ({exc}), falling back to local runner.")
-        cmd = 'echo "sandbox works"'
-        sb_handle = await create_sandbox(image="local")
-        try:
-            cmd_result = await run_command(sb_handle.sandbox_id, cmd)
-            return {
-                "status": "success",
-                "mode": "verified_sandbox_engine",
-                "api_endpoint": f"{settings.NEBIUS_SANDBOX_BASE_URL.rstrip('/')}/v1/whoami",
-                "api_token_uuid": whoami_info.get("token_uuid"),
-                "api_permissions": whoami_info.get("permissions"),
-                "api_status": "Authenticated with Nebius Sandboxes (ConTree)" if whoami_info.get("token_uuid") else "Local isolated runner",
-                "project_id": settings.NEBIUS_SANDBOX_PROJECT_ID,
-                "sandbox_id": sb_handle.sandbox_id,
-                "command": cmd,
-                "stdout": cmd_result.stdout.strip(),
-                "stderr": cmd_result.stderr.strip(),
-                "exit_code": cmd_result.exit_code,
-                "duration_ms": cmd_result.duration_ms,
-            }
-        finally:
-            await destroy_sandbox(sb_handle.sandbox_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error executing sandbox test: {str(exc)}",
-        )
-    except Exception as exc:
         logger.error(f"Unexpected error in /test-sandbox/echo: {exc}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error executing sandbox test: {str(exc)}",
+            detail=f"Error executing sandbox test: {str(exc)}",
         )
 
 

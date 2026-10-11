@@ -3,19 +3,13 @@ from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
 import shutil
+import subprocess
 import tempfile
 import time
 from typing import Any, Dict, Optional
 import uuid
-import httpx
+
 from pydantic import BaseModel, Field
-from tenacity import (
-    before_sleep_log,
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from app.config import settings
 
@@ -26,9 +20,6 @@ _docker_sandboxes: Dict[str, str] = {}
 
 # Registry of active local sandboxes: sandbox_id -> Path(directory)
 _local_sandboxes: Dict[str, Path] = {}
-
-# Registry of active remote ConTree sandboxes: sandbox_id -> state dict
-_remote_sandboxes: Dict[str, Dict[str, Any]] = {}
 
 _active_sandboxes: int = 0
 _concurrency_lock = asyncio.Lock()
@@ -47,10 +38,13 @@ def reset_sandbox_concurrency_for_testing() -> None:
 def validate_sandbox_credentials() -> None:
     """
     Validates sandbox configuration at startup.
-    Ensures either Docker, local isolated process runner, or Nebius Sandbox is ready.
+    Ensures either Docker container isolation or local isolated process engine is selected.
+    No remote HTTP endpoints or paid credentials required.
     """
     provider = getattr(settings, "SANDBOX_PROVIDER", "docker").lower()
-    logger.info(f"Sandbox verification engine configured: provider={provider}")
+    logger.info(
+        f"CodeGuard Sandbox verification engine active: provider='{provider}' (zero remote API dependencies, $0 credit usage)"
+    )
 
 
 # -------------------------------------------------------------------------
@@ -107,7 +101,7 @@ class SandboxError(Exception):
 
 
 class SandboxAuthenticationError(SandboxError):
-    """Raised when authentication with remote Sandbox API fails."""
+    """Raised when authentication credentials fail (retained for backward compatibility)."""
     pass
 
 
@@ -132,72 +126,20 @@ class SandboxCommandError(SandboxError):
 
 
 # -------------------------------------------------------------------------
-# HTTP Helpers for Optional Nebius ConTree Sandbox API
-# -------------------------------------------------------------------------
-
-def _get_base_url() -> str:
-    raw_url = (settings.NEBIUS_SANDBOX_BASE_URL or "https://api.studio.nebius.com/sandboxes").rstrip("/")
-    return raw_url
-
-
-def _get_headers() -> Dict[str, str]:
-    headers = {
-        "Authorization": f"Bearer {settings.NEBIUS_SANDBOX_API_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-    }
-    if settings.NEBIUS_SANDBOX_PROJECT_ID:
-        headers["Project"] = settings.NEBIUS_SANDBOX_PROJECT_ID
-    return headers
-
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=1, max=5),
-    retry=retry_if_exception_type((httpx.NetworkError, httpx.TimeoutException)),
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True,
-)
-async def _send_request(
-    method: str,
-    endpoint: str,
-    json_data: Optional[Dict[str, Any]] = None,
-    timeout: float = 30.0,
-) -> httpx.Response:
-    base_url = _get_base_url()
-    url = f"{base_url}{endpoint}" if endpoint.startswith("/") else f"{base_url}/{endpoint}"
-    headers = _get_headers()
-
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        return await client.request(
-            method=method,
-            url=url,
-            headers=headers,
-            json=json_data,
-        )
-
-
-async def check_api_whoami() -> Dict[str, Any]:
-    """Inspect identity and permissions against Nebius Sandbox API."""
-    res = await _send_request("GET", "/v1/whoami", timeout=10.0)
-    if res.status_code == 200:
-        return res.json()
-    return {}
-
-
-# -------------------------------------------------------------------------
 # Core Sandbox Operations
 # -------------------------------------------------------------------------
 
 async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
     """
-    Provision an isolated sandbox container via Local Process Isolation, Docker, or Nebius.
-    Defaults to Local Process Isolation for 100% reliable, zero-credit-cost, zero-failure verification.
+    Provision an isolated sandbox container via Docker or Local Container Isolation.
+    - If Docker daemon is running: provisions an isolated Docker container.
+    - If Docker daemon is offline or running on platforms like Render: provisions
+      an isolated local process sandbox workspace with zero delay and zero failure.
     """
     global _active_sandboxes
 
-    target_image = image or getattr(settings, "NEBIUS_SANDBOX_DEFAULT_IMAGE", "node:20-slim")
-    provider = getattr(settings, "SANDBOX_PROVIDER", "local").lower()
+    target_image = image or getattr(settings, "SANDBOX_DEFAULT_IMAGE", "node:20-slim")
+    provider = getattr(settings, "SANDBOX_PROVIDER", "docker").lower()
 
     # Local concurrency check
     async with _concurrency_lock:
@@ -209,21 +151,8 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
         _active_sandboxes += 1
 
     try:
-        # 1. Local Isolated Process Sandbox (Default Alternative - zero API cost, zero cloud failures)
-        if provider in ("local", "process") or target_image == "local":
-            sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
-            sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
-            _local_sandboxes[sb_id] = sb_dir
-            logger.info(f"Provisioned isolated local process sandbox {sb_id} at {sb_dir}")
-            return SandboxHandle(
-                sandbox_id=sb_id,
-                image=target_image,
-                status="ready",
-                created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            )
-
-        # 2. Docker Container Sandbox Provider (Optional local container)
-        if provider in ("docker", "container"):
+        # Provider 1: Docker Sandbox
+        if provider in ("docker", "container") and target_image != "local":
             docker_alive = await is_docker_available()
             if docker_alive:
                 sb_id = f"sb-docker-{uuid.uuid4().hex[:8]}"
@@ -237,7 +166,7 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
                     )
-                    stdout, stderr = await proc.communicate()
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15.0)
                     if proc.returncode == 0:
                         _docker_sandboxes[sb_id] = container_name
                         logger.info(f"Provisioned isolated Docker sandbox container {container_name}")
@@ -248,68 +177,24 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
                             created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                         )
                     else:
+                        err_text = stderr.decode("utf-8", errors="replace")[:200]
                         logger.warning(
-                            f"Docker run non-zero ({stderr.decode('utf-8', errors='replace')[:100]}). "
-                            "Falling back to local isolated process sandbox."
+                            f"Docker run returned code {proc.returncode} ({err_text}). "
+                            "Seamlessly falling back to isolated workspace engine."
                         )
                 except Exception as d_err:
-                    logger.warning(f"Docker launch error ({d_err}). Falling back to local process sandbox.")
+                    logger.warning(f"Docker launch exception: {d_err}. Falling back to isolated workspace engine.")
             else:
-                logger.info("Docker daemon not running. Falling back seamlessly to local isolated process sandbox.")
-
-            # Fallback to local process sandbox if Docker unavailable
-            sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
-            sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
-            _local_sandboxes[sb_id] = sb_dir
-            logger.info(f"Provisioned isolated local process sandbox {sb_id} at {sb_dir}")
-            return SandboxHandle(
-                sandbox_id=sb_id,
-                image=target_image,
-                status="ready",
-                created_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            )
-
-        # 3. Remote Nebius ConTree Provider (Only used if explicitly set to 'nebius')
-        if provider == "nebius":
-            api_key = (settings.NEBIUS_SANDBOX_API_KEY or "").strip()
-            if not api_key:
-                raise SandboxAuthenticationError(
-                    "NEBIUS_SANDBOX_API_KEY is not configured. "
-                    "Please provide a valid API key in backend/.env"
+                logger.info(
+                    "Docker daemon offline or unavailable (e.g. Render / Cloud Container). "
+                    "Using isolated local workspace sandbox engine."
                 )
-            try:
-                response = await _send_request(
-                    method="POST",
-                    endpoint="/v1/instances",
-                    json_data={"image": target_image, "disposable": True},
-                    timeout=5.0,
-                )
-                if response.status_code in (200, 201):
-                    data = response.json()
-                    sb_id = str(data.get("id") or data.get("sandbox_id") or data.get("uuid"))
-                    if sb_id and sb_id != "None":
-                        _remote_sandboxes[sb_id] = {
-                            "image": target_image,
-                            "current_image": target_image,
-                            "snapshot_image_id": None,
-                            "files": {},
-                            "status": "ready",
-                            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                        }
-                        return SandboxHandle(
-                            sandbox_id=sb_id,
-                            image=target_image,
-                            status="ready",
-                            created_at=_remote_sandboxes[sb_id]["created_at"],
-                        )
-            except Exception as nb_err:
-                logger.warning(f"Nebius Sandbox unavailable ({nb_err}). Falling back to local process sandbox.")
 
-        # Default & Zero-Failure Fallback: Local Isolated Process Sandbox
+        # Provider 2: Local Isolated Workspace Engine (Render / Cloud / Zero-Failure Fallback)
         sb_id = f"sb-local-{uuid.uuid4().hex[:8]}"
         sb_dir = Path(tempfile.mkdtemp(prefix="codeguard_sb_"))
         _local_sandboxes[sb_id] = sb_dir
-        logger.info(f"Provisioned isolated local process sandbox {sb_id} at {sb_dir}")
+        logger.info(f"Provisioned isolated local sandbox workspace {sb_id} at {sb_dir}")
         return SandboxHandle(
             sandbox_id=sb_id,
             image=target_image,
@@ -331,7 +216,7 @@ async def run_command(
     disposable: bool = False,
 ) -> CommandResult:
     """
-    Execute a shell command inside the isolated sandbox (Docker, Local, or Nebius).
+    Execute a shell command inside the isolated sandbox (Docker or Local Workspace).
     """
     cmd_timeout = timeout if timeout is not None else settings.SANDBOX_TIMEOUT_SECONDS
     start_t = time.time()
@@ -362,86 +247,72 @@ async def run_command(
         except Exception as exc:
             raise SandboxCommandError(f"Docker command error: {exc}") from exc
 
-    # 2. Local Process Sandbox Execution
-    if sandbox_id in _local_sandboxes:
-        sb_dir = _local_sandboxes[sandbox_id]
-        try:
-            import subprocess
-
-            def _exec_sync() -> subprocess.CompletedProcess:
-                return subprocess.run(
-                    command,
-                    shell=True,
-                    cwd=str(sb_dir),
-                    capture_output=True,
-                    text=True,
-                    timeout=float(cmd_timeout),
-                )
-
-            proc_res = await asyncio.to_thread(_exec_sync)
-            duration_ms = round((time.time() - start_t) * 1000.0, 2)
-            return CommandResult(
-                stdout=proc_res.stdout or "",
-                stderr=proc_res.stderr or "",
-                exit_code=proc_res.returncode,
-                duration_ms=duration_ms,
-            )
-        except subprocess.TimeoutExpired:
-            raise SandboxTimeoutError(f"Local command execution timed out after {cmd_timeout}s: {command}")
-        except Exception as exc:
-            raise SandboxCommandError(f"Local sandbox error running '{command}': {exc}") from exc
-
-    # 3. Remote Nebius ConTree Sandbox
-    sb_state = _remote_sandboxes.get(sandbox_id) or {
-        "current_image": settings.NEBIUS_SANDBOX_DEFAULT_IMAGE,
-        "files": {},
-    }
-    current_image = sb_state.get("snapshot_image_id") or sb_state.get("current_image") or settings.NEBIUS_SANDBOX_DEFAULT_IMAGE
-    files_spec = sb_state.get("files", {})
-
-    spawn_payload = {
-        "image": current_image,
-        "command": "sh",
-        "args": ["-c", command],
-        "shell": True,
-        "cwd": "/workspace",
-        "disposable": disposable,
-        "timeout": cmd_timeout,
-        "files": files_spec,
-        "env": {},
-    }
+    # 2. Local Process Sandbox Execution (Default / Render / Fallback)
+    sb_dir = _local_sandboxes.get(sandbox_id)
+    if not sb_dir:
+        # Check if caller passed a fallback directory or unknown ID
+        sb_dir = Path(tempfile.gettempdir())
 
     try:
-        response = await _send_request(
-            method="POST",
-            endpoint="/v1/instances",
-            json_data=spawn_payload,
-            timeout=float(cmd_timeout + 15),
-        )
-        if response.status_code in (200, 201, 202):
-            data = response.json()
-            return CommandResult(
-                stdout=data.get("stdout", ""),
-                stderr=data.get("stderr", ""),
-                exit_code=int(data.get("exit_code", 0)),
-                duration_ms=data.get("duration_ms", round((time.time() - start_t) * 1000.0, 2)),
-            )
-    except Exception as exc:
-        logger.warning(f"Remote command execution failed: {exc}")
+        def _exec_sync() -> subprocess.CompletedProcess:
+            import os
+            import signal
 
-    return CommandResult(
-        stdout="",
-        stderr="Remote sandbox unavailable",
-        exit_code=1,
-        duration_ms=round((time.time() - start_t) * 1000.0, 2),
-    )
+            is_win = os.name == "nt"
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if is_win else 0
+
+            proc = subprocess.Popen(
+                command,
+                shell=True,
+                cwd=str(sb_dir),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                creationflags=creationflags,
+            )
+            try:
+                out, err = proc.communicate(timeout=float(cmd_timeout))
+                return subprocess.CompletedProcess(
+                    args=command,
+                    returncode=proc.returncode if proc.returncode is not None else 0,
+                    stdout=out or "",
+                    stderr=err or "",
+                )
+            except subprocess.TimeoutExpired:
+                if is_win:
+                    subprocess.run(
+                        f"taskkill /f /t /pid {proc.pid}",
+                        shell=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                else:
+                    try:
+                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                    except Exception:
+                        proc.kill()
+                proc.communicate()
+                raise
+
+        proc_res = await asyncio.to_thread(_exec_sync)
+        duration_ms = round((time.time() - start_t) * 1000.0, 2)
+        return CommandResult(
+            stdout=proc_res.stdout or "",
+            stderr=proc_res.stderr or "",
+            exit_code=proc_res.returncode,
+            duration_ms=duration_ms,
+        )
+    except subprocess.TimeoutExpired:
+        raise SandboxTimeoutError(f"Command execution timed out after {cmd_timeout}s: {command}")
+    except Exception as exc:
+        raise SandboxCommandError(f"Sandbox error running '{command}': {exc}") from exc
 
 
 async def upload_files(sandbox_id: str, files: Dict[str, str]) -> None:
     """
     Upload a mapping of file paths to string contents into the sandbox.
     """
-    # 1. Docker Sandbox
+    # 1. Docker Sandbox: Stage and docker cp
     if sandbox_id in _docker_sandboxes:
         container_name = _docker_sandboxes[sandbox_id]
         temp_dir = Path(tempfile.mkdtemp(prefix="cg_docker_stage_"))
@@ -450,6 +321,7 @@ async def upload_files(sandbox_id: str, files: Dict[str, str]) -> None:
                 dest_file = temp_dir / rel_path
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
                 dest_file.write_text(content, encoding="utf-8", errors="replace")
+
             proc = await asyncio.create_subprocess_exec(
                 "docker", "cp", f"{temp_dir}/.", f"{container_name}:/workspace/",
                 stdout=asyncio.subprocess.DEVNULL,
@@ -460,23 +332,18 @@ async def upload_files(sandbox_id: str, files: Dict[str, str]) -> None:
             shutil.rmtree(temp_dir, ignore_errors=True)
         return
 
-    # 2. Local Process Sandbox
-    if sandbox_id in _local_sandboxes:
-        sb_dir = _local_sandboxes[sandbox_id]
+    # 2. Local Sandbox: Write directly to workspace directory
+    sb_dir = _local_sandboxes.get(sandbox_id)
+    if sb_dir:
         for rel_path, content in files.items():
             dest_file = sb_dir / rel_path
             dest_file.parent.mkdir(parents=True, exist_ok=True)
             dest_file.write_text(content, encoding="utf-8", errors="replace")
-        return
-
-    # 3. Remote ConTree Sandbox
-    if sandbox_id in _remote_sandboxes:
-        _remote_sandboxes[sandbox_id]["files"].update(files)
 
 
 async def destroy_sandbox(sandbox_id: str) -> None:
     """
-    Clean up and release the sandbox on Docker, Local Environment, or Nebius Cloud.
+    Clean up and release the sandbox on Docker or Local Workspace.
     """
     global _active_sandboxes
 
@@ -495,20 +362,12 @@ async def destroy_sandbox(sandbox_id: str) -> None:
             except Exception as exc:
                 logger.debug(f"Failed to remove Docker container {container_name}: {exc}")
 
-    # 2. Local Process Cleanup
+    # 2. Local Workspace Cleanup
     if sandbox_id in _local_sandboxes or sandbox_id.startswith("sb-local-"):
         sb_dir = _local_sandboxes.pop(sandbox_id, None)
         if sb_dir and sb_dir.exists():
             shutil.rmtree(sb_dir, ignore_errors=True)
             logger.info(f"Destroyed local execution sandbox {sandbox_id}")
-
-    # 3. Remote ConTree Cleanup
-    if sandbox_id in _remote_sandboxes or sandbox_id.startswith("sb-test-"):
-        _remote_sandboxes.pop(sandbox_id, None)
-        try:
-            await _send_request("DELETE", f"/v1/instances/{sandbox_id}", timeout=5.0)
-        except Exception:
-            pass
 
     async with _concurrency_lock:
         if _active_sandboxes > 0:

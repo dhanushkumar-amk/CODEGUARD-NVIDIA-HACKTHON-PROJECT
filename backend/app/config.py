@@ -31,14 +31,15 @@ class Settings(BaseSettings):
     FIX_GENERATION_MODEL: str = "ultra"
     FIX_MIN_SEVERITY: str = "medium"
 
-    # Sandbox Infrastructure Configuration (Local / Docker / Nebius)
-    SANDBOX_PROVIDER: str = "local"  # Options: 'local', 'docker', 'nebius'
-    NEBIUS_SANDBOX_API_KEY: str = ""
-    NEBIUS_SANDBOX_BASE_URL: str = "https://api.studio.nebius.com/sandboxes"
+    # Sandbox Infrastructure Configuration (Docker / Local Container Isolation)
+    SANDBOX_PROVIDER: str = "docker"  # Options: 'docker' (with auto fallback to isolated local workspace)
+    SANDBOX_DEFAULT_IMAGE: str = "node:20-slim"
+    NEBIUS_SANDBOX_DEFAULT_IMAGE: str = "node:20-slim"  # Backward compatibility alias
+    NEBIUS_SANDBOX_API_KEY: str = ""  # Deprecated - no external sandbox credentials needed
+    NEBIUS_SANDBOX_BASE_URL: str = ""
     NEBIUS_SANDBOX_PROJECT_ID: str = ""
-    NEBIUS_SANDBOX_DEFAULT_IMAGE: str = "node:20"
     SANDBOX_TIMEOUT_SECONDS: int = 120
-    SANDBOX_MAX_CONCURRENT: int = 3
+    SANDBOX_MAX_CONCURRENT: int = 5
     NPM_INSTALL_TIMEOUT_SECONDS: int = 180
 
     # Tavily Web Search Grounding Configuration

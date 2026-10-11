@@ -38,12 +38,13 @@ WORKDIR /app
 # Install runtime system packages:
 # - git: Required by git_service.py (GitPython) to clone and inspect repositories
 # - curl & ca-certificates: Required for container HEALTHCHECK and secure outbound TLS
-# Note: Node.js is intentionally omitted; a11y axe-core testing executes inside
-# ephemeral Nebius Sandboxes, keeping this runner image lean (<200MB).
+# - nodejs & npm: Required for isolated verification and axe-core analysis on Render
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy pre-compiled dependencies from builder stage

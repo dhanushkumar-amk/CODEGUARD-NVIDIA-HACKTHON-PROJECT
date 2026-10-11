@@ -1,7 +1,6 @@
 from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
-import httpx
 
 from app.main import app
 from app.config import settings
@@ -13,10 +12,10 @@ from app.services.sandbox_client import (
     sandbox_session,
     SandboxHandle,
     CommandResult,
-    SandboxAuthenticationError,
     SandboxQuotaExceededError,
     SandboxTimeoutError,
     reset_sandbox_concurrency_for_testing,
+    _local_sandboxes,
 )
 
 client = TestClient(app)
@@ -30,99 +29,63 @@ def reset_concurrency():
 
 
 @pytest.mark.asyncio
-async def test_create_sandbox_missing_key():
-    with patch.object(settings, "SANDBOX_PROVIDER", "nebius"):
-        with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", ""):
-            with pytest.raises(SandboxAuthenticationError):
-                await create_sandbox()
-
-
-@pytest.mark.asyncio
 async def test_create_and_destroy_local_sandbox():
     """Ensure local isolated process sandbox provisions and cleans up without remote API calls."""
-    handle = await create_sandbox()
+    handle = await create_sandbox(image="local")
     assert handle.sandbox_id.startswith("sb-local-")
     assert handle.status == "ready"
 
-    # Test local execution in sandbox
+    # Test execution in sandbox
     res = await run_command(handle.sandbox_id, "echo hello_sandbox")
     assert "hello_sandbox" in res.stdout
     assert res.exit_code == 0
 
     await destroy_sandbox(handle.sandbox_id)
-
-
-@pytest.mark.asyncio
-async def test_create_and_destroy_sandbox():
-    mock_resp = httpx.Response(
-        status_code=201,
-        json={"id": "sb-test-123", "status": "ready", "image": "node:20"},
-        request=httpx.Request("POST", "https://api.tokenfactory.nebius.com/v1/sandboxes"),
-    )
-    mock_del_resp = httpx.Response(
-        status_code=204,
-        request=httpx.Request("DELETE", "https://api.tokenfactory.nebius.com/v1/sandboxes/sb-test-123"),
-    )
-
-    with patch.object(settings, "SANDBOX_PROVIDER", "nebius"):
-        with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", "real-sandbox-key"):
-            with patch("app.services.sandbox_client._send_request", side_effect=[mock_resp, mock_del_resp]):
-                handle = await create_sandbox()
-                assert handle.sandbox_id == "sb-test-123"
-                assert handle.id == "sb-test-123"
-                assert handle.image == "node:20"
-
-                await destroy_sandbox(handle.sandbox_id)
+    assert handle.sandbox_id not in _local_sandboxes
 
 
 @pytest.mark.asyncio
 async def test_run_command_success():
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={"stdout": "sandbox works\n", "stderr": "", "exit_code": 0, "duration_ms": 42.0},
-        request=httpx.Request("POST", "https://api.tokenfactory.nebius.com/v1/sandboxes/sb-1/commands"),
-    )
-
-    with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", "real-sandbox-key"):
-        with patch("app.services.sandbox_client._send_request", return_value=mock_resp):
-            result = await run_command("sb-1", 'echo "sandbox works"')
-            assert result.stdout == "sandbox works\n"
-            assert result.exit_code == 0
-            assert result.duration_ms == 42.0
+    """Verify run_command executes cleanly in the provisioned sandbox."""
+    handle = await create_sandbox(image="local")
+    try:
+        result = await run_command(handle.sandbox_id, 'echo "sandbox works"')
+        assert "sandbox works" in result.stdout
+        assert result.exit_code == 0
+        assert result.duration_ms is not None
+    finally:
+        await destroy_sandbox(handle.sandbox_id)
 
 
 @pytest.mark.asyncio
 async def test_run_command_failing_exit_code_is_not_an_error():
-    # A failing test in the sandbox should return CommandResult with exit_code != 0
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={"stdout": "", "stderr": "Test failed\n", "exit_code": 1},
-        request=httpx.Request("POST", "https://api.tokenfactory.nebius.com/v1/sandboxes/sb-1/commands"),
-    )
-
-    with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", "real-sandbox-key"):
-        with patch("app.services.sandbox_client._send_request", return_value=mock_resp):
-            result = await run_command("sb-1", "npm test")
-            assert result.exit_code == 1
-            assert "Test failed" in result.stderr
+    """A failing process exit code should be returned as exit_code != 0 without raising an exception."""
+    handle = await create_sandbox(image="local")
+    try:
+        result = await run_command(handle.sandbox_id, "exit 1")
+        assert result.exit_code == 1
+    finally:
+        await destroy_sandbox(handle.sandbox_id)
 
 
 @pytest.mark.asyncio
 async def test_upload_files():
-    mock_resp = httpx.Response(
-        status_code=200,
-        json={"status": "uploaded"},
-        request=httpx.Request("POST", "https://api.tokenfactory.nebius.com/v1/sandboxes/sb-1/files"),
-    )
-
-    with patch.object(settings, "NEBIUS_SANDBOX_API_KEY", "real-sandbox-key"):
-        with patch("app.services.sandbox_client._send_request", return_value=mock_resp):
-            await upload_files("sb-1", {"src/index.js": "console.log('hi');"})
+    """Verify file upload writes files cleanly into the sandbox directory."""
+    handle = await create_sandbox(image="local")
+    try:
+        await upload_files(handle.sandbox_id, {"src/test.txt": "hello_from_test"})
+        sb_dir = _local_sandboxes[handle.sandbox_id]
+        test_file = sb_dir / "src" / "test.txt"
+        assert test_file.exists()
+        assert test_file.read_text(encoding="utf-8") == "hello_from_test"
+    finally:
+        await destroy_sandbox(handle.sandbox_id)
 
 
 @pytest.mark.asyncio
 async def test_sandbox_session_guarantees_cleanup():
-    mock_handle = SandboxHandle(sandbox_id="sb-clean-1", image="node:20")
+    """Ensure sandbox_session context manager cleans up sandbox even on exception."""
+    mock_handle = SandboxHandle(sandbox_id="sb-clean-1", image="node:20-slim")
 
     with patch("app.services.sandbox_client.create_sandbox", new_callable=AsyncMock) as mock_create, \
          patch("app.services.sandbox_client.destroy_sandbox", new_callable=AsyncMock) as mock_destroy:
@@ -137,7 +100,8 @@ async def test_sandbox_session_guarantees_cleanup():
 
 
 def test_test_sandbox_echo_endpoint():
-    mock_handle = SandboxHandle(sandbox_id="sb-echo-123", image="node:20")
+    """Verify smoke test endpoint /test-sandbox/echo."""
+    mock_handle = SandboxHandle(sandbox_id="sb-echo-123", image="node:20-slim")
     mock_cmd_result = CommandResult(
         stdout="sandbox works",
         stderr="",
@@ -148,7 +112,6 @@ def test_test_sandbox_echo_endpoint():
     with patch("app.routers.test_sandbox.run_command", new_callable=AsyncMock) as mock_run, \
          patch("app.routers.test_sandbox.sandbox_session") as mock_session_ctx:
 
-        # Mock the async context manager
         mock_session_ctx.return_value.__aenter__.return_value = mock_handle
         mock_session_ctx.return_value.__aexit__.return_value = None
         mock_run.return_value = mock_cmd_result
