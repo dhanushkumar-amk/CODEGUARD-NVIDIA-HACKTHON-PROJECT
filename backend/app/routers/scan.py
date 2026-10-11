@@ -72,18 +72,51 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
         # 6. Kick off detection and diagnosis pipeline as background task
         async def run_detection_pipeline():
             try:
+                from app.routers.websocket import broadcast_progress
+
+                # Broadcast immediate transition to scanning stage
+                await broadcast_progress(
+                    scan_id=scan_id,
+                    stage="scanning",
+                    progress=15,
+                    message=f"Beginning AST & AI accessibility analysis across {len(scannable_files)} components...",
+                    data={
+                        "scanned_chunks": 0,
+                        "total_chunks": len(scan_batch),
+                        "violations_found": 0,
+                    },
+                )
+
                 from app.services.detector_service import detect_violations
                 await detect_violations(scan_id)
 
                 # Phase 14: Run root-cause diagnosis across prioritized violations
+                await broadcast_progress(
+                    scan_id=scan_id,
+                    stage="diagnosing",
+                    progress=45,
+                    message="Diagnosing root-cause defects with Nemotron AI...",
+                )
                 from app.services.diagnosis_service import diagnose_all
                 await diagnose_all(scan_id)
 
                 # Phase 15: Generate stakeholder-friendly plain English explanations
+                await broadcast_progress(
+                    scan_id=scan_id,
+                    stage="explaining",
+                    progress=60,
+                    message="Generating plain-English explanations and impact assessments...",
+                )
                 from app.services.explainer_service import generate_all_explanations
                 await generate_all_explanations(scan_id)
 
                 # Phase 16: Synthesize code-fix patches with Nemotron Ultra
+                await broadcast_progress(
+                    scan_id=scan_id,
+                    stage="fixing",
+                    progress=75,
+                    message="Synthesizing accessible code remediation diffs...",
+                )
                 from app.services.fixer_service import generate_all_fixes
                 await generate_all_fixes(scan_id)
 

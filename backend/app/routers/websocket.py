@@ -78,6 +78,17 @@ async def broadcast_progress(
         data=payload_data,
         timestamp=datetime.now(timezone.utc),
     )
+    try:
+        from app.state import update_scan
+        update_scan(
+            scan_id=scan_id,
+            current_stage=stage,
+            progress=progress,
+            current_message=message,
+            last_data=payload_data,
+        )
+    except Exception:
+        pass
     await manager.broadcast_to_scan(scan_id, msg)
 
 
@@ -238,14 +249,18 @@ async def websocket_progress_endpoint(websocket: WebSocket, scan_id: str):
                 ),
             )
         else:
-            # Active scan is running in background. Send immediate greeting event:
+            # Active scan is running in background. Send latest known pipeline state:
+            cur_stage = (scan_data.get("current_stage") if scan_data else None) or "scanning"
+            cur_prog = (scan_data.get("progress") if scan_data else None) or 15
+            cur_msg = (scan_data.get("current_message") if scan_data else None) or "Connected to active CodeGuard audit pipeline..."
+            last_d = (scan_data.get("last_data") if scan_data else None) or {"status": scan_status}
             await manager.send_message(
                 websocket,
                 WebSocketMessage(
-                    stage="preparing",
-                    progress=10,
-                    message="Connected to active CodeGuard audit pipeline...",
-                    data={"status": scan_status},
+                    stage=cur_stage,
+                    progress=cur_prog,
+                    message=cur_msg,
+                    data=last_d,
                     timestamp=datetime.now(timezone.utc),
                 ),
             )
