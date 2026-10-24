@@ -66,8 +66,8 @@ async def _notify_applying_fix(
 async def read_file_from_sandbox(sandbox_id: str, file_path: str) -> str:
     """
     Retrieves the raw content of a file located within a sandbox.
-    Uses run_command() to cat the file content back out. Supports standard Linux
-    containers (Nebius Cloud node:20) and falls back to Windows 'type' for local development.
+    Directly reads local sandboxes from disk in UTF-8. For containerized microVMs,
+    uses cat/type command execution.
 
     Args:
         sandbox_id: ID of the running sandbox.
@@ -79,6 +79,13 @@ async def read_file_from_sandbox(sandbox_id: str, file_path: str) -> str:
     Raises:
         SandboxError: If reading the file fails.
     """
+    if sandbox_id in _local_sandboxes:
+        sb_dir = _local_sandboxes[sandbox_id]
+        clean_rel = file_path.replace("\\", "/").lstrip("/")
+        target_f = Path(sb_dir) / clean_rel
+        if target_f.is_file():
+            return target_f.read_text(encoding="utf-8", errors="replace")
+
     clean_path = file_path.replace("\\", "/")
     # Standard Linux cat command
     cmd = f'cat "{clean_path}"'
@@ -135,6 +142,27 @@ def apply_fix_to_file(original_content: str, fix: ProposedFix) -> str:
 
     if orig_s_norm in orig_c_norm:
         patched = orig_c_norm.replace(orig_s_norm, fixed_s_norm, 1)
+        if "\r\n" in original_content:
+            patched = patched.replace("\n", "\r\n")
+        return patched
+
+    # 3. Unicode quotation / punctuation normalization match
+    def _unify_chars(text: str) -> str:
+        return (
+            text.replace("’", "'")
+            .replace("‘", "'")
+            .replace("“", '"')
+            .replace("”", '"')
+            .replace("–", "-")
+            .replace("\u00a0", " ")
+        )
+
+    u_orig = _unify_chars(orig_s_norm)
+    u_content = _unify_chars(orig_c_norm)
+    if u_orig in u_content:
+        pos = u_content.find(u_orig)
+        matched_len = len(u_orig)
+        patched = orig_c_norm[:pos] + fixed_s_norm + orig_c_norm[pos + matched_len:]
         if "\r\n" in original_content:
             patched = patched.replace("\n", "\r\n")
         return patched

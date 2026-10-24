@@ -248,6 +248,184 @@ def rule_based_precheck(chunk: Dict[str, Any]) -> List[Violation]:
             )
         )
 
+    # 8. Empty <title> element
+    for m in re.finditer(r"<title\b[^>]*>(\s*)</title>", content, re.IGNORECASE):
+        line = start_line + content[: m.start()].count("\n")
+        violations.append(
+            Violation(
+                id="",
+                file=file_path,
+                line=line,
+                type="document-title",
+                severity="serious",
+                description="<title> element is empty. Provide a descriptive, informative document title.",
+                selector="title",
+                context_snippet=m.group(0).strip()[:150],
+                source="rule",
+                wcag_criterion="2.4.2 Page Titled",
+            )
+        )
+
+    # 9. Focusable element with aria-hidden="true"
+    for m in re.finditer(r"<(button|a|input|select|textarea)\b([^>]*\baria-hidden\s*=\s*[\"']true[\"'][^>]*)>", content, re.IGNORECASE):
+        line = start_line + content[: m.start()].count("\n")
+        tag = m.group(1).lower()
+        violations.append(
+            Violation(
+                id="",
+                file=file_path,
+                line=line,
+                type="aria-hidden-focus",
+                severity="critical",
+                description=f"Focusable <{tag}> element must not have aria-hidden=\"true\" as it hides focused controls from assistive technology.",
+                selector=tag,
+                context_snippet=m.group(0).strip()[:150],
+                source="rule",
+                wcag_criterion="4.1.2 Name, Role, Value",
+            )
+        )
+
+    # 10. <iframe> without title
+    for m in re.finditer(r"<iframe\b([^>]*)>", content, re.IGNORECASE):
+        attrs = m.group(1)
+        if not re.search(r"\btitle\s*=", attrs, re.IGNORECASE):
+            line = start_line + content[: m.start()].count("\n")
+            violations.append(
+                Violation(
+                    id="",
+                    file=file_path,
+                    line=line,
+                    type="frame-title",
+                    severity="serious",
+                    description="<iframe> element must have a non-empty title attribute describing its embedded content.",
+                    selector="iframe",
+                    context_snippet=m.group(0).strip()[:150],
+                    source="rule",
+                    wcag_criterion="4.1.2 Name, Role, Value",
+                )
+            )
+
+    # 11. Viewport scaling disabled
+    for m in re.finditer(r"<meta\b[^>]*\bname\s*=\s*[\"']viewport[\"'][^>]*>", content, re.IGNORECASE):
+        meta_tag = m.group(0)
+        if re.search(r"user-scalable\s*=\s*no|maximum-scale\s*=\s*1(?:\.0)?(?:\b|,|;)", meta_tag, re.IGNORECASE):
+            line = start_line + content[: m.start()].count("\n")
+            violations.append(
+                Violation(
+                    id="",
+                    file=file_path,
+                    line=line,
+                    type="meta-viewport",
+                    severity="critical",
+                    description="Viewport meta tag disables zoom/scaling (user-scalable=no or maximum-scale=1), preventing low-vision users from enlarging text.",
+                    selector="meta",
+                    context_snippet=meta_tag.strip()[:150],
+                    source="rule",
+                    wcag_criterion="1.4.4 Resize Text",
+                )
+            )
+
+    # 12. Placeholder or useless image alt text (alt="image", alt="photo", etc.)
+    for m in re.finditer(r'<img\b([^>]*\balt\s*=\s*["\'](image|photo|picture|icon|graphic)["\'][^>]*)>', content, re.IGNORECASE):
+        line = start_line + content[: m.start()].count("\n")
+        violations.append(
+            Violation(
+                id="",
+                file=file_path,
+                line=line,
+                type="image-alt",
+                severity="serious",
+                description="Image has generic placeholder alt text (e.g. alt=\"image\"). Provide informative descriptive text.",
+                selector="img",
+                context_snippet=m.group(0).strip()[:150],
+                source="rule",
+                wcag_criterion="1.1.1 Non-text Content",
+            )
+        )
+
+    # 13. Duplicate ID attribute within file
+    all_ids = list(re.finditer(r'\bid\s*=\s*["\']([^"\']+)["\']', content, re.IGNORECASE))
+    seen_ids: Dict[str, int] = {}
+    for im in all_ids:
+        val = im.group(1).strip()
+        seen_ids[val] = seen_ids.get(val, 0) + 1
+    for im in all_ids:
+        val = im.group(1).strip()
+        if seen_ids[val] > 1:
+            line = start_line + content[: im.start()].count("\n")
+            violations.append(
+                Violation(
+                    id="",
+                    file=file_path,
+                    line=line,
+                    type="duplicate-id",
+                    severity="critical",
+                    description=f"Duplicate id attribute '{val}' detected. ID values must be unique across the document.",
+                    selector=f"#{val}",
+                    context_snippet=content[max(0, im.start() - 20) : min(len(content), im.end() + 20)].strip(),
+                    source="rule",
+                    wcag_criterion="4.1.1 Parsing",
+                )
+            )
+
+    # 14. Missing <main> landmark
+    if re.search(r"<body\b", content, re.IGNORECASE) and not re.search(r"<(?:main\b|div\b[^>]*\brole=[\"']main[\"'])", content, re.IGNORECASE):
+        body_pos = re.search(r"<body\b", content, re.IGNORECASE).start()
+        line = max(1, start_line + content[:body_pos].count("\n"))
+        violations.append(
+            Violation(
+                id="",
+                file=file_path,
+                line=line,
+                type="landmark-one-main",
+                severity="moderate",
+                description="Document is missing a <main> landmark containing the primary page content.",
+                selector="body",
+                context_snippet="<body>",
+                source="rule",
+                wcag_criterion="1.3.1 Info and Relationships",
+            )
+        )
+
+    # 15. Missing skip-to-content link
+    if re.search(r"<body\b", content, re.IGNORECASE) and not re.search(r'href\s*=\s*["\']#content["\']|class\s*=\s*["\'][^"\']*skip-link', content, re.IGNORECASE):
+        body_pos = re.search(r"<body\b", content, re.IGNORECASE).start()
+        line = max(1, start_line + content[:body_pos].count("\n"))
+        violations.append(
+            Violation(
+                id="",
+                file=file_path,
+                line=line,
+                type="bypass",
+                severity="moderate",
+                description="Page is missing a skip-to-content link to allow keyboard users to bypass navigation.",
+                selector="body",
+                context_snippet="<body>",
+                source="rule",
+                wcag_criterion="2.4.1 Bypass Blocks",
+            )
+        )
+
+    # 16. Data table without <th> header cells
+    for m in re.finditer(r"<table\b[^>]*>([\s\S]*?)</table>", content, re.IGNORECASE):
+        tbl_body = m.group(1)
+        if re.search(r"<td\b", tbl_body, re.IGNORECASE) and not re.search(r"<th\b", tbl_body, re.IGNORECASE):
+            line = start_line + content[: m.start()].count("\n")
+            violations.append(
+                Violation(
+                    id="",
+                    file=file_path,
+                    line=line,
+                    type="table-header",
+                    severity="serious",
+                    description="Data <table> has data cells (<td>) but lacks header cells (<th>) or column/row scope.",
+                    selector="table",
+                    context_snippet=m.group(0).strip()[:150],
+                    source="rule",
+                    wcag_criterion="1.3.1 Info and Relationships",
+                )
+            )
+
     return violations
 
 
@@ -457,7 +635,9 @@ async def detect_violations_in_chunk(chunk: Dict[str, Any], scan_id: str) -> Lis
             )
         )
 
-    return rule_violations + llm_violations
+    seen = {(v.type, v.line) for v in rule_violations}
+    deduped_llm = [v for v in llm_violations if (v.type, v.line) not in seen]
+    return rule_violations + deduped_llm
 
 
 async def detect_violations(scan_id: str) -> List[Violation]:

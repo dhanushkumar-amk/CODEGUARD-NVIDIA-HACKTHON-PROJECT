@@ -45,6 +45,12 @@ RULE_TYPE_MAP: Dict[str, ViolationCategory] = {
     "aria-hidden-focus": ViolationCategory.ARIA_MISUSE,
     "focus-management": ViolationCategory.FOCUS_MANAGEMENT,
     "focus-order": ViolationCategory.FOCUS_MANAGEMENT,
+    "document-title": ViolationCategory.OTHER,
+    "frame-title": ViolationCategory.EMPTY_LINK_OR_BUTTON,
+    "meta-viewport": ViolationCategory.OTHER,
+    "duplicate-id": ViolationCategory.OTHER,
+    "bypass": ViolationCategory.MISSING_LANDMARK,
+    "table-header": ViolationCategory.OTHER,
 }
 
 # Keyword matching table for free-text LLM types (evaluated in order)

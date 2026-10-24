@@ -54,6 +54,7 @@ def get_fix_context(
     file: str,
     line: Optional[int],
     context_lines: int = 15,
+    snippet: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Returns the exact original lines to be modified (the PRECISE start/end line range
@@ -65,6 +66,7 @@ def get_fix_context(
         file: Relative path to target file.
         line: 1-indexed target line number.
         context_lines: Lines of surrounding context before and after element.
+        snippet: Optional context snippet of the violating element.
 
     Returns:
         Dictionary with keys: file, line_start, line_end, original_lines, context.
@@ -104,9 +106,50 @@ def get_fix_context(
             "context": "// File is empty.",
         }
 
+    # Pinpoint by snippet if present directly in content
+    clean_snip = snippet.strip() if snippet else ""
+    if clean_snip and clean_snip in content:
+        snip_pos = content.find(clean_snip)
+        s_line = content[:snip_pos].count("\n") + 1
+        e_line = s_line + clean_snip.count("\n")
+        win_start = max(0, s_line - 1 - context_lines)
+        win_end = min(total_lines - 1, e_line - 1 + context_lines)
+        context_output: List[str] = [
+            f"// --- Surrounding file context ({file}:{win_start + 1}-{win_end + 1}) ---"
+        ]
+        for i in range(win_start, win_end + 1):
+            marker = ">" if (s_line - 1 <= i <= e_line - 1) else " "
+            context_output.append(f"{marker} {i + 1:4d} | {lines[i]}")
+        return {
+            "file": file,
+            "line_start": s_line,
+            "line_end": e_line,
+            "original_lines": clean_snip,
+            "context": "\n".join(context_output),
+        }
+
     target_line = line if (line and line > 0) else 1
     target_line = min(target_line, total_lines)
     target_idx = target_line - 1  # 0-indexed
+
+    # Check if target line has clean_snip with whitespace tolerance
+    if clean_snip:
+        norm_snip = _normalize_code(clean_snip)
+        if norm_snip in _normalize_code(lines[target_idx]):
+            orig_target = clean_snip if (clean_snip in lines[target_idx] or len(lines[target_idx]) > 150) else lines[target_idx].strip()
+            win_start = max(0, target_idx - context_lines)
+            win_end = min(total_lines - 1, target_idx + context_lines)
+            context_output = [f"// --- Surrounding file context ({file}:{win_start + 1}-{win_end + 1}) ---"]
+            for i in range(win_start, win_end + 1):
+                marker = ">" if (i == target_idx) else " "
+                context_output.append(f"{marker} {i + 1:4d} | {lines[i]}")
+            return {
+                "file": file,
+                "line_start": target_idx + 1,
+                "line_end": target_idx + 1,
+                "original_lines": orig_target,
+                "context": "\n".join(context_output),
+            }
 
     # 1. Determine element start and end lines
     start_idx = target_idx
@@ -143,6 +186,25 @@ def get_fix_context(
                 if ">" in lines[j]:
                     end_idx = j
                     break
+        elif tag_name in ("html", "body") and len(lines[start_idx]) > 300:
+            # Dense / minified file: do not encompass the entire document
+            end_idx = start_idx
+            original_lines = f"<{tag_name}>" if f"<{tag_name}>" in lines[start_idx] else lines[start_idx]
+            line_start = start_idx + 1
+            line_end = end_idx + 1
+            win_start = max(0, start_idx - context_lines)
+            win_end = min(total_lines - 1, end_idx + context_lines)
+            context_output = [f"// --- Surrounding file context ({file}:{win_start + 1}-{win_end + 1}) ---"]
+            for i in range(win_start, win_end + 1):
+                marker = ">" if (start_idx <= i <= end_idx) else " "
+                context_output.append(f"{marker} {i + 1:4d} | {lines[i]}")
+            return {
+                "file": file,
+                "line_start": line_start,
+                "line_end": line_end,
+                "original_lines": original_lines,
+                "context": "\n".join(context_output),
+            }
         else:
             # Check if self-closing on start line or soon after
             start_line_text = lines[start_idx]
@@ -319,9 +381,9 @@ def _extract_json_fix(content: str) -> Optional[Dict[str, Any]]:
 def validate_fix_output(fix_response: Union[Dict[str, Any], str], expected_original: str) -> bool:
     """
     Validates model fix synthesis output for correctness, safety, and syntactic sanity:
-    - Confirms original_lines matches (or very closely matches, allowing minor whitespace normalization) what was actually sent
+    - Confirms original_lines matches (or is a valid non-empty substring of) what was sent
     - Confirms fixed_lines is non-empty and different from original_lines
-    - Confirms fixed_lines doesn't obviously break syntax (balanced braces/brackets/parens match expected)
+    - Confirms fixed_lines doesn't obviously break syntax (balanced braces/brackets/parens and non-void tags match)
     - Returns False (reject the fix) if any check fails.
 
     Args:
@@ -350,11 +412,15 @@ def validate_fix_output(fix_response: Union[Dict[str, Any], str], expected_origi
         return False
 
     # 2. Check original_lines match
-    if orig != expected_original:
-        # Allow minor whitespace / line-ending normalization
-        if _normalize_code(orig) != _normalize_code(expected_original):
-            logger.debug(f"[Validation Failed] original_lines did not match expected source.\nGot:\n{orig}\nExpected:\n{expected_original}")
-            return False
+    orig_matched = False
+    if orig == expected_original or _normalize_code(orig) == _normalize_code(expected_original):
+        orig_matched = True
+    elif orig.strip() and (orig.strip() in expected_original or _normalize_code(orig) in _normalize_code(expected_original)):
+        orig_matched = True
+
+    if not orig_matched:
+        logger.debug(f"[Validation Failed] original_lines did not match expected source.\nGot:\n{orig}\nExpected:\n{expected_original}")
+        return False
 
     # 3. Check fixed_lines is non-empty and changed
     fixed_stripped = fixed.strip()
@@ -362,13 +428,13 @@ def validate_fix_output(fix_response: Union[Dict[str, Any], str], expected_origi
         logger.debug("[Validation Failed] fixed_lines is empty.")
         return False
 
-    if _normalize_code(fixed) == _normalize_code(expected_original):
+    if _normalize_code(fixed) == _normalize_code(orig):
         logger.debug("[Validation Failed] fixed_lines is identical to original_lines (no change made).")
         return False
 
-    # 4. Syntactic sanity check: balanced delimiters (braces, brackets, parentheses)
+    # 4. Syntactic sanity check: balanced delimiters (braces, brackets, parentheses) on the replacement
     for open_char, close_char in [("{", "}"), ("[", "]"), ("(", ")")]:
-        expected_balance = expected_original.count(open_char) - expected_original.count(close_char)
+        expected_balance = orig.count(open_char) - orig.count(close_char)
         fixed_balance = fixed.count(open_char) - fixed.count(close_char)
 
         if expected_balance != fixed_balance:
@@ -378,18 +444,23 @@ def validate_fix_output(fix_response: Union[Dict[str, Any], str], expected_origi
             )
             return False
 
-        # If original code was self-contained (balanced), fixed code must also have 0 delta
         if expected_balance == 0 and (fixed.count(open_char) != fixed.count(close_char)):
             return False
 
-    # 5. Tag balance check for JSX/HTML tags
-    orig_tag_open = len(re.findall(r"<\s*[a-zA-Z0-9_\-]+(?![^>]*/>)[^>]*>", expected_original))
-    orig_tag_close = len(re.findall(r"</\s*[a-zA-Z0-9_\-]+\s*>", expected_original))
-    fixed_tag_open = len(re.findall(r"<\s*[a-zA-Z0-9_\-]+(?![^>]*/>)[^>]*>", fixed))
-    fixed_tag_close = len(re.findall(r"</\s*[a-zA-Z0-9_\-]+\s*>", fixed))
+    # 5. Tag balance check for JSX/HTML tags on the replacement
+    void_tags = {"input", "img", "br", "hr", "meta", "link", "area", "base", "col", "embed", "param", "source", "track", "wbr"}
 
-    orig_tag_delta = orig_tag_open - orig_tag_close
-    fixed_tag_delta = fixed_tag_open - fixed_tag_close
+    def _count_tags(s: str):
+        opens = re.findall(r"<\s*([a-zA-Z0-9_\-]+)(?![^>]*/>)[^>]*>", s)
+        closes = re.findall(r"</\s*([a-zA-Z0-9_\-]+)\s*>", s)
+        non_void_opens = [t.lower() for t in opens if t.lower() not in void_tags]
+        return len(non_void_opens), len(closes)
+
+    orig_open, orig_close = _count_tags(orig)
+    fixed_open, fixed_close = _count_tags(fixed)
+
+    orig_tag_delta = orig_open - orig_close
+    fixed_tag_delta = fixed_open - fixed_close
     if orig_tag_delta != fixed_tag_delta:
         logger.debug(f"[Validation Failed] Unbalanced JSX tag count: orig_delta={orig_tag_delta}, fixed_delta={fixed_tag_delta}")
         return False
@@ -444,6 +515,7 @@ async def generate_fix(
         file=diagnosed.file,
         line=diagnosed.line or 1,
         context_lines=15,
+        snippet=getattr(diagnosed, "context_snippet", None),
     )
     expected_original = context["original_lines"]
     l_start = context["line_start"]
@@ -588,9 +660,12 @@ async def generate_fix(
     if confidence not in ("high", "medium", "low"):
         confidence = "high"
 
+    orig_from_model = str(parsed_json.get("original_lines", "")).strip()
+    actual_orig = orig_from_model if (orig_from_model and (orig_from_model in expected_original or _normalize_code(orig_from_model) in _normalize_code(expected_original))) else expected_original
+
     diff_str = _generate_unified_diff(
         file_path=target_file,
-        original=expected_original,
+        original=actual_orig,
         fixed=fixed_lines,
     )
 
@@ -600,7 +675,7 @@ async def generate_fix(
         file=target_file,
         line_start=l_start,
         line_end=l_end,
-        original_lines=expected_original,
+        original_lines=actual_orig,
         fixed_lines=fixed_lines,
         diff=diff_str,
         explanation_of_change=explanation,
