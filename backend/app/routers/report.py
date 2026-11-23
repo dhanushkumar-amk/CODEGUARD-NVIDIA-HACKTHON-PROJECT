@@ -8,6 +8,13 @@ from pydantic import BaseModel
 
 from app.models.schemas import ScanReport
 from app.services.aggregator_service import build_scan_report
+from app.services.llm_client import LLMClientError
+from app.services.report_chat_service import (
+    ReportChatOutputError,
+    ReportChatRequest,
+    ReportChatResponse,
+    answer_report_question,
+)
 from app.state import get_scan
 
 logger = logging.getLogger(__name__)
@@ -51,6 +58,27 @@ async def get_scan_report(scan_id: str) -> ScanReport:
                 )
 
     return report
+
+
+@router.post(
+    "/{scan_id}/chat",
+    response_model=ReportChatResponse,
+    summary="Ask a question about a completed accessibility audit",
+)
+async def chat_with_report(scan_id: str, request: ReportChatRequest) -> ReportChatResponse:
+    scan = get_scan(scan_id)
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan report not found.")
+    if scan.get("status") != "completed":
+        raise HTTPException(status_code=409, detail="Report chat is available after the scan completes.")
+
+    report = scan.get("report") or await get_scan_report(scan_id)
+    try:
+        return await answer_report_question(report, request)
+    except LLMClientError as exc:
+        raise HTTPException(status_code=503, detail="Report chat is temporarily unavailable.") from exc
+    except ReportChatOutputError as exc:
+        raise HTTPException(status_code=502, detail="Report chat could not produce a supported answer. Try again.") from exc
 
 
 @router.get(

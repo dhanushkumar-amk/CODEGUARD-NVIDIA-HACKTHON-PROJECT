@@ -68,3 +68,27 @@ export async function createRemediationPR(
   );
   return response.data;
 }
+
+export interface ReportChatResponse {
+  answer: string;
+  citations: {
+    violation_id: string;
+    file: string;
+    line: number | null;
+    rule: string;
+    description: string;
+    verification_status: string | null;
+  }[];
+}
+
+export async function askReport(
+  scanId: string,
+  question: string,
+  previousQuestions: string[]
+): Promise<ReportChatResponse> {
+  const response = await apiClient.post<ReportChatResponse>(
+    `/api/report/${encodeURIComponent(scanId)}/chat`,
+    { question, previous_questions: previousQuestions }
+  );
+  return response.data;
+}

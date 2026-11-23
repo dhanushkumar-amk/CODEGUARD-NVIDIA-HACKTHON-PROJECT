@@ -1,3 +1,4 @@
+import { ReportChat } from '../components/ReportChat';
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -316,6 +317,8 @@ export const Report: React.FC = () => {
           );
         })()}
       </div>
+
+      {report.status === 'completed' && <ReportChat key={report.scan_id} scanId={report.scan_id} />}
 
       {/* Printable Report Document Container */}
       <div id="report-printable-content" className="flex flex-col gap-8 bg-paper">

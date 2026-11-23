@@ -7,6 +7,7 @@ import { ScanReport } from '../types';
 
 vi.mock('../api/client', () => ({
   getReport: vi.fn(),
+  askReport: vi.fn(),
   createRemediationPR: vi.fn(),
 }));
 
@@ -171,6 +172,41 @@ const mockFullReport: ScanReport = {
 describe('Report Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('answers questions with scan evidence and sends prior questions on follow-up', async () => {
+    vi.mocked(api.getReport).mockResolvedValueOnce(mockFullReport);
+    vi.mocked(api.askReport).mockResolvedValue({
+      answer: 'Low contrast makes header text difficult to read.',
+      citations: [{
+        violation_id: 'viol_01',
+        file: 'src/components/Header.tsx',
+        line: 42,
+        rule: 'color-contrast',
+        description: 'The text has a contrast ratio of 3.1:1.',
+        verification_status: 'fixed_and_verified',
+      }],
+    });
+    render(
+      <MemoryRouter initialEntries={['/report/scan_report_123']}>
+        <Routes>
+          <Route path="/report/:scanId" element={<Report />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    const question = await screen.findByRole('textbox', { name: 'Question about this scan' });
+    const ask = screen.getByRole('button', { name: 'Ask' });
+    fireEvent.change(question, { target: { value: 'Why is the header hard to read?' } });
+    fireEvent.click(ask);
+    expect(await screen.findByText('src/components/Header.tsx:42')).toBeInTheDocument();
+    expect(screen.getByText('Low contrast makes header text difficult to read.')).toBeInTheDocument();
+
+    fireEvent.change(question, { target: { value: 'Was it fixed?' } });
+    fireEvent.click(ask);
+    await waitFor(() => expect(api.askReport).toHaveBeenLastCalledWith(
+      'scan_report_123', 'Was it fixed?', ['Why is the header hard to read?']
+    ));
   });
 
   it('correctly renders score_before, score_after, and improvement delta values', async () => {
