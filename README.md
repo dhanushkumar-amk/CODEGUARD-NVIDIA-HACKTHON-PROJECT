@@ -16,7 +16,7 @@
 ## 🎬 Demo Walkthrough
 
 ![CodeGuard Demo](./docs/demo.gif)
-*Watch CodeGuard autonomously scan a frontend repository, stream real-time violation diagnosis, verify patches inside an isolated Nebius sandbox, and open an automated GitHub Pull Request.*
+*Watch CodeGuard scan a frontend repository, stream real-time violation diagnosis, verify proposed patches with its configured sandbox provider, and open an automated GitHub Pull Request.*
 
 ---
 
@@ -27,7 +27,7 @@
 1. **Intelligent Ingestion & Scanning**: CodeGuard performs a lightweight shallow clone of the target repository, discovers all user interface files (`.tsx`, `.jsx`, `.html`, `.vue`, `.svelte`), and constructs token-efficient abstract syntax batches. Using **NVIDIA Nemotron 3.5 Lightning**, it rapidly audits hundreds of code blocks in parallel against the **WCAG 2.2 AA** specification, flagging unlabeled form elements, missing alternative text, broken focus traps, keyboard accessibility failures, and color contrast defects.
 2. **Authoritative Web Search Grounding via Tavily**: Before diagnosing root causes or generating patches, CodeGuard queries **Tavily AI Search** restricted strictly to authoritative a11y bodies (`w3.org`, `developer.mozilla.org`, `webaim.org`, `dequeuniversity.com`, `a11yproject.com`). It extracts live WCAG 2.2 techniques and verified accessible markup examples, injecting them directly into the Nemotron prompt context to ground generation in official standards rather than hallucinated patterns.
 3. **Contextual Diagnosis & Patch Synthesis**: For critical accessibility violations, CodeGuard routes the problematic code and authoritative guidance to **NVIDIA Nemotron 3 Ultra (550B)**. The model analyzes component hierarchy, state management, and user interaction patterns to synthesize clean, idiomatic code remediations, generating exact unified git diffs rather than generic advice.
-4. **Isolated Sandbox Verification & PR Automation**: Rather than blindly proposing code modifications, CodeGuard spins up an isolated **Nebius AI Cloud Sandbox**. Inside this microVM, it applies the synthesized patch, executes `@axe-core/playwright`, and runs the project's native test suite to verify that the accessibility defect was eliminated without causing functional regressions. Once verified, CodeGuard generates comprehensive HTML/Markdown audit reports with clickable grounding source citations and can automatically create a verified remediation branch and GitHub Pull Request.
+4. **Sandbox Verification & PR Automation**: CodeGuard prepares a verification workspace through its sandbox provider, applies a proposed patch, runs axe-core and the repository test command when available, then records the verification result. Supported providers are Docker, Modal, and a local workspace fallback. The local fallback is intended for development and is not an OS-level security boundary. Reports can be exported as HTML/Markdown, and eligible verified fixes can be submitted as a GitHub pull request.
 
 ---
 
@@ -59,23 +59,28 @@ CodeGuard implements a tiered, cost-optimized LLM orchestration architecture pow
 
 ---
 
-## 🔒 How It Uses Nebius AI Cloud Sandboxes
+## How Sandbox Verification Works
 
-The **isolated verification loop** is CodeGuard's core differentiator:
+The sandbox client provides one interface for workspace creation, file transfer, command execution, timeouts, and cleanup. For a scan, CodeGuard creates a clean baseline workspace and installs dependencies when a supported package manifest is found. Each proposed fix is tested in a fresh verification workspace: the patch is applied, axe-core is run, and the repository test command is executed when available. Sandbox IDs are tracked per scan and cleaned up after the pipeline completes.
 
+```text
+[Prepare repository] -> [Create baseline workspace]
+                               |
+[Report / optional PR] <- [Record axe + test results]
+                               ^
+                [Fresh workspace per fix]
+                   |-- Apply proposed patch
+                   |-- Run axe-core check
+                   `-- Run repository tests
 ```
-[Synthesize Patch] ──► [Spin Up Nebius Sandbox] ──► [Apply Git Patch]
-                                                            │
-[Pass Verification] ◄── [Run Repository Test Suite] ◄── [Run axe-core]
-        │
-[Open GitHub PR / Export Report]
-```
 
-Executing untrusted, newly patched frontend code directly on host infrastructure is dangerous and unreliable. CodeGuard provisions ephemeral **Nebius AI Cloud Sandboxes** (containerized microVM environments) managed via Python asynchronous context managers:
-1. **Isolated Execution**: Clones the remediation target in a sandboxed container, ensuring untrusted repository code never touches host processes.
-2. **Automated axe-core Validation**: Executes headless browser audits inside the sandbox to empirically prove the WCAG violation has been resolved.
-3. **Regression Prevention**: Automatically triggers the repository's native test suite (e.g. `npm test`, `jest`, `vitest`) to verify that the accessibility patch did not break existing application behavior.
-4. **Guaranteed Teardown**: Sandbox destruction is enforced inside `finally` blocks upon test completion or error, preventing idle compute leakage.
+### Sandbox providers
+
+- **Docker** (`SANDBOX_PROVIDER=docker`, default): starts a disposable container when Docker is available. If Docker cannot be reached, the current implementation falls back to the local workspace provider.
+- **Modal** (`SANDBOX_PROVIDER=modal`): provisions a Modal Sandbox using the configured Modal account and the Playwright image defined by the sandbox client.
+- **Local workspace**: stores files in a temporary directory and runs commands as local subprocesses. This is useful for development and tests, but it does not isolate untrusted repository code from the host. Do not use it as a security boundary for arbitrary repositories.
+
+Dependency installation and browser availability depend on the selected provider and target repository. A passing axe scan and test command are useful verification signals; they do not establish complete WCAG conformance or guarantee that a generated patch is correct. Review changes before merging.
 
 ---
 
@@ -110,7 +115,7 @@ CodeGuard relies on the following official model endpoints hosted on Nebius Toke
 
 ## 🏛️ Architecture & High-Level Design (HLD)
 
-For the full architectural specification, state machine flowcharts, sandbox snapshot caching, and resilience matrices, read [**docs/HLD.md**](docs/HLD.md).
+For the full architectural specification, pipeline flowcharts, sandbox provider details, and resilience notes, read [**docs/HLD.md**](docs/HLD.md).
 
 ### 🎨 Hand-Drawn Architectural Blueprint
 
@@ -125,7 +130,7 @@ For the full architectural specification, state machine flowcharts, sandbox snap
 - **Ingestion & AST Engine**: Shallow git clone worker and markup parser extracting component AST chunks.
 - **Tavily Grounding Service**: Domain-restricted retriever querying W3C, MDN, and Deque for official WCAG 2.2 techniques.
 - **Dual-Tier LLM Engine**: Cost-optimized routing pairing **Nemotron 3.5 Lightning** (fast triage) with **Nemotron 3 Ultra 550B** (patch synthesis) protected by strict budget limits.
-- **Nebius ConTree Sandbox microVMs**: Ephemeral containerized verification running `@axe-core/playwright` and test suites with snapshot branching.
+- **Sandbox Provider Adapter**: Docker containers, Modal Sandboxes, or a local workspace fallback for development; runs axe-core and repository tests where configured.
 - **Delivery Layer**: Automated GitHub Pull Request bot and comprehensive compliance report exporter (HTML/JSON/Markdown).
 
 ---
@@ -143,7 +148,7 @@ For the complete interactive user journey, sequence diagrams, and step-by-step b
 ```text
   [1. Input Repo URL] ──► [2. Live Real-Time Audit & SSE Feed] ──► [3. Explore Violations & MDN Grounding]
                                                                                 │
-  [6. Automated GitHub PR] ◄── [5. Nebius MicroVM Sandbox] ◄── [4. Inspect Nemotron Git Diffs]
+  [6. Automated GitHub PR] ◄── [5. Provider Sandbox Verification] ◄── [4. Inspect Nemotron Git Diffs]
 ```
 
 ---
@@ -197,7 +202,8 @@ cp .env.example .env
 Edit `backend/.env` with your API credentials (refer to `backend/.env.example` and `backend/.env.production.example` for reference):
 ```env
 NEBIUS_TOKEN_FACTORY_API_KEY=your_nebius_api_key_here
-NEBIUS_SANDBOX_API_KEY=your_sandbox_api_key_here  # optional, mock fallback active by default
+SANDBOX_PROVIDER=docker  # docker (default), modal, or local fallback when Docker is unavailable
+SANDBOX_DEFAULT_IMAGE=node:20-slim
 GITHUB_TOKEN=your_personal_access_token_here      # required for automated PR creation
 TAVILY_API_KEY=your_tavily_api_key_here          # required for live WCAG web grounding
 ```
@@ -245,7 +251,7 @@ Extracted from [**docs/tech-stack.md**](docs/tech-stack.md):
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Framer Motion, Recharts, Lucide React
 - **AI & Inference**: Nebius Token Factory, NVIDIA Nemotron 3.5 Lightning, NVIDIA Nemotron 3 Ultra (550B)
 - **Web Search Grounding**: Tavily AI Search (`tavily-python`), domain-restricted WCAG retrieval
-- **Verification & Sandboxing**: Nebius AI Cloud Sandboxes, Playwright, `@axe-core/playwright`, Headless Chromium
+- **Verification & Sandboxing**: Docker / Modal / local workspace provider, Playwright, axe-core, Headless Chromium
 - **Real-time Protocol**: Native WebSockets for low-latency pipeline streaming
 
 ---
@@ -298,8 +304,8 @@ We believe in complete engineering honesty. The following real-world limitations
    - While CodeGuard flags heading skips (`<h1>` directly followed by `<h3>`), remediating global heading hierarchy across multiple decoupled components often requires site-wide layout refactoring rather than local single-file patches.
 3. **GitHub Pull Request Creation Requires Repository Write Permissions**:
    - Automated PR creation relies on a GitHub Personal Access Token (`GITHUB_TOKEN`). CodeGuard can only push remediation branches and open PRs on repositories where the token has write/collaborator permissions. Scans on foreign or read-only repos still provide full reports and downloadable diffs.
-4. **Sandbox Dependency Installation Overhead**:
-   - In environments without pre-warmed container snapshots, running `npm install` inside fresh sandboxes introduces latency before test verification commences.
+4. **Sandbox Provider and Isolation Depend on Configuration**:
+   - Docker or Modal should be selected for isolated verification. The local workspace fallback executes subprocesses on the backend host and is intended only for development; it is not suitable for running untrusted repositories as an isolation boundary. Fresh workspaces may also incur dependency-installation and browser setup time.
 
 ---
 
