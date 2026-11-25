@@ -80,17 +80,23 @@ async def ensure_playwright_installed(sandbox_id: str) -> bool:
     pkg_check = await run_command(sandbox_id, check_pkg_cmd, timeout=5)
 
     if pkg_check.exit_code == 0 and "ready" in pkg_check.stdout:
-        # Pre-baked packages found; ensure browser binary
-        install_browser_cmd = "npx playwright install chromium"
-        await run_command(sandbox_id, install_browser_cmd, timeout=15)
-        _playwright_installed_sandboxes.add(sandbox_id)
-        return True
+        # Verify Chromium browser binary is present (or install if missing)
+        browser_check_cmd = (
+            'node -e "const fs=require(\'fs\'),{chromium}=require(\'playwright\'); '
+            'if(!fs.existsSync(chromium.executablePath())) process.exit(1); console.log(\'chromium_ready\');" '
+            '|| npx playwright install chromium'
+        )
+        browser_res = await run_command(sandbox_id, browser_check_cmd, timeout=120)
+        if browser_res.exit_code == 0:
+            _playwright_installed_sandboxes.add(sandbox_id)
+            return True
+        logger.warning("Chromium verification/install failed in sandbox %s: %s", sandbox_id, browser_res.stderr)
+        return False
 
     # For local sandboxes or fresh environments without pre-baked Chromium:
     # Immediately use the fast AST accessibility engine instead of freezing for 5 minutes
-    logger.info(f"Playwright not pre-baked in sandbox {sandbox_id} — using fast AST verification.")
-    _playwright_installed_sandboxes.add(sandbox_id)
-    return True
+    logger.warning("Playwright or axe-core unavailable in sandbox %s", sandbox_id)
+    return False
 
 
 def evaluate_local_sandbox_accessibility(sandbox_id: str) -> Optional[Dict[str, Any]]:
@@ -128,7 +134,7 @@ def evaluate_local_sandbox_accessibility(sandbox_id: str) -> Optional[Dict[str, 
                         "id": v.type,
                         "impact": v.severity.value if hasattr(v.severity, "value") else str(v.severity),
                         "description": v.description,
-                        "nodes": [{"html": v.snippet, "target": [v.file]}],
+                        "nodes": [{"html": v.context_snippet or "", "target": [v.file]}],
                     }
                     for v in file_viols
                 ])
@@ -267,11 +273,7 @@ async def run_axe_check(
         return {"error": str(exc), "score": None}
     finally:
         # 5. Clean up lingering background processes (vite, node, chromium) inside sandbox
-        cleanup_cmd = (
-            "taskkill /f /im node.exe >nul 2>&1 || true"
-            if False
-            else "pkill -f 'node|vite|chromium' >/dev/null 2>&1 || true"
-        )
+        cleanup_cmd = "pkill -f 'node|vite|chromium' >/dev/null 2>&1 || true"
         try:
             await run_command(sandbox_id, cleanup_cmd, timeout=5)
         except Exception:

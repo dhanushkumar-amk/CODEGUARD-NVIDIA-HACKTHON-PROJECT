@@ -15,7 +15,7 @@ export const Team: React.FC = () => {
     {
       name: 'Nemotron Autonomous Agent',
       role: 'Synthetic Remediation Engine',
-      focus: 'NVIDIA Nemotron-4 340B & Llama-70B',
+      focus: 'Nemotron-3-Ultra & Nemotron-3.5-Lightning',
       bio: 'Analyzes AST context, reasons over DOM hierarchy, and generates unified git diffs targeting authoritative W3C WCAG 2.2 AA rules.',
       github: 'https://build.nvidia.com',
       badge: 'Inference Core',

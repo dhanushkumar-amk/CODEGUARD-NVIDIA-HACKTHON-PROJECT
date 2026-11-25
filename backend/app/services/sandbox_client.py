@@ -20,6 +20,7 @@ _docker_sandboxes: Dict[str, str] = {}
 
 # Registry of active local sandboxes: sandbox_id -> Path(directory)
 _local_sandboxes: Dict[str, Path] = {}
+_modal_sandboxes: Dict[str, Any] = {}
 
 _active_sandboxes: int = 0
 _concurrency_lock = asyncio.Lock()
@@ -42,6 +43,8 @@ def validate_sandbox_credentials() -> None:
     No remote HTTP endpoints or paid credentials required.
     """
     provider = getattr(settings, "SANDBOX_PROVIDER", "docker").lower()
+    if provider == "modal":
+        import modal  # noqa: F401
     logger.info(
         f"CodeGuard Sandbox verification engine active: provider='{provider}' (zero remote API dependencies, $0 credit usage)"
     )
@@ -143,7 +146,10 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
 
     # Local concurrency check
     async with _concurrency_lock:
-        current_active = len(_docker_sandboxes) + len(_local_sandboxes)
+        current_active = max(
+            _active_sandboxes,
+            len(_docker_sandboxes) + len(_local_sandboxes) + len(_modal_sandboxes),
+        )
         if current_active >= settings.SANDBOX_MAX_CONCURRENT:
             raise SandboxQuotaExceededError(
                 f"Maximum concurrent sandboxes ({settings.SANDBOX_MAX_CONCURRENT}) reached. "
@@ -152,6 +158,25 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
         _active_sandboxes = current_active + 1
 
     try:
+        if provider == "modal" and target_image != "local":
+            import modal
+
+            app = await modal.App.lookup.aio("codeguard-sandboxes", create_if_missing=True)
+            sandbox = await modal.Sandbox.create.aio(
+                app=app,
+                image=modal.Image.from_registry("mcr.microsoft.com/playwright:v1.56.1-noble").run_commands(
+                    "npm install -g playwright@1.56.1 axe-core@4.10.0"
+                ),
+                env={"NODE_PATH": "/usr/local/lib/node_modules"},
+                workdir="/workspace",
+                timeout=max(60, settings.SANDBOX_TIMEOUT_SECONDS * 4),
+                cpu=0.5,
+                memory=512,
+            )
+            sandbox_id = sandbox.object_id
+            _modal_sandboxes[sandbox_id] = sandbox
+            return SandboxHandle(sandbox_id=sandbox_id, image="mcr.microsoft.com/playwright:v1.56.1-noble")
+
         # Provider 1: Docker Sandbox
         if provider in ("docker", "container") and target_image != "local":
             docker_alive = await is_docker_available()
@@ -167,7 +192,12 @@ async def create_sandbox(image: Optional[str] = None) -> SandboxHandle:
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
                     )
-                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15.0)
+                    try:
+                        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15.0)
+                    except asyncio.TimeoutError:
+                        proc.kill()
+                        await proc.communicate()
+                        raise
                     if proc.returncode == 0:
                         _docker_sandboxes[sb_id] = container_name
                         logger.info(f"Provisioned isolated Docker sandbox container {container_name}")
@@ -222,6 +252,19 @@ async def run_command(
     cmd_timeout = timeout if timeout is not None else settings.SANDBOX_TIMEOUT_SECONDS
     start_t = time.time()
 
+    if sandbox_id in _modal_sandboxes:
+        sandbox = _modal_sandboxes[sandbox_id]
+        try:
+            process = await sandbox.exec.aio(
+                "sh", "-c", "export NODE_PATH=\"$(npm root -g)\"; " + command, timeout=cmd_timeout
+            )
+            stdout, stderr = await asyncio.gather(process.stdout.read.aio(), process.stderr.read.aio())
+            await process.wait.aio()
+            return CommandResult(stdout=stdout, stderr=stderr, exit_code=process.returncode,
+                                 duration_ms=round((time.time() - start_t) * 1000, 2))
+        except Exception as exc:
+            raise SandboxCommandError(f"Modal command failed: {exc}") from exc
+
     # 1. Docker Sandbox Execution
     if sandbox_id in _docker_sandboxes:
         container_name = _docker_sandboxes[sandbox_id]
@@ -251,8 +294,7 @@ async def run_command(
     # 2. Local Process Sandbox Execution (Default / Render / Fallback)
     sb_dir = _local_sandboxes.get(sandbox_id)
     if not sb_dir:
-        # Check if caller passed a fallback directory or unknown ID
-        sb_dir = Path(tempfile.gettempdir())
+        raise SandboxCommandError(f"Sandbox '{sandbox_id}' not found or already destroyed.")
 
     try:
         def _exec_sync() -> subprocess.CompletedProcess:
@@ -311,26 +353,48 @@ async def run_command(
         raise SandboxCommandError(f"Sandbox error running '{command}': {exc}") from exc
 
 
+def _validate_sandbox_rel_path(rel_path: str) -> Path:
+    """Validate that a sandbox file path is relative and cannot escape the workspace."""
+    path = Path(rel_path)
+    if path.is_absolute() or ".." in path.parts:
+        raise SandboxCommandError(f"Invalid sandbox file path: {rel_path}")
+    return path
+
+
 async def upload_files(sandbox_id: str, files: Dict[str, str]) -> None:
     """
     Upload a mapping of file paths to string contents into the sandbox.
     """
+    if sandbox_id in _modal_sandboxes:
+        sandbox = _modal_sandboxes[sandbox_id]
+        for rel_path, content in files.items():
+            path = _validate_sandbox_rel_path(rel_path)
+            await sandbox.filesystem.write_text.aio(content, "/workspace/" + path.as_posix())
+        return
+
     # 1. Docker Sandbox: Stage and docker cp
     if sandbox_id in _docker_sandboxes:
         container_name = _docker_sandboxes[sandbox_id]
         temp_dir = Path(tempfile.mkdtemp(prefix="cg_docker_stage_"))
         try:
+            temp_root = temp_dir.resolve()
             for rel_path, content in files.items():
-                dest_file = temp_dir / rel_path
+                path = _validate_sandbox_rel_path(rel_path)
+                dest_file = (temp_dir / path).resolve()
+                if not dest_file.is_relative_to(temp_root):
+                    raise SandboxCommandError(f"Invalid sandbox file path: {rel_path}")
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
                 dest_file.write_text(content, encoding="utf-8", errors="replace")
 
             proc = await asyncio.create_subprocess_exec(
                 "docker", "cp", f"{temp_dir}/.", f"{container_name}:/workspace/",
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            await proc.communicate()
+            _, stderr_bytes = await proc.communicate()
+            if proc.returncode != 0:
+                err_msg = stderr_bytes.decode("utf-8", errors="replace").strip()
+                raise SandboxCommandError(f"Failed to upload files to Docker sandbox {sandbox_id}: {err_msg}")
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
         return
@@ -338,8 +402,12 @@ async def upload_files(sandbox_id: str, files: Dict[str, str]) -> None:
     # 2. Local Sandbox: Write directly to workspace directory
     sb_dir = _local_sandboxes.get(sandbox_id)
     if sb_dir:
+        sb_root = sb_dir.resolve()
         for rel_path, content in files.items():
-            dest_file = sb_dir / rel_path
+            path = _validate_sandbox_rel_path(rel_path)
+            dest_file = (sb_dir / path).resolve()
+            if not dest_file.is_relative_to(sb_root):
+                raise SandboxCommandError(f"Invalid sandbox file path: {rel_path}")
             dest_file.parent.mkdir(parents=True, exist_ok=True)
             dest_file.write_text(content, encoding="utf-8", errors="replace")
 
@@ -349,6 +417,15 @@ async def destroy_sandbox(sandbox_id: str) -> None:
     Clean up and release the sandbox on Docker or Local Workspace.
     """
     global _active_sandboxes
+
+    if sandbox_id in _modal_sandboxes:
+        sandbox = _modal_sandboxes.pop(sandbox_id)
+        try:
+            await sandbox.terminate.aio()
+        finally:
+            async with _concurrency_lock:
+                _active_sandboxes = len(_docker_sandboxes) + len(_local_sandboxes) + len(_modal_sandboxes)
+        return
 
     # 1. Docker Cleanup
     if sandbox_id in _docker_sandboxes:
@@ -373,7 +450,7 @@ async def destroy_sandbox(sandbox_id: str) -> None:
             logger.info(f"Destroyed local execution sandbox {sandbox_id}")
 
     async with _concurrency_lock:
-        _active_sandboxes = len(_docker_sandboxes) + len(_local_sandboxes)
+        _active_sandboxes = len(_docker_sandboxes) + len(_local_sandboxes) + len(_modal_sandboxes)
 
 
 # -------------------------------------------------------------------------

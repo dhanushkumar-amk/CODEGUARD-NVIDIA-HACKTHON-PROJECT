@@ -210,15 +210,15 @@ export const Report: React.FC = () => {
     totalViolations > 0 ? Math.round((verifiedFixesCount / totalViolations) * 100) : 100;
 
   const durationSec =
-    report.total_duration_seconds || report.summary?.duration_seconds || 14.2;
+    report.total_duration_seconds ?? report.summary?.duration_seconds ?? 0;
 
   const costBreakdown = report.cost_breakdown || report.summary?.cost_breakdown || {
-    fast_cost: 0.0042,
-    ultra_cost: 0.0293,
-    total_cost: 0.0335,
+    fast_cost: 0,
+    ultra_cost: 0,
+    total_cost: 0,
   };
 
-  const totalCost = costBreakdown.total_cost || 0.0335;
+  const totalCost = costBreakdown.total_cost ?? 0;
 
   // Status counts for Pie Chart
   const statusCounts = {
@@ -251,10 +251,15 @@ export const Report: React.FC = () => {
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-muted flex items-center gap-1.5">
               <Sparkles size={12} className="text-primary" />
-              Audit complete &bull; Verified in Nebius sandboxes
+              {report.overall_score_before != null
+                ? 'Audit complete \u2022 Verified in isolated sandbox'
+                : 'Audit complete \u2022 Sandbox verification unavailable'}
             </span>
-            <Badge variant="fixed_and_verified" size="sm">
-              Certified report
+            <Badge
+              variant={verifiedFixesCount > 0 ? 'fixed_and_verified' : 'fixed_not_verified'}
+              size="sm"
+            >
+              {verifiedFixesCount > 0 ? 'Verified report' : 'Proposed report'}
             </Badge>
           </div>
 
@@ -269,7 +274,7 @@ export const Report: React.FC = () => {
 
         {/* Global Action Buttons */}
         {(() => {
-          const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+          const apiBase = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
           return (
             <div className="flex items-center flex-wrap gap-2">
               <Button
@@ -504,10 +509,10 @@ export const Report: React.FC = () => {
           <div className="p-3.5 border border-line bg-paper rounded-[6px] flex flex-col justify-between gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-ink font-semibold flex items-center gap-1.5">
-                <Zap size={13} className="text-primary" /> Nemotron Fast (12B)
+                <Zap size={13} className="text-primary" /> Nemotron Fast (Lightning)
               </span>
               <span className="text-xs font-mono font-medium text-ink">
-                ${(costBreakdown.fast_cost || 0.0042).toFixed(4)}
+                ${(costBreakdown.fast_cost ?? 0).toFixed(4)}
               </span>
             </div>
             <p className="text-xs text-muted leading-relaxed">
@@ -517,7 +522,7 @@ export const Report: React.FC = () => {
               <div
                 className="bg-primary h-full"
                 style={{
-                  width: `${Math.min(100, Math.max(10, ((costBreakdown.fast_cost || 0.0042) / totalCost) * 100))}%`,
+                  width: `${totalCost > 0 ? Math.min(100, Math.max(4, ((costBreakdown.fast_cost ?? 0) / totalCost) * 100)) : 0}%`,
                 }}
               />
             </div>
@@ -527,10 +532,10 @@ export const Report: React.FC = () => {
           <div className="p-3.5 border border-line bg-paper rounded-[6px] flex flex-col justify-between gap-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono uppercase tracking-[0.08em] text-ink font-semibold flex items-center gap-1.5">
-                <Sparkles size={13} className="text-primary" /> Nemotron Ultra (70B)
+                <Sparkles size={13} className="text-primary" /> Nemotron Ultra
               </span>
               <span className="text-xs font-mono font-medium text-ink">
-                ${(costBreakdown.ultra_cost || 0.0293).toFixed(4)}
+                ${(costBreakdown.ultra_cost ?? 0).toFixed(4)}
               </span>
             </div>
             <p className="text-xs text-muted leading-relaxed">
@@ -540,7 +545,7 @@ export const Report: React.FC = () => {
               <div
                 className="bg-primary h-full"
                 style={{
-                  width: `${Math.min(100, Math.max(10, ((costBreakdown.ultra_cost || 0.0293) / totalCost) * 100))}%`,
+                  width: `${totalCost > 0 ? Math.min(100, Math.max(4, ((costBreakdown.ultra_cost ?? 0) / totalCost) * 100)) : 0}%`,
                 }}
               />
             </div>

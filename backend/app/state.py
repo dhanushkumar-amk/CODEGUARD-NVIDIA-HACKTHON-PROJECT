@@ -120,7 +120,7 @@ def generate_mock_scan_data(scan_id: str, repo_url: str, branch: str = "main") -
         ),
         ProposedFix(
             fix_id="fix_02",
-            violation_id="viol_02",
+            violation_id="viol_04",
             diff="""@@ -18,1 +18,1 @@
 -<img src={user.avatarUrl} className="rounded-full" />
 +<img src={user.avatarUrl} alt={`${user.name}'s profile avatar`} className="rounded-full" />""",
@@ -130,7 +130,7 @@ def generate_mock_scan_data(scan_id: str, repo_url: str, branch: str = "main") -
         ),
         ProposedFix(
             fix_id="fix_03",
-            violation_id="viol_03",
+            violation_id="viol_02",
             diff="""@@ -64,2 +64,3 @@
 +<label htmlFor="email" className="block text-sm font-medium text-slate-200">Email Address</label>
  <input id="email" type="email" placeholder="name@domain.com" />""",
@@ -140,7 +140,7 @@ def generate_mock_scan_data(scan_id: str, repo_url: str, branch: str = "main") -
         ),
         ProposedFix(
             fix_id="fix_04",
-            violation_id="viol_04",
+            violation_id="viol_03",
             diff="""@@ -31,1 +31,1 @@
 -<button onClick={toggleMenu}><MenuIcon /></button>
 +<button onClick={toggleMenu} aria-label="Toggle navigation menu"><MenuIcon /></button>""",

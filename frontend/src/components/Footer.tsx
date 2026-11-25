@@ -24,9 +24,9 @@ export const Footer: React.FC = () => {
         {/* Live operational badge */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-line bg-surface-1 text-[11px] font-mono">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-ink font-medium uppercase tracking-[0.08em]">All Systems Operational</span>
+          <span className="text-ink font-medium uppercase tracking-[0.08em]">Pipeline Ready</span>
           <span className="text-muted hidden sm:inline">&bull;</span>
-          <span className="text-muted hidden sm:inline">Nebius AI Studio: Healthy</span>
+          <span className="text-muted hidden sm:inline">Nebius Token Factory + Sandbox</span>
         </div>
       </div>
 
@@ -38,7 +38,7 @@ export const Footer: React.FC = () => {
             AUTONOMOUS ACCESSIBILITY
           </span>
           <p className="text-xs text-muted leading-relaxed max-w-sm mb-4">
-            CodeGuard transforms digital accessibility from tedious manual audits into deterministic, verified code patches powered by NVIDIA Nemotron-4 on Nebius Token Factory.
+            CodeGuard transforms digital accessibility from manual audits into verified code patches powered by NVIDIA Nemotron on Nebius Token Factory.
           </p>
           <div className="flex items-center gap-3 text-muted text-xs font-mono">
             <a
@@ -174,11 +174,11 @@ export const Footer: React.FC = () => {
 
         {/* Real-world telemetry pill */}
         <div className="flex items-center gap-3 text-[10px] uppercase tracking-wider text-muted">
-          <span>Inference: Nemotron-70B</span>
+          <span>Inference: Nemotron-3-Ultra</span>
           <span>&bull;</span>
           <span>Provider: Nebius Token Factory</span>
           <span>&bull;</span>
-          <span>Sandbox: Chromium Headless</span>
+          <span>Sandbox: Playwright + Axe-Core</span>
         </div>
       </div>
     </footer>

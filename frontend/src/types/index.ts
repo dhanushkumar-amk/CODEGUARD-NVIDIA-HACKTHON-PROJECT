@@ -93,9 +93,9 @@ export interface ProposedFix {
 export interface VerificationResult {
   fix_id: string;
   violation_id?: string | null;
-  axe_score_before: number;
-  axe_score_after: number;
-  violation_still_present?: boolean;
+  axe_score_before?: number | null;
+  axe_score_after?: number | null;
+  violation_still_present?: boolean | null;
   tests_passed?: boolean | null;
   test_status?: 'passed' | 'failed' | 'timeout' | 'no_tests_found' | 'error' | string | null;
   violations_resolved?: boolean;

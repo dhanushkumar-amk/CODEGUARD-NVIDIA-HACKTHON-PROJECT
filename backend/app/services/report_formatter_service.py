@@ -202,7 +202,8 @@ def format_report_as_markdown(report: ScanReport, executive_summary: str) -> str
             loc = f"`{v.file}:{v.line or 1}`"
             cat_name = v.category.value if hasattr(v.category, "value") else str(v.category)
             status_label = st_key.replace("_", " ").title()
-            short_desc = (v.description[:75] + "...") if len(v.description) > 75 else v.description
+            raw_desc = (v.description[:75] + "...") if len(v.description) > 75 else v.description
+            short_desc = raw_desc.replace("|", "\\|").replace("\r\n", " ").replace("\n", " ")
             lines.append(f"| {idx} | **{status_label}** | {v.severity.upper()} | {cat_name} | {loc} | {short_desc} |")
             idx += 1
 

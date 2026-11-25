@@ -13,6 +13,7 @@ from app.models.schemas import PipelineStage, ProposedFix
 from app.services.sandbox_client import (
     CommandResult,
     run_command,
+    destroy_sandbox,
     upload_files,
     SandboxError,
     _local_sandboxes,
@@ -79,21 +80,30 @@ async def read_file_from_sandbox(sandbox_id: str, file_path: str) -> str:
     Raises:
         SandboxError: If reading the file fails.
     """
+    clean_rel = file_path.replace("\\", "/").lstrip("/")
+    rel_path_obj = Path(clean_rel)
+    if rel_path_obj.is_absolute() or ".." in rel_path_obj.parts:
+        raise SandboxError(f"Invalid sandbox file path: '{file_path}'")
+
     if sandbox_id in _local_sandboxes:
         sb_dir = _local_sandboxes[sandbox_id]
-        clean_rel = file_path.replace("\\", "/").lstrip("/")
-        target_f = Path(sb_dir) / clean_rel
+        sb_root = Path(sb_dir).resolve()
+        target_f = (sb_root / rel_path_obj).resolve()
+        if not target_f.is_relative_to(sb_root):
+            raise SandboxError(f"Path traversal blocked for '{file_path}'")
         if target_f.is_file():
             return target_f.read_text(encoding="utf-8", errors="replace")
 
-    clean_path = file_path.replace("\\", "/")
+    clean_path = rel_path_obj.as_posix()
+    if any(ch in clean_path for ch in ('"', "'", ";", "&", "|", "$", "`", "\n", "\r")):
+        raise SandboxError(f"Invalid characters in sandbox file path: '{file_path}'")
     # Standard Linux cat command
     cmd = f'cat "{clean_path}"'
     res: CommandResult = await run_command(sandbox_id, cmd)
 
     # If running in local Windows test sandbox environment and cat is not recognized
     if res.exit_code != 0 and ("'cat' is not recognized" in res.stderr or "not found" in res.stderr.lower()):
-        win_path = file_path.replace("/", "\\")
+        win_path = clean_path.replace("/", "\\")
         res = await run_command(sandbox_id, f'type "{win_path}"')
 
     if res.exit_code != 0:
@@ -374,6 +384,9 @@ async def apply_and_prepare_fix(
             "error": None,
         }
     except FixApplicationError as exc:
+        sandbox_id = get_scan(scan_id).get("sandbox_map", {}).get(fix.fix_id) if get_scan(scan_id) else None
+        if sandbox_id:
+            await destroy_sandbox(sandbox_id)
         err_msg = f"Patch location mismatch or invalid target: {exc}"
         logger.warning(f"Fix {fix.fix_id} application error: {err_msg}")
         fix.status = "failed"
@@ -385,6 +398,9 @@ async def apply_and_prepare_fix(
             "error": err_msg,
         }
     except Exception as exc:
+        sandbox_id = get_scan(scan_id).get("sandbox_map", {}).get(fix.fix_id) if get_scan(scan_id) else None
+        if sandbox_id:
+            await destroy_sandbox(sandbox_id)
         err_msg = f"Unexpected error applying fix in sandbox: {exc}"
         logger.error(f"Fix {fix.fix_id} unexpected failure: {err_msg}", exc_info=True)
         fix.status = "failed"

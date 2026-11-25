@@ -132,6 +132,25 @@ def get_fix_context(
     target_line = min(target_line, total_lines)
     target_idx = target_line - 1  # 0-indexed
 
+    # Rule-based detectors sometimes return a clipped snippet from a minified
+    # HTML line. Replacing the entire line makes model output exceed its budget.
+    if clean_snip and len(lines[target_idx]) > 300:
+        anchor = clean_snip[: min(24, len(clean_snip))]
+        pos = lines[target_idx].find(anchor)
+        if pos >= 0:
+            tag_start = lines[target_idx].rfind("<", 0, pos + 1)
+            tag_end = lines[target_idx].find(">", pos)
+            if tag_start >= 0 and tag_end > tag_start:
+                original_tag = lines[target_idx][tag_start : tag_end + 1]
+                if re.match(r"<\s*[A-Za-z]", original_tag):
+                    return {
+                        "file": file,
+                        "line_start": target_line,
+                        "line_end": target_line,
+                        "original_lines": original_tag,
+                        "context": f"// Target tag at {file}:{target_line}\n{original_tag}\n// Full line: {lines[target_idx][:1500]}",
+                    }
+
     # Check if target line has clean_snip with whitespace tolerance
     if clean_snip:
         norm_snip = _normalize_code(clean_snip)
@@ -411,11 +430,12 @@ def validate_fix_output(fix_response: Union[Dict[str, Any], str], expected_origi
     if not isinstance(orig, str) or not isinstance(fixed, str):
         return False
 
-    # 2. Check original_lines match
+    # 2. Check original_lines match (reject trivial tiny substrings)
     orig_matched = False
+    min_sub_len = max(8, len(expected_original.strip()) // 2)
     if orig == expected_original or _normalize_code(orig) == _normalize_code(expected_original):
         orig_matched = True
-    elif orig.strip() and (orig.strip() in expected_original or _normalize_code(orig) in _normalize_code(expected_original)):
+    elif len(orig.strip()) >= min_sub_len and (orig.strip() in expected_original or _normalize_code(orig) in _normalize_code(expected_original)):
         orig_matched = True
 
     if not orig_matched:
@@ -451,8 +471,10 @@ def validate_fix_output(fix_response: Union[Dict[str, Any], str], expected_origi
     void_tags = {"input", "img", "br", "hr", "meta", "link", "area", "base", "col", "embed", "param", "source", "track", "wbr"}
 
     def _count_tags(s: str):
-        opens = re.findall(r"<\s*([a-zA-Z0-9_\-]+)(?![^>]*/>)[^>]*>", s)
-        closes = re.findall(r"</\s*([a-zA-Z0-9_\-]+)\s*>", s)
+        # Strip JSX attribute expressions { ... } so arrow functions (=>) don't break '>' matching
+        sanitized = re.sub(r"\{[^{}]*\}", "{}", s)
+        opens = re.findall(r"<\s*([a-zA-Z0-9_\-]+)(?![^>]*/>)[^>]*>", sanitized)
+        closes = re.findall(r"</\s*([a-zA-Z0-9_\-]+)\s*>", sanitized)
         non_void_opens = [t.lower() for t in opens if t.lower() not in void_tags]
         return len(non_void_opens), len(closes)
 

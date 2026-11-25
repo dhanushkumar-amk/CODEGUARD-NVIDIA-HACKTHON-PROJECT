@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     FIX_MIN_SEVERITY: str = "medium"
 
     # Sandbox Infrastructure Configuration (Docker / Local Container Isolation)
-    SANDBOX_PROVIDER: str = "docker"  # Options: 'docker' (with auto fallback to isolated local workspace)
+    SANDBOX_PROVIDER: str = "docker"  # Options: 'docker' or 'modal'
     SANDBOX_DEFAULT_IMAGE: str = "node:20-slim"
     NEBIUS_SANDBOX_DEFAULT_IMAGE: str = "node:20-slim"  # Backward compatibility alias
     NEBIUS_SANDBOX_API_KEY: str = ""  # Deprecated - no external sandbox credentials needed
@@ -57,6 +57,18 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "https://codeguard.dhanushkumar.in",
     ]
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def normalise_debug(cls, value: object) -> object:
+        """Treat deployment-style environment labels as debug disabled.
+
+        Some hosting environments export ``DEBUG=release`` (or ``production``),
+        while Pydantic's boolean parser accepts only boolean values.
+        """
+        if isinstance(value, str) and value.strip().lower() in {"release", "production"}:
+            return False
+        return value
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

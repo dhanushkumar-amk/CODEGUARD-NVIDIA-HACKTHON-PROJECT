@@ -36,6 +36,7 @@ from app.services.sandbox_client import (
 from app.services.sandbox_orchestrator import (
     get_base_sandbox,
     get_or_create_base_sandbox,
+    install_dependencies,
     prepare_verification_sandbox,
 )
 from app.state import get_scan, update_scan
@@ -93,12 +94,12 @@ async def get_baseline_score(scan_id: str, repo_path: str) -> Optional[float]:
 
         axe_res = await run_axe_check(sandbox_id=base_sandbox_id, timeout=60, scan_id=scan_id)
         raw_score = axe_res.get("score")
-        if raw_score is not None:
-            baseline_score = float(raw_score)
-        else:
-            violations = scan.get("violations", []) if scan else []
-            total_sev = sum(getattr(v, "severity_score", 5.0) for v in violations)
-            baseline_score = round(max(35.0, 100.0 - min(65.0, total_sev / 2.0)), 1)
+        if raw_score is None:
+            logger.warning("Baseline axe run unavailable for scan %s: %s", scan_id, axe_res.get("error"))
+            if scan:
+                scan["sandbox_available"] = False
+            return None
+        baseline_score = float(raw_score)
 
         if scan:
             scan["overall_score_before"] = baseline_score
@@ -108,18 +109,11 @@ async def get_baseline_score(scan_id: str, repo_path: str) -> Optional[float]:
         logger.info(f"Scan {scan_id} baseline score: {baseline_score}%")
         return baseline_score
     except Exception as exc:
-        logger.warning(
-            f"Unable to run full sandbox axe-check for {scan_id}: {exc}. "
-            "Using calibrated baseline accessibility calculation."
-        )
-        violations = scan.get("violations", []) if scan else []
-        total_sev = sum(getattr(v, "severity_score", 5.0) for v in violations)
-        baseline_score = round(max(35.0, 100.0 - min(65.0, total_sev / 2.0)), 1)
+        logger.warning("Unable to run baseline axe check for %s: %s", scan_id, exc)
         if scan:
-            scan["overall_score_before"] = baseline_score
-            scan["sandbox_available"] = True
+            scan["sandbox_available"] = False
             scan["baseline_axe_violations"] = []
-        return baseline_score
+        return None
 
 
 def _match_violation_in_axe(
@@ -166,12 +160,15 @@ def _match_violation_in_axe(
             for node in nodes:
                 html = (node.get("html") or "").lower()
                 target = str(node.get("target") or "").lower()
-                # Check snippet overlap
+                # Check snippet overlap against both original and fixed code
                 if fix.original_lines and fix.original_lines.lower().strip() in html:
+                    return True
+                if fix.fixed_lines and fix.fixed_lines.lower().strip() in html:
                     return True
                 if violation and violation.selector and violation.selector.lower() in target:
                     return True
-            return True
+                if file_name and file_name.lower() in target:
+                    return True
 
     return False
 
@@ -248,6 +245,20 @@ async def verify_single_fix(
     try:
         # 2. Run axe-core verification in sandbox
         axe_res = await run_axe_check(sandbox_id=sandbox_id, timeout=60, scan_id=scan_id)
+        if axe_res.get("score") is None:
+            return VerificationResult(
+                fix_id=fix.fix_id,
+                violation_id=fix.violation_id,
+                axe_score_before=baseline,
+                axe_score_after=None,
+                violation_still_present=None,
+                tests_passed=None,
+                test_status=None,
+                verified=False,
+                reason=f"axe_check_failed: {axe_res.get('error', 'unknown error')}",
+                violations_resolved=False,
+                sandbox_id=sandbox_id,
+            )
         after_score = float(axe_res.get("score") if axe_res.get("score") is not None else baseline)
 
         # 3. Cross-reference violation presence
@@ -273,12 +284,6 @@ async def verify_single_fix(
             tests_passed = False
         else:
             tests_passed = None
-
-        # If defect is resolved but after_score remained at baseline, compute incremental gain
-        if (not still_present) and after_score <= baseline:
-            total_viols = max(1, len(scan.get("violations", []))) if scan else 10
-            improvement_increment = (100.0 - baseline) / total_viols
-            after_score = round(min(100.0, baseline + improvement_increment), 1)
 
         # 5. Determine verification verdict
         score_improved = after_score > baseline
@@ -523,6 +528,13 @@ async def calculate_overall_improvement(scan_id: str) -> Dict[str, Any]:
                 fix_id="combined_all_verified",
             )
 
+            # Ensure dependencies are available in the combined sandbox
+            await install_dependencies(
+                sandbox_id=combined_sandbox_id,
+                repo_path=repo_path,
+                scan_id=scan_id,
+            )
+
             # Apply all verified fixes in order
             for fix in verified_fixes:
                 try:
@@ -545,12 +557,6 @@ async def calculate_overall_improvement(scan_id: str) -> Dict[str, Any]:
                     await destroy_sandbox(combined_sandbox_id)
                 except Exception:
                     pass
-
-    # Ensure final score reflects verified fixes even if combined sandbox check had missing browser
-    if verified_fixes and final_score <= baseline_score:
-        total_all = max(1, len(all_fixes))
-        ratio = len(verified_fixes) / total_all
-        final_score = round(min(98.5, baseline_score + (100.0 - baseline_score) * ratio), 1)
 
     improvement_points = round(final_score - baseline_score, 2)
     fixes_verified_count = len(verified_fixes)

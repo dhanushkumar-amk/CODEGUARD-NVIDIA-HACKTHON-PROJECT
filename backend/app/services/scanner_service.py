@@ -124,9 +124,20 @@ def extract_relevant_markup(
             depth = 1
             pos = start_index
             length = len(file_content)
+            in_quote: Optional[str] = None
+            escaped = False
             while pos < length and depth > 0:
                 ch = file_content[pos]
-                if ch == "(":
+                if escaped:
+                    escaped = False
+                elif ch == "\\" and in_quote:
+                    escaped = True
+                elif in_quote:
+                    if ch == in_quote:
+                        in_quote = None
+                elif ch in ('"', "'", "`"):
+                    in_quote = ch
+                elif ch == "(":
                     depth += 1
                 elif ch == ")":
                     depth -= 1
@@ -315,6 +326,7 @@ def prepare_scan_batch(repo_path: str, file_list: List[str]) -> List[Dict[str, A
 
             chunks = chunk_large_file(block_content, max_tokens=2000)
             running_line = block_start_line
+            search_offset = 0
             for chunk in chunks:
                 if not chunk.strip():
                     continue
@@ -322,9 +334,10 @@ def prepare_scan_batch(repo_path: str, file_list: List[str]) -> List[Dict[str, A
                 first_line = chunk.strip().splitlines()[0].strip()
                 chunk_start_line = running_line
                 if first_line:
-                    pos = content.find(first_line)
+                    pos = content.find(first_line, search_offset)
                     if pos != -1:
                         chunk_start_line = content[:pos].count("\n") + 1
+                        search_offset = pos + len(first_line)
                     else:
                         sub_pos = block_content.find(first_line)
                         if sub_pos != -1:

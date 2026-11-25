@@ -23,6 +23,7 @@ from app.state import create_scan, get_scan, update_scan, remove_scan
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Scanning"])
+_background_tasks: set = set()
 
 
 @router.post(
@@ -40,19 +41,19 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
     scan_id = create_scan(repo_url=request.repo_url, branch=branch)
 
     try:
-        # 1. Perform shallow clone (depth=1)
-        repo_path = clone_repo(repo_url=request.repo_url, scan_id=scan_id, branch=branch)
+        # 1. Perform shallow clone (depth=1) without blocking the event loop
+        repo_path = await asyncio.to_thread(clone_repo, repo_url=request.repo_url, scan_id=scan_id, branch=branch)
 
         # 2. Discover scannable frontend files
-        scannable_files = find_frontend_files(repo_path)
+        scannable_files = await asyncio.to_thread(find_frontend_files, repo_path)
 
         # 3. Detect framework and metadata
-        metadata = get_repo_metadata(repo_path)
+        metadata = await asyncio.to_thread(get_repo_metadata, repo_path)
 
         # 4. Prepare scan batches (read, extract markup, chunk large files)
-        scan_batch = prepare_scan_batch(repo_path, scannable_files)
+        scan_batch = await asyncio.to_thread(prepare_scan_batch, repo_path, scannable_files)
 
-        # 5. Save metadata and scan batches to in-memory state store
+        # 5. Save metadata and scan batches to in-memory state store (clearing mock placeholders)
         import time
         start_time_val = time.time()
         update_scan(
@@ -64,6 +65,14 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
             metadata=metadata,
             scan_batch=scan_batch,
             batch_count=len(scan_batch),
+            violations=[],
+            diagnosed_violations=[],
+            fixes=[],
+            verification_results=[],
+            report=None,
+            overall_score_before=None,
+            overall_score_after=None,
+            progress=10,
             status="prepared",
             is_active_real_scan=True,
             start_timestamp=start_time_val,
@@ -146,18 +155,22 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 # Generate executive summary via Nemotron Fast (with fallback)
                 exec_summary = await generate_executive_summary(final_report)
                 final_report.executive_summary = exec_summary
-                update_scan(scan_id=scan_id, report=final_report, executive_summary=exec_summary)
+                stats = final_report.summary or {}
+                verified_count = stats.get("fixed_and_verified", 0)
+                unverified_count = stats.get("fixed_not_verified", 0)
+                total_violations = stats.get("total_violations", len(final_report.violations))
+                update_scan(
+                    scan_id=scan_id,
+                    report=final_report,
+                    executive_summary=exec_summary,
+                    verified_count=verified_count,
+                )
 
                 # Persist formatted reports to disk
                 try:
                     save_report_files(final_report, scan_id, executive_summary=exec_summary)
                 except Exception as save_err:
                     logger.warning(f"Could not persist report files: {save_err}")
-
-                stats = final_report.summary or {}
-                verified_count = stats.get("fixed_and_verified", 0)
-                unverified_count = stats.get("fixed_not_verified", 0)
-                total_violations = stats.get("total_violations", len(final_report.violations))
 
                 if verified_count > 0:
                     completion_msg = f"Scan complete — {verified_count} of {total_violations} violations fixed and verified"
@@ -167,7 +180,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                     completion_msg = f"Scan complete — {total_violations} violations analyzed"
                 await broadcast_progress(
                     scan_id=scan_id,
-                    stage="complete",
+                    stage="completed",
                     progress=100,
                     message=completion_msg,
                     data={
@@ -180,7 +193,7 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                 )
             except Exception as bg_err:
                 logger.error(f"Error during background violation pipeline for {scan_id}: {bg_err}", exc_info=True)
-                await cleanup_scan_sandboxes(scan_id)
+                update_scan(scan_id=scan_id, status="error", progress=0)
                 try:
                     from app.routers.websocket import broadcast_progress
                     await broadcast_progress(
@@ -191,8 +204,12 @@ async def start_scan(request: ScanRequest) -> ScanStartResponse:
                     )
                 except Exception:
                     pass
+            finally:
+                await cleanup_scan_sandboxes(scan_id)
 
-        asyncio.create_task(run_detection_pipeline())
+        task = asyncio.create_task(run_detection_pipeline())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
         return ScanStartResponse(
             scan_id=scan_id,

@@ -39,30 +39,30 @@ export const Home: React.FC = () => {
   const platformFeatures = [
     {
       icon: <Search size={18} strokeWidth={1.75} />,
-      tag: 'STATIC AST ENGINE',
+      tag: 'HYBRID AST + LLM',
       title: 'Automated WCAG Detection',
       description:
-        'Parses React, Next.js, Vue, and Svelte AST trees using axe-core heuristics to pinpoint contrast ratios, unlabeled inputs, and keyboard navigation traps.',
-      badge: 'WCAG 2.2 AA Certified',
-      metric: '0 False Alarms',
+        'Parses HTML, JSX/TSX, Vue, and Svelte components with static WCAG rules and Nemotron Fast to pinpoint missing labels, contrast issues, and keyboard traps.',
+      badge: 'WCAG 2.2 AA Rules',
+      metric: 'Rule + AI Scan',
     },
     {
       icon: <Cpu size={18} strokeWidth={1.75} />,
       tag: 'NVIDIA NEMOTRON',
       title: 'Autonomous Code Remediation',
       description:
-        'Synthesizes clean, minimal unified diffs addressing root causes while strictly respecting existing design tokens, Tailwind configurations, and component styles.',
-      badge: 'Nemotron Ultra 70B',
-      metric: 'Non-Breaking Diffs',
+        'Synthesizes minimal, syntax-validated unified diffs grounded in W3C WCAG documentation while preserving your existing component structure and styles.',
+      badge: 'Nemotron-3-Ultra',
+      metric: 'Minimal Diffs',
     },
     {
       icon: <ShieldCheck size={18} strokeWidth={1.75} />,
-      tag: 'NEBIUS SANDBOXES',
+      tag: 'ISOLATED SANDBOXES',
       title: 'Deterministic Sandbox Proof',
       description:
-        'Spins up ephemeral headless Chromium browser sandboxes to run end-to-end tests and empirically prove zero accessibility regressions before opening a PR.',
-      badge: 'Chromium Sandbox',
-      metric: '100% Proven Proof',
+        'Spins up isolated verification sandboxes to run axe-core accessibility audits and existing project test suites before opening a pull request.',
+      badge: 'Playwright + Axe',
+      metric: '0-Regression Gate',
     },
   ];
 

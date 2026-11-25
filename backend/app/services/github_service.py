@@ -104,27 +104,7 @@ def get_verified_fixes_for_scan(scan_id: str) -> List[Tuple[ProposedFix, Optiona
         viol_map = {v.id: v for v in scan.get("violations", [])}
         for fx in fixes:
             vr = verifs.get(fx.fix_id)
-            if vr and (getattr(vr, "verified", False) or getattr(vr, "violations_resolved", False)):
-                verified_fixes.append((fx, viol_map.get(fx.violation_id)))
-
-    # 3. Fallback: proposed fixes with code patches if sandbox verification was skipped/pending
-    if not verified_fixes and report and getattr(report, "unified_records", None):
-        for rec in report.unified_records:
-            fx = getattr(rec, "fix", None) or (
-                rec.get("fix") if isinstance(rec, dict) else None
-            )
-            vl = getattr(rec, "violation", None) or (
-                rec.get("violation") if isinstance(rec, dict) else None
-            )
-            if fx and (fx.fixed_lines or fx.remediated_code or fx.diff):
-                verified_fixes.append((fx, vl))
-
-    # 4. Fallback: scan['fixes'] directly with patch code
-    if not verified_fixes:
-        fixes = scan.get("fixes", [])
-        viol_map = {v.id: v for v in scan.get("violations", [])}
-        for fx in fixes:
-            if fx and (fx.fixed_lines or fx.remediated_code or fx.diff):
+            if vr and getattr(vr, "verified", False):
                 verified_fixes.append((fx, viol_map.get(fx.violation_id)))
 
     return verified_fixes
@@ -277,42 +257,9 @@ def commit_verified_fixes(
             logger.info(f"Committed {applied_count} fix(es) to '{content_file.path}' on '{branch_name}'")
 
     if files_changed == 0:
-        # Commit a dedicated remediation patch and report file so PR creation succeeds cleanly
-        clean_id = scan_id.replace("scan_", "")[:8]
-        proof_path = f"docs/codeguard-remediations-{clean_id}.md"
-        proof_content = f"# CodeGuard Accessibility Remediation Audit\n\nScan ID: `{scan_id}`\n\n## Verified Fixes\n"
-        for fix, viol in verified_items:
-            f_path = fix.file or (viol.file if viol else "unknown")
-            desc = (viol.description if viol else None) or fix.explanation_of_change or "Remediation"
-            proof_content += f"\n### File: `{f_path}`\n- **Description**: {desc}\n"
-            if fix.diff:
-                proof_content += f"```diff\n{fix.diff}\n```\n"
-
-        existing_sha = None
-        try:
-            cf = repo.get_contents(proof_path, ref=branch_name)
-            if not isinstance(cf, list):
-                existing_sha = cf.sha
-        except GithubException:
-            pass
-
-        if existing_sha:
-            repo.update_file(
-                path=proof_path,
-                message=f"fix(a11y): CodeGuard verified accessibility remediation patch ({scan_id})",
-                content=proof_content,
-                sha=existing_sha,
-                branch=branch_name,
-            )
-        else:
-            repo.create_file(
-                path=proof_path,
-                message=f"fix(a11y): CodeGuard verified accessibility remediation patch ({scan_id})",
-                content=proof_content,
-                branch=branch_name,
-            )
-        files_changed = 1
-        logger.info(f"Committed remediation report to '{proof_path}' on branch '{branch_name}'")
+        raise ValueError(
+            f"None of the {len(verified_items)} verified fix(es) could be matched and applied to files on branch '{branch_name}'."
+        )
 
     return files_changed
 
@@ -433,9 +380,6 @@ def create_remediation_pr(repo_url: str, scan_id: str) -> Dict[str, Any]:
         # Parse owner and repo
         try:
             repo_owner, repo_name = parse_github_repo(repo_url)
-            if (repo_owner.lower() == "example" and repo_name.lower() in ("demo-app", "demo")) or "example/demo-app" in repo_url.lower():
-                repo_owner = "dhanushkumar-amk"
-                repo_name = "CODEGUARD---NVIDIA-HACKTHON-PROJECT"
         except Exception as pe:
             return {"status": "failed", "error": str(pe)}
 

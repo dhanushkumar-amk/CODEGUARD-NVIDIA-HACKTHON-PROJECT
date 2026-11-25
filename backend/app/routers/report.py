@@ -1,6 +1,7 @@
 """
 Report Router: Endpoints to retrieve full accessibility audit and verification reports.
 """
+import asyncio
 import logging
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, status
@@ -39,7 +40,7 @@ async def get_scan_report(scan_id: str) -> ScanReport:
 
     # Return cached report if available, otherwise dynamically build it
     report = scan.get("report")
-    if not report or not getattr(report, "unified_records", None):
+    if not report or getattr(report, "summary", None) is None:
         try:
             report = build_scan_report(scan_id)
         except Exception as exc:
@@ -147,5 +148,5 @@ async def create_pr_endpoint(scan_id: str, payload: Optional[CreatePRRequest] = 
 
     from app.services.github_service import create_remediation_pr
 
-    result = create_remediation_pr(repo_url=repo_url, scan_id=scan_id)
+    result = await asyncio.to_thread(create_remediation_pr, repo_url=repo_url, scan_id=scan_id)
     return result

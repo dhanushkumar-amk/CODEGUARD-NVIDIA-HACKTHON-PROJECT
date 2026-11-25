@@ -12,7 +12,7 @@ export interface RepoUrlInputProps {
   defaultBranch?: string;
 }
 
-export const DEFAULT_DEMO_REPO = 'https://github.com/dhanushkumar-amk/CODEGUARD---NVIDIA-HACKTHON-PROJECT';
+export const DEFAULT_DEMO_REPO = 'https://github.com/dhanushkumar-amk/Clinic-Application';
 
 export function validateGitUrl(url: string): string | null {
   const trimmed = url.trim();

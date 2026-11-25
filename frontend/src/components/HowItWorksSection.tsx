@@ -6,17 +6,17 @@ export const HowItWorksSection: React.FC = () => {
     {
       title: 'Detect',
       icon: <Search size={20} className="text-muted shrink-0" strokeWidth={1.5} />,
-      desc: 'AST parser and axe-core inspect UI components to extract scannable markup chunks and locate WCAG violations. Nemotron Nano filters benign false alarms and isolates root causes in milliseconds.',
+      desc: 'Static markup extractors and WCAG rule checks inspect UI components to locate accessibility violations. Nemotron Fast catches additional semantic and contrast defects.',
     },
     {
       title: 'Fix',
       icon: <Wrench size={20} className="text-muted shrink-0" strokeWidth={1.5} />,
-      desc: 'Nemotron Ultra synthesizes exact, minimal unified diffs preserving your design tokens and codebase conventions. Patches directly address WCAG criteria without touching unrelated business logic.',
+      desc: 'Nemotron Ultra synthesizes exact, minimal unified diffs grounded in official WCAG guidance while preserving your codebase conventions and unrelated logic.',
     },
     {
       title: 'Verify',
       icon: <ShieldCheck size={20} className="text-muted shrink-0" strokeWidth={1.5} />,
-      desc: 'Ephemeral Nebius sandboxes run browser heuristics to objectively confirm accessibility compliance before merging. Every remediation is proven with zero regressions before you trust it.',
+      desc: 'Isolated verification sandboxes run axe-core audits and your existing test suite to objectively confirm each fix resolves the issue with zero regressions.',
     },
   ];
 

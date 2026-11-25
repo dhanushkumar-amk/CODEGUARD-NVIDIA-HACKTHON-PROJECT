@@ -131,9 +131,9 @@ class VerificationResult(BaseModel):
     """Outcome of sandbox verification using axe-core and project test suite."""
     fix_id: str = Field(description="Identifier of the tested fix")
     violation_id: Optional[str] = Field(default=None, description="Identifier of the tested violation")
-    axe_score_before: float = Field(description="Axe score before fix (0-100)")
-    axe_score_after: float = Field(description="Axe score after fix (0-100)")
-    violation_still_present: bool = Field(default=False, description="Whether targeted defect still appears in axe-core audit")
+    axe_score_before: Optional[float] = Field(default=None, description="Axe score before fix (0-100)")
+    axe_score_after: Optional[float] = Field(default=None, description="Axe score after fix (0-100)")
+    violation_still_present: Optional[bool] = Field(default=False, description="Whether targeted defect still appears in axe-core audit")
     tests_passed: Optional[bool] = Field(default=None, description="Whether project test suite passed (None if no test suite configured)")
     test_status: Optional[str] = Field(default=None, description="Status string: 'passed', 'failed', 'timeout', 'no_tests_found', 'error'")
     verified: bool = Field(description="Whether fix is verified clean with improved accessibility score and no test regressions")
