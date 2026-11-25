@@ -63,6 +63,8 @@ CodeGuard implements a tiered, cost-optimized LLM orchestration architecture pow
 
 The sandbox client provides one interface for workspace creation, file transfer, command execution, timeouts, and cleanup. For a scan, CodeGuard creates a clean baseline workspace and installs dependencies when a supported package manifest is found. Each proposed fix is tested in a fresh verification workspace: the patch is applied, axe-core is run, and the repository test command is executed when available. Sandbox IDs are tracked per scan and cleaned up after the pipeline completes.
 
+![CodeGuard Sandbox Verification Architecture](./docs/codeguard_sandbox_architecture.png)
+
 ```text
 [Prepare repository] -> [Create baseline workspace]
                                |
